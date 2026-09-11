@@ -79,5 +79,5 @@ src/
 - [x] **A2** 从后端 HTTP 拿真实列表（已由 A0 / A1 完成）
 - [x] **A4** 视图切换（分栏列表 / 简洁卡片，偏好存 localStorage）—— **P0 核心目标之一**
 - [ ] A3 搜索框（前置：定义搜索 JSON + 给 devapi 加 `POST /api/search`）
-- [ ] A5 hover 详情面板（P0 核心）
+- [ ] A5 hover 详情面板（P0 核心）—— 属性数据**已就绪**（`headerStats` / `bodyStats`，见 `.docs/08-属性翻译.md`）
 - [ ] A6 转移物品

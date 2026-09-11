@@ -133,10 +133,77 @@ const qClasses = db.prepare(
 const qQualities = db.prepare(
   `SELECT DISTINCT textvalue AS v FROM DatabaseItemStat_v2 WHERE stat='itemClassification' ORDER BY textvalue`);
 
+// ── 属性翻译（简单层）────────────────────────────────────────────────────
+// 详见 .docs/08-属性翻译.md。
+//
+// 核心发现：**大部分属性的 stat 名就是中文模板的 key**（同名直取）——
+// C# 的 StatManager.cs:596 正是这么做的。所以简单层只需"有同名模板就显示"，
+// 不必复刻那边 1005 行、28 个 Process* 方法。
+//
+// 实测（66 件真实物品、3450 条 stat）：该策略筛出的 70 种 stat
+// 全部是真属性，**没有一条元数据混入**（mesh/sound/physics 等都没有同名模板）。
+
+/** header 属性白名单——复刻 C# 的 MapSimpleHeaderEntries（核心属性，显示在顶部） */
+const HEADER_STATS = new Set([
+  'offensivePierceRatioMin',
+  'defensiveProtection',
+  'skillChanceWeight',
+  'skillProjectileNumber',
+  'skillCooldownTime',
+  'skillManaCost',
+  'skillTargetRadius',
+  'skillActiveDuration',
+]);
+
+const qItemIdByRecord = db.prepare(`SELECT id_databaseitem FROM DatabaseItem_v2 WHERE baserecord = ?`);
+const qRawStats = db.prepare(`SELECT Stat, TextValue, val1 FROM DatabaseItemStat_v2 WHERE id_databaseitem = ?`);
+
+/** 对齐 C# 的 Math.Round(v, 1, MidpointRounding.AwayFromZero) */
+function round1(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  const sign = n < 0 ? -1 : 1;
+  return (Math.round(Math.abs(n) * 10) / 10) * sign;
+}
+
+/**
+ * 把一件物品的原始 stat 行翻成前端的 `IStat[]`。
+ * 返回 `{ headerStats, bodyStats }`——划分依据是 C# 的 header 白名单。
+ */
+function translateItemStats(baseRecord) {
+  const headerStats = [];
+  const bodyStats = [];
+
+  const item = qItemIdByRecord.get(baseRecord);
+  if (!item) return { headerStats, bodyStats };
+
+  for (const s of qRawStats.all(item.id_databaseitem)) {
+    const text = iaTranslations[s.Stat];
+    // 没有同名模板 → 不是"要显示的属性"，而是引擎内部字段（mesh、sound、物理参数…）
+    if (!text) continue;
+
+    const stat = {
+      text,
+      param0: String(round1(s.val1)),
+      param1: '',
+      param2: '',
+      // C# 的 MapSimpleBodyEntries 把 TextValue 放进 Param3（供 {3} 占位符使用）。
+      // 它可能是 `class08` 这类 tag，也可能是已译好的技能名——能翻就翻。
+      param3: iaTranslations[s.TextValue] ?? s.TextValue ?? '',
+      param4: '',
+      param5: '',
+      param6: '',
+    };
+    (HEADER_STATS.has(s.Stat) ? headerStats : bodyStats).push(stat);
+  }
+
+  return { headerStats, bodyStats };
+}
+
 // ── 映射：数据库行 → 前端的 IItem ───────────────────────────────────────
 // 逐字段对齐 C# 的 IAGrim/Utilities/ItemHtmlWriter.cs，
 // 以及 IAGrim/UI/Controller/dto/JsonItem.cs 与前端 src/interfaces/IItem.tsx
-function toJsonItem(r) {
+function toJsonItem(r, headerStats = [], bodyStats = []) {
   return {
     // C#: $"PI/{pi.Id}/{pi.CloudId}"
     uniqueIdentifier: `PI/${r.Id}/${r.CloudId ?? ''}`,
@@ -155,9 +222,9 @@ function toJsonItem(r) {
     type: ITEM_TYPE.Player,
     hasRecipe: false,
     greenRarity: r.PrefixRarity ?? 0,
-    // 属性需要 StatTranslator 的翻译逻辑（见 README），第一版留空
-    headerStats: [],
-    bodyStats: [],
+    // 属性：由 translateItemStats 的"简单层"翻出（见 .docs/08-属性翻译.md）
+    headerStats,
+    bodyStats,
     petStats: [],
     skill: null,
     hasCloudBackup: !!r.CloudHasSync,
@@ -216,7 +283,14 @@ const routes = {
   '/api/items': (url) => {
     const { limit, offset } = page(url);
     const total = qItemCount.get().n;
-    const items = qItems.all(limit, offset).map(toJsonItem);
+    // `stats=0` 可关闭属性翻译（物品很多时用来提速）
+    const withStats = url.searchParams.get('stats') !== '0';
+    const items = qItems.all(limit, offset).map((r) => {
+      const { headerStats, bodyStats } = withStats
+        ? translateItemStats(r.BaseRecord)
+        : { headerStats: [], bodyStats: [] };
+      return toJsonItem(r, headerStats, bodyStats);
+    });
     return { total, offset, limit, items };
   },
 
