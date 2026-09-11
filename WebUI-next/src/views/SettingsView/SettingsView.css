@@ -8,19 +8,23 @@
 .settings-layout {
   display: grid;
   /*
-   * 第一栏**给上限**（`minmax(0, 520px)`）：设置项都是短标签＋开关，
-   * 拉到 1000px 宽会很难读，眼睛要在标签和开关之间横跨半个屏幕。
+   * 第一栏给上限而不是让它铺满：设置项都是短标签＋开关，
+   * 拉到极宽会很难读，眼睛要在标签和开关之间横跨半个屏幕。
    * 第二栏也收窄成固定区间，不让它跟着窗口无限变宽。
+   *
+   * ⚠️ 上限原来是 520px，实际用起来偏挤（使用者 2026-09-12 反馈），
+   *    改成 780px（+50%）。
    */
-  grid-template-columns: minmax(0, 520px) minmax(200px, 240px);
+  grid-template-columns: minmax(0, 780px) minmax(200px, 240px);
   gap: 28px;
   align-items: start;
-  /* 整体同样别铺满超宽屏 */
-  max-width: 820px;
+  /* 780 + 28 + 240 = 1048，正好容下两栏 */
+  max-width: 1048px;
 }
 
-/* 窄屏改为上下排列 */
-@media (max-width: 800px) {
+/* 窄屏改为上下排列。断点跟着第一栏变宽一起提到 1000px：
+   两栏要 1048px 才舒展，与其让它们挤着，不如直接单列。 */
+@media (max-width: 1000px) {
   .settings-layout {
     grid-template-columns: minmax(0, 1fr);
     max-width: none;
@@ -151,9 +155,9 @@
 /*
  * Stash Configuration：两组并排。
  *
- * ★ 断点刻意与上面的 `.settings-layout` **保持一致**（800px）：
- *   宽度够的时候两组左右排列，只有窄到"动作栏被挤到设置栏下方"时，
- *   才跟着分成上下。
+ * ★ 断点（800px）**不再**与 `.settings-layout` 的一致（那个提到了 1000px）：
+ *   这里该跟的是**第一栏自己的宽度**，而不是窗口宽度——第一栏超过 1000px 时
+ *   会变成整窗宽，此时仍有余量让两组并排。
  *
  * 之前这里用 `flex-wrap: wrap` + `flex: 1 1 260px`，结果是**永远堆成上下**——
  * 因为左栏本身有 520px 上限，260×2 加间距已经放不下，跟窗口多宽无关。

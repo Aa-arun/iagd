@@ -256,17 +256,17 @@ export default function App() {
             </button>
             <button
               type="button"
-              className={tab === 'database' ? 'is-active' : ''}
-              onClick={() => setTab('database')}
-            >
-              数据库
-            </button>
-            <button
-              type="button"
               className={tab === 'settings' ? 'is-active' : ''}
               onClick={() => setTab('settings')}
             >
               设置
+            </button>
+            <button
+              type="button"
+              className={tab === 'database' ? 'is-active' : ''}
+              onClick={() => setTab('database')}
+            >
+              数据库
             </button>
           </nav>
 
