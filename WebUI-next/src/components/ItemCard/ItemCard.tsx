@@ -3,6 +3,7 @@ import { IItemType } from '../../model/enums';
 import { formatNumber } from '../../model/format';
 import { iconUrl } from '../../api';
 import { qualityClass } from './quality';
+import { parseRow } from '../ItemDetail/ReplicaStatList';
 import './ItemCard.css';
 
 /**
@@ -15,7 +16,7 @@ export default function ItemCard({ item }: { item: IItem }) {
   const icon = iconUrl(item.icon);
 
   return (
-    <article className="item-card">
+    <article className="item-card" data-item-card>
       <div className="item-card__icon">
         {icon ? (
           <img src={icon} alt="" width={64} height={64} loading="lazy" />
@@ -25,7 +26,9 @@ export default function ItemCard({ item }: { item: IItem }) {
       </div>
 
       <div className="item-card__body">
-        <h2 className={`item-card__name ${qualityClass(item.quality)}`}>{item.name}</h2>
+        <h2 className={`item-card__name ${qualityClass(item.quality)}`}>
+          {parseRow(item.name)}
+        </h2>
 
         <dl className="item-card__meta">
           <div>

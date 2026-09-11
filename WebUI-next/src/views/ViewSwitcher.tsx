@@ -23,7 +23,7 @@ export default function ViewSwitcher({ items }: { items: IItem[] }) {
     localStorage.setItem(STORAGE_KEY, viewId);
   }, [viewId]);
 
-  const { onItemHover, onItemActivate, pinnedId } = useItemDetail();
+  const { onItemHover, onItemActivate, pinnedId, displayMode, setDisplayMode } = useItemDetail();
 
   const view = findView(viewId);
   const View = view.component;
@@ -45,6 +45,24 @@ export default function ViewSwitcher({ items }: { items: IItem[] }) {
               {v.label}
             </option>
           ))}
+        </select>
+
+        {/*
+          详情面板的显示方式（使用者 2026-09-12 要求增加第二种）。
+          放在视图选择旁边而不是设置页：它是"看装备时随时想换"的偏好。
+        */}
+        <label className="view-switcher__label" htmlFor="detail-mode-select">
+          详情
+        </label>
+        <select
+          id="detail-mode-select"
+          className="view-switcher__select view-switcher__select--narrow"
+          value={displayMode}
+          onChange={(e) => setDisplayMode(e.target.value as 'hover' | 'docked')}
+          title="浮动跟随鼠标，或固定在右侧一个框里"
+        >
+          <option value="hover">浮动</option>
+          <option value="docked">右侧固定框</option>
         </select>
       </div>
 

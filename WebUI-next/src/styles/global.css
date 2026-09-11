@@ -25,6 +25,16 @@
   --q-common: #9a9384; /* 普通 · 灰白 */
   --q-broken: #81551a;
 
+  /* ── 焦点强调（hover / 选中的装备）
+   *
+   * 使用者要求 hover 与选中都要有**明显不同**的背景或边框，用来一眼看出
+   * "鼠标在哪件上"和"当前固定的是哪件"。两者用同一色系、不同强度，
+   * 免得看花眼。
+   */
+  --focus-accent: #d8b06a;
+  --focus-hover-bg: rgba(216, 176, 106, 0.08);
+  --focus-pinned-bg: rgba(216, 176, 106, 0.18);
+
   /* ── 游戏 tooltip 的颜色（见 components/ItemDetail/ReplicaStatList.css）
    *
    * 代码 → 类型 的对应来自汉化包 tags_ui.txt 的颜色表；**RGB 值没有公开来源**

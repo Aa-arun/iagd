@@ -23,3 +23,9 @@
   outline: 2px solid var(--q-blue);
   outline-offset: 1px;
 }
+
+/* 第二个选择框（详情显示方式）比视图选择窄一些 */
+.view-switcher__select--narrow {
+  min-width: 96px;
+  flex: 0 0 auto;
+}
