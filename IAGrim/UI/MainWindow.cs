@@ -38,18 +38,19 @@ namespace IAGrim.UI {
         /// <summary>Users with fewer items than this are still getting set up, and don't need the numeric filter introduction.</summary>
         private const int NumericFilterBannerMinItems = 450;
 
-        private readonly CefBrowserHandler _cefBrowserHandler;
-        private readonly ISettingsReadController _settingsController;
         private readonly ServiceProvider _serviceProvider;
-        private readonly TooltipHelper _tooltipHelper = new TooltipHelper();
         private readonly UsageStatisticsReporter _usageStatisticsReporter = new UsageStatisticsReporter();
         private readonly AutomaticUpdateChecker _automaticUpdateChecker;
         private CharacterBackupService? _charBackupService;
 
         private readonly List<IMessageProcessor> _messageProcessors = new List<IMessageProcessor>();
 
-        private SplitSearchWindow? _searchWindow;
-        private DarkMode? _darkMode;
+        /// <summary>
+        /// 解耦 A3：`IBrowserCallbacks`（旧 Preact 前端的推送接口）。
+        /// `BackupService` / `ItemReplicaParser` 需要它，原来由 `_cefBrowserHandler` 兼任，
+        /// 于是这两个后台服务被绑在 WebView2 上。
+        /// </summary>
+        private readonly WebUiBrowserCallbacks _browserCallbacks = new WebUiBrowserCallbacks();
 
         private CsvFileMonitor? _csvFileMonitor = new CsvFileMonitor();
         private CsvFileMonitor? _replicaCsvFileMonitor = new CsvFileMonitor();
@@ -140,7 +141,7 @@ namespace IAGrim.UI {
                             _consecutiveInjectionErrors++;
                             if (!_hasShownStashErrorPage && _consecutiveInjectionErrors >= InjectionErrorsBeforeHelpPage) {
                                 Logger.Error($"Injection has failed {_consecutiveInjectionErrors} times in a row, showing the stash error page.");
-                                _cefBrowserHandler.ShowHelp(HelpService.HelpType.StashError);
+                                _helpService.ShowHelp(HelpService.HelpType.StashError);
                                 _hasShownStashErrorPage = true;
                             }
 
@@ -150,7 +151,6 @@ namespace IAGrim.UI {
 
                     case InjectionHelper.GD_SEASON: {
                             if (!_hasShownSeasonErrorPage) {
-                                _cefBrowserHandler.SetGdSeasonMode();
                                 _hasShownSeasonErrorPage = true;
                             }
 
@@ -159,7 +159,7 @@ namespace IAGrim.UI {
 
                     case InjectionHelper.PATH_ERROR: {
                             if (!_hasShownPathErrorPage) {
-                                _cefBrowserHandler.ShowHelp(HelpService.HelpType.PathError);
+                                _helpService.ShowHelp(HelpService.HelpType.PathError);
                                 _hasShownPathErrorPage = true;
                             }
 
@@ -169,7 +169,7 @@ namespace IAGrim.UI {
                     case InjectionHelper.INJECTION_ERROR_32BIT: {
                         statusLabel.Text = e.UserState as string;
                         if (!_hasShown32bitErrorPage) {
-                            _cefBrowserHandler.ShowHelp(HelpService.HelpType.No32Bit);
+                            _helpService.ShowHelp(HelpService.HelpType.No32Bit);
                             _hasShown32bitErrorPage = true;
                         }
 
@@ -186,7 +186,7 @@ namespace IAGrim.UI {
                     // Injection error
                     case InjectionHelper.INJECTION_ERROR_POSSIBLE_ACCESS_DENIED: {
                         if (!_hasShownStashErrorPage) {
-                            _cefBrowserHandler.ShowHelp(HelpService.HelpType.StashError);
+                            _helpService.ShowHelp(HelpService.HelpType.StashError);
                             _hasShownStashErrorPage = true;
                         }
 
@@ -211,135 +211,18 @@ namespace IAGrim.UI {
         ) {
             this._serviceProvider = serviceProvider;
             var settingsService = _serviceProvider.Get<SettingsService>();
-            _cefBrowserHandler = new CefBrowserHandler(settingsService);
             InitializeComponent();
             FormClosing += MainWindow_FormClosing;
 
             _minimizeToTrayHandler = new MinimizeToTrayHandler(this, notifyIcon1, serviceProvider.Get<SettingsService>());
 
             _automaticUpdateChecker = new AutomaticUpdateChecker(settingsService);
-            _settingsController = new SettingsController(settingsService);
             _parsingService = parsingService;
             // 用闭包延迟取 `_webServer`：HTTP 服务要到 MainWindow_Load 末尾才创建。
             _webUiFeedbackHandler = new WebUiFeedbackHandler(() => _webServer, settingsService);
             _userFeedbackService = new UserFeedbackService(_webUiFeedbackHandler);
         }
 
-        private void Browser_NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e) {
-            var browser = (sender as Microsoft.Web.WebView2.WinForms.WebView2);
-            if (browser == null) {
-                browser = (sender as CefBrowserHandler)?.BrowserControl;
-            }
-
-            if (!e.IsSuccess) {
-                Logger.Error("WebView2 navigation failed, possible error rendering the WebView2 control.");
-                Logger.Error("Try manually installing the Microsoft Edge WebView2 Runtime");
-                Logger.Error($"Error code: {e.WebErrorStatus}");
-
-
-                MessageBox.Show($"A a fatal error occurred while attempting to navigate in the Microsoft Edge WebView2 Runtime\nError: {e.WebErrorStatus}", "Error - WebView2", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            } else {
-                Logger.Info("WebView2 navigation succeeded");
-            }
-
-            // Some users reports the webview is missing. This may or may not help..
-            if (browser != null) {
-                browser.Hide();
-                browser.Show();
-                browser.BringToFront();
-            }
-        }
-
-        private void Browser_CoreWebView2InitializationCompleted(object? sender, Microsoft.Web.WebView2.Core.CoreWebView2InitializationCompletedEventArgs args)
-        {
-            var browser = (sender as Microsoft.Web.WebView2.WinForms.WebView2);
-            if (browser == null) {
-                browser = (sender as CefBrowserHandler)?.BrowserControl;
-            }
-            if (args != null && browser != null) {
-                if (InvokeRequired) {
-                    Invoke((System.Windows.Forms.MethodInvoker)delegate { Browser_CoreWebView2InitializationCompleted(sender, args); });
-                }
-                else {
-
-                    if (!args.IsSuccess) {
-                        Logger.Error("WebView2 initialization failed");
-                        Logger.Error("Try manually installing the Microsoft Edge WebView2 Runtime");
-                        if (args.InitializationException != null) {
-                            Logger.Fatal($"Exception: {args.InitializationException.Message}", args.InitializationException);
-                            MessageBox.Show($"A fatal error occurred while attempting to initialize the Microsoft Edge WebView2 Runtime\nError: {args.InitializationException.Message}\nTry manually installing the Microsoft WebView2 Runtime", "Error - WebView2", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        } else {
-                            Logger.Fatal("No exception provided, cause unknown");
-                            MessageBox.Show($"A fatal error occurred while attempting to initialize the Microsoft Edge WebView2 Runtime\n(Exception details unavailable)\nTry manually installing the Microsoft WebView2 Runtime", "Error - WebView2", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        }
-
-                        // CoreWebView2 is null at this point, there's nothing more to initialize.
-                        return;
-                    }
-
-                    Logger.Info("WebView2 initialization successful");
-
-                    // Anything below this point is our own initialization, not WebView2's.
-                    // WebView2 raises this event from within its own try/catch, so letting an exception escape here
-                    // makes the control re-raise the event as an "initialization failure" carrying our exception,
-                    // which then gets reported to the user as a broken WebView2 runtime.
-                    try {
-                        browser.CoreWebView2.SetVirtualHostNameToFolderMapping(
-                            "app",
-                            GlobalPaths.StorageFolder,
-                            CoreWebView2HostResourceAccessKind.Allow
-                        );
-
-
-
-                        var searchController = _serviceProvider.Get<SearchController>();
-                        _cefBrowserHandler.InitializeChromium(browser, searchController.JsIntegration, tabControl1);
-                        _cefBrowserHandler.IsReady = true;
-
-                        // ⚠️ HTTP 服务**不在这里**启动。原来是的，但那样它的生命周期
-                        // 就挂在 WebView2 上了——见 MainWindow.StartWebServer() 的注释
-                        // 与 .docs/10-界面解耦.md 的 P1。
-
-                        _searchWindow?.UpdateListViewDelayed();
-
-                        var isGdParsed = _serviceProvider.Get<IDatabaseItemDao>().GetRowCount() > 0;
-                        var settingsService = _serviceProvider.Get<SettingsService>();
-                        _cefBrowserHandler.SetDarkMode(settingsService.GetPersistent().DarkMode);
-                        _cefBrowserHandler.SetHideItemSkills(settingsService.GetPersistent().HideSkills);
-                        _cefBrowserHandler.SetIsGrimParsed(isGdParsed);
-
-
-                        _cefBrowserHandler.SetOnlineBackupsEnabled(!settingsService.GetLocal().OptOutOfBackups);
-
-                        var numItems = _serviceProvider.Get<IPlayerItemDao>().GetNumItems();
-                        _cefBrowserHandler.SetIsFirstRun(numItems == 0);
-                        if (numItems == 0) {
-                        } else if (DateTime.Now.Month == 4 && DateTime.Now.Day == 1) {
-                            if (settingsService.GetLocal().EasterPrank) {
-                                _cefBrowserHandler.SetEasterEggMode();
-                                settingsService.GetLocal().EasterPrank = false;
-                            }
-                        }
-                        else {
-                            settingsService.GetLocal().EasterPrank = true;
-                        }
-
-                        // Introduce the numeric stat filter to established users who haven't found it yet.
-                        var persistent = settingsService.GetPersistent();
-                        if (numItems >= NumericFilterBannerMinItems && !persistent.NumericFilterUsed && !persistent.NumericFilterBannerDismissed) {
-                            _cefBrowserHandler.SetShowNumericFilterBanner(true);
-                        }
-                    } catch (Exception ex) {
-                        Logger.Fatal($"Error initializing the user interface: {ex.Message}", ex);
-                        MessageBox.Show($"An error occurred while initializing Item Assistant\nError: {ex.Message}\n\nSee the log file for details.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Update the UI's language
-        /// </summary>
         public void UpdateLanguage() {
             LocalizationLoader.ApplyLanguage(Controls, RuntimeSettings.Language!);
             Refresh();
@@ -385,8 +268,6 @@ namespace IAGrim.UI {
             _backupBackgroundTask?.Dispose();
             _usageStatisticsReporter.Dispose();
             _automaticUpdateChecker.Dispose();
-
-            _tooltipHelper?.Dispose();
 
             _buddyItemsService?.Dispose();
             _buddyItemsService = null;
@@ -440,17 +321,11 @@ namespace IAGrim.UI {
                 case MessageType.TYPE_GameInfo_IsHardcore:
                 case MessageType.TYPE_GameInfo_IsHardcore_via_init:
                     Logger.Info($"TYPE_GameInfo_IsHardcore({bt.Data[0] > 0}, {type})");
-                    if (_settingsController.AutoUpdateModSettings) {
-                        _searchWindow?.ModSelectionHandler.UpdateModSelection(bt.Data[0] > 0);
-                    }
 
                     break;
 
                 case MessageType.TYPE_GameInfo_SetModName:
                     Logger.InfoFormat("TYPE_GameInfo_SetModName({0})", IOHelper.GetPrefixString(bt.Data, 0));
-                    if (_settingsController.AutoUpdateModSettings) {
-                        _searchWindow?.ModSelectionHandler.UpdateModSelection(IOHelper.GetPrefixString(bt.Data, 0));
-                    }
 
                     break;
             }
@@ -499,16 +374,6 @@ namespace IAGrim.UI {
             catch (Exception ex) {
                 Logger.Warn("Error showing the window on request from a second instance", ex);
             }
-        }
-
-        protected override bool ProcessCmdKey(ref Message msg, Keys keyData) {
-            if (keyData == Keys.Escape) {
-                _searchWindow?.ClearFilters();
-                return true; // indicate that you handled this keystroke
-            }
-
-            // Call the base class
-            return base.ProcessCmdKey(ref msg, keyData);
         }
 
         private void SetFeedback(string feedback) {
@@ -568,30 +433,10 @@ namespace IAGrim.UI {
         }
 
         /// <summary>
-        /// We've looted some items, so make sure the listview is up to date!
-        /// Otherwise people freak out.
-        ///
-        /// The first ~1700 users did not notice at all, but past that seems its the end of days if items don't appear immediately.
+        /// 游戏数据库重新解析完成（由 `ModsDatabaseConfig` 解析后回调）。
+        /// 界面部分随旧界面删除，这里只做与界面无关的收尾 + 通知浏览器。
         /// </summary>
-        private void ListviewUpdateTrigger() {
-            _searchWindow?.UpdateListViewDelayed();
-
-            // 线 B（B2）：浏览器里的界面不归 WinForms 管，得单独告诉它一声。
-            // 这就是"在游戏里捡到东西，网页上几秒内自己出现"的那条链路。
-            _webServer?.BroadcastItemsChanged();
-        }
-
         private void DatabaseLoadedTrigger() {
-            _searchWindow?.UpdateInterface();
-
-            // UpdateInterface() rebuilds the search filter panel from scratch, so the new controls
-            // come up with their (light) designer colors. Re-theme them, or the left hand filter
-            // menu loses dark mode after parsing Grim Dawn. No-op when dark mode is off.
-            if (_searchWindow != null) {
-                _darkMode?.Reapply(_searchWindow);
-            }
-
-            _searchWindow?.UpdateListViewDelayed();
             _itemReplicaService?.Reset();
 
             // 线 B（B2）：重新解析游戏数据后，整库都变了。
@@ -622,8 +467,6 @@ namespace IAGrim.UI {
             var searchController = _serviceProvider.Get<SearchController>();
             searchController.JsIntegration.OnRequestSetItemAssociations += (s, evvv) => { (evvv as GetSetItemAssociationsEventArgs).Elements = databaseItemDao.GetItemSetAssociations(); };
 
-            searchController.Browser = _cefBrowserHandler;
-            searchController.JsIntegration.OnClipboard += SetItemsClipboard;
             searchController.JsIntegration.OnDismissNumericFilterBanner += (_, _) => settingsService.GetPersistent().NumericFilterBannerDismissed = true;
 
             var playerItemDao = _serviceProvider.Get<IPlayerItemDao>();
@@ -665,15 +508,6 @@ namespace IAGrim.UI {
 
 
             _authService = new AuthService(new AuthenticationProvider(settingsService), playerItemDao);
-            var onlineSettings = new OnlineSettings(playerItemDao, settingsService, _cefBrowserHandler, buddyItemDao, buddySubscriptionDao);
-            UIHelper.AddAndShow(onlineSettings, onlinePanel);
-            _authService.OnAuthCompletion += (sender, args_) => {
-                if (((args_ as AuthResultEvent)!).IsAuthorized) {
-                    onlineSettings.UpdateUi();
-                }
-                else {
-                }
-            };
 
 
             _modsDatabaseConfigTab = new ModsDatabaseConfig(
@@ -682,7 +516,7 @@ namespace IAGrim.UI {
                 _parsingService,
                 grimDawnDetector,
                 settingsService,
-                _cefBrowserHandler,
+                _helpService,
                 databaseItemDao,
                 replicaItemDao,
                 computedItemStatDao,
@@ -697,7 +531,7 @@ namespace IAGrim.UI {
             UIHelper.AddAndShow(_modsDatabaseConfigTab, modsPanel);
 
             var itemTagDao = _serviceProvider.Get<IItemTagDao>();
-            var backupService = new BackupService(_authService, playerItemDao, settingsService, _cefBrowserHandler);
+            var backupService = new BackupService(_authService, playerItemDao, settingsService, _browserCallbacks);
             _charBackupService = new CharacterBackupService(settingsService, _authService);
             _backupServiceWorker = new BackupServiceWorker(backupService, _charBackupService);
 
@@ -718,37 +552,6 @@ namespace IAGrim.UI {
             };
 
             searchController.OnSearch += (o, args) => backupService.OnSearch();
-
-            _searchWindow = new SplitSearchWindow(_cefBrowserHandler.BrowserControl!, SetFeedback, playerItemDao, searchController, itemTagDao, settingsService);
-            UIHelper.AddAndShow(_searchWindow, searchPanel);
-
-
-            var browser = _searchWindow.Browser;
-            browser.CoreWebView2InitializationCompleted += Browser_CoreWebView2InitializationCompleted;
-            browser.NavigationCompleted += Browser_NavigationCompleted;
-
-            searchPanel.Height = searchPanel.Parent!.Height;
-            searchPanel.Width = searchPanel.Parent!.Width;
-
-            var languagePackPicker = new LanguagePackPicker(itemTagDao, playerItemDao, _parsingService, settingsService);
-
-
-            var dm = new DarkMode(this);
-            _darkMode = dm;
-            UIHelper.AddAndShow(
-                new SettingsWindow(
-                    _cefBrowserHandler,
-                    _tooltipHelper,
-                    ListviewUpdateTrigger,
-                    playerItemDao,
-                    _searchWindow.ModSelectionHandler.GetAvailableModSelection(),
-                    languagePackPicker,
-                    settingsService,
-                    grimDawnDetector,
-                    dm,
-                    _automaticUpdateChecker
-                ),
-                settingsPanel);
 
             
             _itemReplicaService = _serviceProvider.Get<ItemReplicaRequesterService>();
@@ -772,10 +575,7 @@ namespace IAGrim.UI {
             // everything docked inside them) stuck at a fraction of the window size. Re-fit them once the
             // real size is known; it is a no-op when they were already correct.
             Shown += (_, __) => {
-                UIHelper.FitToParent(searchPanel);
-                UIHelper.FitToParent(onlinePanel);
                 UIHelper.FitToParent(modsPanel);
-                UIHelper.FitToParent(settingsPanel);
             };
             _buddyItemsService = new BuddyItemsService(
                 buddyItemDao,
@@ -825,13 +625,6 @@ namespace IAGrim.UI {
             }
 
 
-            if (settingsService.GetPersistent().DarkMode) {
-                dm.Activate(); // Needs a lot more work before its ready, for example custom components uses Draw and does not respect coloring.
-                _cefBrowserHandler.SetDarkMode(settingsService.GetPersistent().DarkMode);
-            }
-
-            settingsService.GetLocal().OnMutate += delegate(object? o, EventArgs args) { _cefBrowserHandler.SetOnlineBackupsEnabled(!settingsService.GetLocal().OptOutOfBackups); };
-
 
             _csvParsingService = new CsvParsingService(playerItemDao, _userFeedbackService, cacher, transferStashService, replicaItemDao);
             _csvFileMonitor!.OnModified += (_, arg) => {
@@ -839,7 +632,7 @@ namespace IAGrim.UI {
                 _csvParsingService.Queue(csvEvent.Filename, csvEvent.Cooldown);
             };
 
-            _itemReplicaParser = new ItemReplicaParser(replicaItemDao, playerItemDao, _cefBrowserHandler);
+            _itemReplicaParser = new ItemReplicaParser(replicaItemDao, playerItemDao, _browserCallbacks);
             _replicaCsvFileMonitor!.OnModified += (_, arg) => {
                 _itemReplicaParser.Enqueue(arg);
             };
@@ -847,10 +640,7 @@ namespace IAGrim.UI {
 
 
             _csvParsingService.OnItemLooted += (_, arg) => {
-                _searchWindow.SelectModFilterIfNotSelected();
-
                 var item = arg.Item;
-                _searchWindow.UpdateListView(item);
 
                 // Push the freshly looted item to the user's other machines immediately.
                 _webSocketSyncService?.SendItems(new List<PlayerItem> { item });
@@ -1055,18 +845,6 @@ namespace IAGrim.UI {
         #endregion Tray and Menu
 
 
-        private void SetItemsClipboard(object? ignored, EventArgs _args) {
-            if (InvokeRequired) {
-                Invoke((System.Windows.Forms.MethodInvoker) delegate { SetItemsClipboard(ignored, _args); });
-            }
-            else {
-                if (_args is ClipboardEventArg { Text: { } } args) {
-                    Clipboard.SetText(args.Text);
-                }
-
-                _tooltipHelper.ShowTooltipAtMouse(RuntimeSettings.Language!.GetTag("iatag_copied_clipboard"), _cefBrowserHandler.BrowserControl!);
-            }
-        }
 
         private void openToolStripMenuItem_Click(object sender, EventArgs e) {
             _minimizeToTrayHandler?.notifyIcon_MouseDoubleClick(sender, null);
