@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -23,7 +23,10 @@ namespace IAGrim.UI.Misc {
             _notifyIcon.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.notifyIcon_MouseDoubleClick);
             _previousWindowState = _form.WindowState;
 
-            _notifyIcon.Visible = false;
+            // 界面已经搬到浏览器里，程序本体是**常驻后台服务**——
+            // 所以托盘图标从一开始就可见：它是"服务正在运行"的唯一标识。
+            _notifyIcon.Visible = true;
+
             if (_settingsService.GetLocal().StartMinimized) {
                 form.WindowState = FormWindowState.Minimized;
 
@@ -35,11 +38,27 @@ namespace IAGrim.UI.Misc {
 
         public bool MinimizeToTray => _settingsService.GetPersistent().MinimizeToTray;
 
+        /// <summary>
+        /// 双击托盘图标 → 在系统浏览器里打开 web UI。
+        ///
+        /// 不再是"唤回 WinForms 窗口"：那个窗口已经不再承载界面
+        /// （见 .docs/03-目标架构.md 的技术路线，B6 会把它彻底移除）。
+        /// </summary>
         public void notifyIcon_MouseDoubleClick(object? sender, MouseEventArgs? e) {
-            if (_form == null) return;
-            _form.Visible = true;
-            _notifyIcon.Visible = false;
-            _form.WindowState = _previousWindowState;
+            OpenWebUi();
+        }
+
+        /// <summary>用系统默认浏览器打开 web UI。只监听 127.0.0.1，本机之外不可达。</summary>
+        public static void OpenWebUi() {
+            try {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
+                    FileName = $"http://127.0.0.1:{IAGrim.Http.WebServer.Port}/",
+                    UseShellExecute = true,
+                });
+            }
+            catch (Exception ex) {
+                Logger.Warn("打开 web UI 失败：" + ex.Message);
+            }
         }
 
         /// <summary>

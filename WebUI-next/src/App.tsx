@@ -5,6 +5,7 @@ import { ItemDetailPanel, ItemDetailProvider } from './components/ItemDetail';
 import SearchBar from './components/SearchBar/SearchBar';
 import ViewSwitcher from './views/ViewSwitcher';
 import CollectionView from './views/CollectionView/CollectionView';
+import SettingsView from './views/SettingsView/SettingsView';
 
 /** 一次取多少件。后端有上限（开发数据服务是 500）。 */
 const PAGE_SIZE = 50;
@@ -22,8 +23,8 @@ const SEARCH_DEBOUNCE_MS = 250;
  * 不使用 mock。
  */
 export default function App() {
-  /** 顶层页签：物品（搜索自己的装备） / 图鉴（游戏里存在哪些物品） */
-  const [tab, setTab] = useState<'items' | 'collection'>('items');
+  /** 顶层页签：物品（搜索自己的装备） / 图鉴（游戏里存在哪些物品） / 设置 */
+  const [tab, setTab] = useState<'items' | 'collection' | 'settings'>('items');
   const [keyword, setKeyword] = useState('');
   const [data, setData] = useState<ItemsResponse | null>(null);
   const [i18n, setI18n] = useState<I18nMap>({});
@@ -105,6 +106,13 @@ export default function App() {
             >
               图鉴
             </button>
+            <button
+              type="button"
+              className={tab === 'settings' ? 'is-active' : ''}
+              onClick={() => setTab('settings')}
+            >
+              设置
+            </button>
           </nav>
 
           {tab === 'items' && (
@@ -132,6 +140,8 @@ export default function App() {
           )}
 
           {tab === 'collection' && <CollectionView />}
+
+          {tab === 'settings' && <SettingsView />}
         </main>
 
         {/* ★ 详情面板全应用只有一个实例，挂在顶层 */}
