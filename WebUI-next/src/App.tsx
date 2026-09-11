@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
 import { fetchItems, type ItemsResponse } from './api';
-import ItemCard from './components/ItemCard/ItemCard';
+import ItemListView from './views/ItemListView/ItemListView';
+
+/** 一次取多少件。后端有上限（开发数据服务是 500）。 */
+const PAGE_SIZE = 50;
 
 /**
  * 根组件。
  *
- * A0 的目标只有一个：**证明工具链是通的**——
- * 浏览器打开 localhost:3000，能看到**一条来自真实数据库**的物品。
+ * A0：显示一条真实物品，证明工具链通了。
+ * A1：显示**一列**真实物品，验证渲染逻辑。
  *
- * 之所以不像原计划那样先硬编码一条假物品：开发数据服务（tools/devapi）
- * 已经可用，直接读真实数据能顺带验证通信层，少写一遍注定要删的假数据。
+ * 数据全部来自开发数据服务（tools/devapi）读取的真实数据库，
+ * 不使用 mock。
  */
 export default function App() {
   const [data, setData] = useState<ItemsResponse | null>(null);
@@ -20,7 +23,7 @@ export default function App() {
     // 所以用一个标志位防止"后返回的旧请求"覆盖新结果。
     let cancelled = false;
 
-    fetchItems(0, 1)
+    fetchItems(0, PAGE_SIZE)
       .then((res) => {
         if (!cancelled) setData(res);
       })
@@ -37,7 +40,11 @@ export default function App() {
     <main className="app">
       <header className="app__header">
         <h1 className="app__title">Item Assistant</h1>
-        {data && <p className="app__summary">数据库里共有 {data.total} 件物品</p>}
+        {data && (
+          <p className="app__summary">
+            显示 {data.items.length} / {data.total} 件
+          </p>
+        )}
       </header>
 
       {error && (
@@ -53,12 +60,11 @@ export default function App() {
 
       {!error && !data && <p className="app__loading">加载中…</p>}
 
-      {data &&
-        (data.items.length > 0 ? (
-          <ItemCard item={data.items[0]} />
-        ) : (
-          <p className="app__loading">数据库里没有物品。</p>
-        ))}
+      {data && data.items.length > 0 && <ItemListView items={data.items} />}
+
+      {data && data.items.length === 0 && (
+        <p className="app__loading">数据库里没有物品。</p>
+      )}
     </main>
   );
 }

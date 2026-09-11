@@ -42,3 +42,50 @@ body {
 #root {
   padding: 24px;
 }
+
+/* 顶部标题区：标题与统计信息并排 */
+.app__header {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.app__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.app__summary {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.app__loading {
+  color: var(--text-muted);
+}
+
+/* 错误面板：把"服务没启动"这类问题直接说清楚，而不是只显示一句报错 */
+.app__error {
+  max-width: 560px;
+  padding: 14px;
+  background: #2a1b19;
+  border: 1px solid #7a2b22;
+  border-radius: 6px;
+}
+
+.app__error strong {
+  color: #e08a7a;
+}
+
+.app__error p {
+  margin: 8px 0 0;
+}
+
+.app__error code {
+  padding: 1px 5px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 3px;
+  font-family: monospace;
+}
