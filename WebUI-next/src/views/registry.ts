@@ -1,5 +1,6 @@
 import TableView from './TableView/TableView';
 import CompactCardView from './CompactCardView/CompactCardView';
+import CompareView from './CompareView/CompareView';
 import type { ItemViewDefinition } from './types';
 
 /**
@@ -22,6 +23,12 @@ export const ITEM_VIEWS: ItemViewDefinition[] = [
     label: '简洁卡片',
     description: '图标 + 名称 + 关键标签，适合快速浏览',
     component: CompactCardView,
+  },
+  {
+    id: 'compare',
+    label: '详细对照',
+    description: '把完整属性并排摊开，适合筛选后比较几件装备',
+    component: CompareView,
   },
 ];
 
