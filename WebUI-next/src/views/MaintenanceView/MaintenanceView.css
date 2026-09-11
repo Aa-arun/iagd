@@ -1,0 +1,152 @@
+.maintenance {
+  max-width: 720px;
+}
+
+.maintenance__intro {
+  margin: 0 0 18px;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.maintenance__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.maintenance__label {
+  flex: none;
+  width: 76px;
+  color: var(--text-muted);
+}
+
+.maintenance__select {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  background: var(--bg-panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.maintenance__actions {
+  display: flex;
+  gap: 10px;
+  margin: 18px 0 24px;
+}
+
+.maintenance__button {
+  padding: 7px 16px;
+  background: var(--bg-panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.maintenance__button:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.maintenance__button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.maintenance__progress {
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel);
+}
+
+.maintenance__progress-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.maintenance__bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.maintenance__bar-fill {
+  height: 100%;
+  background: #6aa84f;
+  /* 进度是离散推送的，补个过渡免得一跳一跳 */
+  transition: width 0.2s linear;
+}
+
+.maintenance__progress-detail {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.maintenance__configure {
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.maintenance__configure h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.maintenance__hint {
+  margin: 0 0 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.maintenance__hint code {
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--bg-hover);
+}
+
+.maintenance__configure-row {
+  display: flex;
+  gap: 10px;
+}
+
+.maintenance__input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  background: var(--bg-panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.maintenance__error {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border-left: 3px solid #bf4a4a;
+  border-radius: 4px;
+  background: var(--bg-panel);
+  font-size: 13px;
+}
+
+.maintenance__ok {
+  color: #6aa84f;
+}
+
+.maintenance__fail {
+  color: #bf4a4a;
+}

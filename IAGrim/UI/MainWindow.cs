@@ -497,15 +497,9 @@ namespace IAGrim.UI {
             var cacher = _serviceProvider.Get<TransferStashServiceCache>();
             _parsingService.OnParseComplete += (o, args) => cacher.Refresh();
 
-            // 线 B（B2 补）：解析游戏数据库期间冻结浏览器界面。
-            //
-            // 解析会先 Clean() 掉整个游戏数据库再重建，几分钟。这期间网页如果照常
-            // 查询，拿到的会是空库——使用者会以为物品丢了。所以两头都要告诉它。
-            //
-            // 用闭包而不是当场取 `_webServer`：HTTP 服务是在 WebView2 初始化回调里
-            // 才创建的，时序上晚于这里。
-            _parsingService.OnParseStarted += (o, args) => _webServer?.EnterMaintenance();
-            _parsingService.OnParseComplete += (o, args) => _webServer?.ExitMaintenance();
+            // 线 B：维护模式现在由 `MaintenanceService` 的状态驱动
+            // （见 WebServer.OnMaintenanceStateChanged）——它覆盖 "加载数据库 /
+            // 清除数据库 / 更新项目统计" 三个操作，而不只是解析本身。
 
 
             var replicaItemDao = _serviceProvider.Get<IReplicaItemDao>();
@@ -710,7 +704,8 @@ namespace IAGrim.UI {
                     _serviceProvider.Get<SettingsService>(),
                     GlobalPaths.StorageFolder,
                     // 延迟取：工厂在每次转移请求时才求值，那时控制器一定已经建好了。
-                    () => _transferController
+                    () => _transferController,
+                    _serviceProvider.Get<MaintenanceService>()
                 );
                 _webServer.Start();
 
