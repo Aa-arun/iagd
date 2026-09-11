@@ -2,6 +2,7 @@ import type {
   CollectionResponse,
   FiltersOptions,
   I18nMap,
+  ItemSearchRequest,
   ItemsResponse,
 } from './types';
 
@@ -35,6 +36,24 @@ async function getJson<T>(path: string): Promise<T> {
 /** 玩家实际拥有的物品（对应原 `RequestMoreItems()`） */
 export function fetchItems(offset = 0, limit = 50): Promise<ItemsResponse> {
   return getJson<ItemsResponse>(`/api/items?offset=${offset}&limit=${limit}`);
+}
+
+/**
+ * 搜索物品（对应原 WinForms 搜索框构造的 `ItemSearchRequest`）。
+ *
+ * 用 POST 只是为了把过滤条件放进请求体（数组/嵌套结构用 query string 表达很别扭）；
+ * 它**仍然是只读查询**，不会改动任何数据。
+ */
+export async function searchItems(query: ItemSearchRequest): Promise<ItemsResponse> {
+  const res = await fetch('/api/search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(query),
+  });
+  if (!res.ok) {
+    throw new ApiError('搜索失败', res.status);
+  }
+  return (await res.json()) as ItemsResponse;
 }
 
 /** 图鉴（对应原 `RequestCollectionData()`） */

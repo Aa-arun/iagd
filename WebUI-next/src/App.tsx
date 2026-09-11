@@ -1,48 +1,76 @@
 import { useEffect, useState } from 'react';
-import { fetchItems, fetchI18n, type I18nMap, type ItemsResponse } from './api';
+import { fetchI18n, fetchItems, searchItems, type I18nMap, type ItemsResponse } from './api';
 import { I18nProvider } from './i18n';
 import { ItemDetailPanel, ItemDetailProvider } from './components/ItemDetail';
+import SearchBar from './components/SearchBar/SearchBar';
 import ViewSwitcher from './views/ViewSwitcher';
 
 /** 一次取多少件。后端有上限（开发数据服务是 500）。 */
 const PAGE_SIZE = 50;
 
+/** 输入停顿多久才发请求。太短会让每敲一个字母都打一次后端。 */
+const SEARCH_DEBOUNCE_MS = 250;
+
 /**
  * 根组件。
  *
- * A0：显示一条真实物品，证明工具链通了。
- * A1：显示一列真实物品，验证渲染逻辑。
- * A4：视图切换——同一批数据用不同样式呈现。
- * A5：hover 预览 + 点击固定的详情面板。
+ * A0 显示一条真实物品 → A1 一列 → A4 视图切换 → A5 详情面板
+ * → **A3 搜索**（关键词过滤）。
  *
  * 数据与界面文案全部来自开发数据服务（tools/devapi）读取的真实数据，
  * 不使用 mock。
  */
 export default function App() {
+  const [keyword, setKeyword] = useState('');
   const [data, setData] = useState<ItemsResponse | null>(null);
   const [i18n, setI18n] = useState<I18nMap>({});
   const [error, setError] = useState<string | null>(null);
 
+  // 翻译只取一次。失败也不致命——界面会退化成显示 `iatag_xxx` 原文。
   useEffect(() => {
-    // React 18 在开发模式下会把 effect 跑两遍（StrictMode 的刻意行为），
-    // 所以用一个标志位防止"后返回的旧请求"覆盖新结果。
     let cancelled = false;
-
-    // 物品与翻译**一起**取：若翻译后到，界面会先闪一下 `iatag_slot_xxx`。
-    Promise.all([fetchItems(0, PAGE_SIZE), fetchI18n()])
-      .then(([items, translations]) => {
-        if (cancelled) return;
-        setData(items);
-        setI18n(translations);
+    fetchI18n()
+      .then((translations) => {
+        if (!cancelled) setI18n(translations);
       })
-      .catch((err: Error) => {
-        if (!cancelled) setError(err.message);
+      .catch(() => {
+        /* 忽略：缺少翻译不影响功能 */
       });
-
     return () => {
       cancelled = true;
     };
   }, []);
+
+  // 关键词变化 → 防抖后查询。
+  // 初始 keyword 为空，所以这里也顺带完成了首次加载。
+  useEffect(() => {
+    let cancelled = false;
+
+    const timer = setTimeout(() => {
+      const q = keyword.trim();
+      const request = q
+        ? searchItems({ wildcard: q, offset: 0, limit: PAGE_SIZE })
+        : fetchItems(0, PAGE_SIZE);
+
+      request
+        .then((res) => {
+          if (cancelled) return;
+          setData(res);
+          setError(null);
+        })
+        .catch((err: Error) => {
+          if (!cancelled) setError(err.message);
+        });
+    }, SEARCH_DEBOUNCE_MS);
+
+    // 输入变化就取消上一次：既清掉定时器，也避免"慢的旧响应"覆盖新结果
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [keyword]);
+
+  const searching = keyword.trim().length > 0;
 
   return (
     <ItemDetailProvider>
@@ -52,10 +80,12 @@ export default function App() {
             <h1 className="app__title">Item Assistant</h1>
             {data && (
               <p className="app__summary">
-                显示 {data.items.length} / {data.total} 件
+                {searching ? '匹配' : '显示'} {data.items.length} / {data.total} 件
               </p>
             )}
           </header>
+
+          <SearchBar value={keyword} onChange={setKeyword} />
 
           {error && (
             <div className="app__error">
@@ -73,7 +103,9 @@ export default function App() {
           {data && data.items.length > 0 && <ViewSwitcher items={data.items} />}
 
           {data && data.items.length === 0 && (
-            <p className="app__loading">数据库里没有物品。</p>
+            <p className="app__loading">
+              {searching ? `没有匹配「${keyword.trim()}」的物品。` : '数据库里没有物品。'}
+            </p>
           )}
         </main>
 

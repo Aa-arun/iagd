@@ -30,3 +30,41 @@ export interface FiltersOptions {
 
 /** `GET /api/i18n` 的响应：tag → 中文 */
 export type I18nMap = Record<string, string>;
+
+/**
+ * 搜索请求。
+ *
+ * ★ 字段对齐 C# 的 `IAGrim/Database/Dto/ItemSearchRequest.cs`——
+ * 保持同名同义，将来换成 C# 后端时前端不用改。
+ * 完整结构定义见 [`.docs/03-目标架构.md`](../../../.docs/03-目标架构.md) §4.4。
+ *
+ * ⚠️ 标 `未实现` 的字段结构已定，但 `tools/devapi` 目前不接受它们
+ * （传了不报错、也不生效），见 [`04-开发环境.md`](../../../.docs/04-开发环境.md) §8.5。
+ */
+export interface ItemSearchRequest {
+  /** 关键词。**空格会被当作多个关键词**："神话 面具" 匹配 "神话 … 面具" */
+  wildcard?: string;
+  minimumLevel?: number;
+  maximumLevel?: number;
+  /** 品质，如 `Legendary` / `Epic` */
+  rarity?: string | null;
+  /** 槽位（未实现） */
+  slot?: string[] | null;
+  slotInverse?: boolean;
+  /** 查普通仓库还是硬核仓库——二选一，不是"可选过滤" */
+  isHardcore?: boolean;
+  socketedOnly?: boolean;
+  /** 职业（未实现） */
+  classes?: string[];
+  /** 只看重复物品（未实现） */
+  duplicatesOnly?: boolean;
+  hasPetBonus?: boolean;
+  /** 只看可镶嵌（未实现） */
+  statValueFilters?: unknown[];
+
+  // 分页
+  offset?: number;
+  limit?: number;
+  /** 是否附带属性翻译（devapi 的扩展参数，默认 true） */
+  stats?: boolean;
+}

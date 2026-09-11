@@ -60,7 +60,8 @@ src/
 │   └── CompactCardView/      ② 简洁卡片
 ├── components/       通用组件
 │   ├── ItemCard/     物品卡片
-│   └── ItemDetail/   ★ 详情面板（全应用单实例；hover 预览 + 点击固定）
+│   ├── ItemDetail/   ★ 详情面板（全应用单实例；hover 预览 + 点击固定）
+│   └── SearchBar/    搜索框
 └── styles/           全局样式与主题变量
 ```
 
@@ -80,5 +81,5 @@ src/
 - [x] **A2** 从后端 HTTP 拿真实列表（已由 A0 / A1 完成）
 - [x] **A4** 视图切换（分栏列表 / 简洁卡片，偏好存 localStorage）—— **P0 核心目标**
 - [x] **A5** hover 预览 + 点击固定的详情面板 —— **P0 核心目标**
-- [ ] A3 搜索框（前置：定义搜索 JSON + 给 devapi 加 `POST /api/search`）
-- [ ] A6 转移物品（写操作，同样需要 devapi 的写接口）
+- [x] **A3** 搜索框（关键词 / 等级 / 品质；防抖 250ms）
+- [ ] A6 转移物品（**写操作**，需先设计验证方式）
