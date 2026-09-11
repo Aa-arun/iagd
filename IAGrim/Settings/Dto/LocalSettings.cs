@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using IAGrim.UI.Misc;
 using IAGrim.Utilities.HelperClasses;
@@ -285,6 +285,22 @@ namespace IAGrim.Settings.Dto {
         /// Signals that the in-place contents of <see cref="CharacterBackups"/> changed.
         /// </summary>
         public void CharacterBackupsChanged() {
+            OnMutate?.Invoke(null, EventArgs.Empty);
+        }
+
+        /// <summary>
+        /// 把**界面上能改的**设置恢复为初始值（热重置，不需要重启程序）。
+        ///
+        /// ⚠️ **刻意不碰**：游戏路径、语言、解析状态、角色备份记录这些。
+        /// 重置"界面设置"不该把游戏路径也清掉——那会让程序下次启动重新检测一遍，
+        /// 甚至认不出游戏。
+        /// </summary>
+        public void ResetVisibleSettings() {
+            _preferDelayedSearch = null;    // 默认 false
+            _backupCustom = false;
+            _backupCustomLocation = null;   // 默认 ""
+            _stashToDepositTo = 0;
+            _stashToLootFrom = 0;
             OnMutate?.Invoke(null, EventArgs.Empty);
         }
 

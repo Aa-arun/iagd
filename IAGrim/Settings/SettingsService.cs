@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using IAGrim.Settings.Dto;
@@ -57,6 +57,22 @@ namespace IAGrim.Settings {
         public PersistentSettings GetPersistent() {
             // Invariant established in the constructor: _data.Persistent is always assigned a non-null value.
             return _data.Persistent!;
+        }
+
+        /// <summary>
+        /// 把**界面上能改的**设置恢复为初始值。
+        ///
+        /// ★ 这是**热重置**：不替换对象、不删文件、不重启程序。
+        /// 对象保持不变，所以构造函数里订阅的 `OnMutate → Persist()` 依然有效，
+        /// 属性一改就会自动落盘。
+        ///
+        /// （原来的做法是删掉 settings.json 再重启进程——对"改几个开关"
+        ///   来说太重了，而且重启会让浏览器里的界面断开。）
+        /// </summary>
+        public void ResetVisibleSettings() {
+            GetLocal().ResetVisibleSettings();
+            GetPersistent().ResetVisibleSettings();
+            Logger.Info("设置已恢复为初始值（热重置，未重启）");
         }
 
 

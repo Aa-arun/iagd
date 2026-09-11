@@ -93,18 +93,22 @@ export async function saveSettings(update: SettingsUpdate): Promise<void> {
 
 // ── 动作（设置页第二栏）─────────────────────────────────────────────────
 
-/** 重置设置的响应：`backup` 是重置前自动备份的设置文件路径 */
+/** 重置设置的响应 */
 export interface ResetSettingsResult {
   success: boolean;
+  /** 重置前自动备份的设置文件路径 */
   backup: string | null;
+  /** 重置后的设置值——后端顺带返回，前端据此立即刷新，不必再发一次 GET */
+  settings: AppSettings;
 }
 
 /**
  * 重置设置。
  *
  * ⚠️ 备份的是**设置文件**（`settings.json`），不是物品数据。
- * 后端会先备份、再删除设置文件并**重启程序**（响应发出后约 0.6 秒重启，
- * 所以调用方拿到结果后应提示用户"程序正在重启"）。
+ *
+ * ★ 这是**热重置**：后端只把界面上能改的那几项恢复初始值，
+ * **不重启程序**——调用返回后界面已经在跑，用返回的 `settings` 刷新即可。
  */
 export async function resetSettings(): Promise<ResetSettingsResult> {
   const res = await fetch('/api/settings/reset', { method: 'POST' });
