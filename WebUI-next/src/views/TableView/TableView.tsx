@@ -1,6 +1,8 @@
 import type { ItemViewProps } from '../types';
 import { iconUrl } from '../../api';
 import { qualityClass } from '../../components/ItemCard/quality';
+import { parseRow } from '../../components/ItemDetail/ReplicaStatList';
+import TransferButton from '../../components/TransferButton/TransferButton';
 import { slotLabel } from '../../model/slot';
 import { formatNumber } from '../../model/format';
 import { useTranslation } from '../../i18n';
@@ -32,12 +34,14 @@ export default function TableView({
           <th scope="col">品质</th>
           <th scope="col">等级</th>
           <th scope="col">槽位</th>
+          <th scope="col" aria-label="取出" />
         </tr>
       </thead>
       <tbody>
         {items.map((item) => (
           <tr
             key={item.uniqueIdentifier}
+            data-item-card
             className={pinnedId === item.uniqueIdentifier ? 'is-pinned' : undefined}
             onMouseEnter={(e) => onItemHover?.(item, e.currentTarget)}
             onMouseLeave={() => onItemHover?.(null, null)}
@@ -55,10 +59,15 @@ export default function TableView({
                 />
               ) : null}
             </td>
-            <td className={`item-table__name ${qualityClass(item.quality)}`}>{item.name}</td>
+            <td className={`item-table__name ${qualityClass(item.quality)}`}>
+              {parseRow(item.name)}
+            </td>
             <td className={qualityClass(item.quality)}>{item.quality}</td>
             <td className="item-table__num">{formatNumber(item.level)}</td>
             <td>{slotLabel(item.slot, t)}</td>
+            <td className="item-table__action">
+              <TransferButton item={item} />
+            </td>
           </tr>
         ))}
       </tbody>

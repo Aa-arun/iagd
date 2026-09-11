@@ -1,0 +1,84 @@
+/*
+ * 「取出」按钮。
+ *
+ * 使用者要求：方形、图形化、**拟物化**。所以刻意做了实体感——
+ * 竖向渐变（上亮下暗，模拟受光）、内侧顶部高光 + 外侧投影（浮起）、
+ * 按下时换成内凹阴影并下沉 1px。这些细节就是"拟物"与"扁平"的区别。
+ */
+
+.transfer-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 30px;
+  height: 30px;
+  padding: 0;
+
+  border: 1px solid #5a4f40;
+  border-radius: 5px;
+
+  /* 上亮下暗：光从上方来 */
+  background: linear-gradient(180deg, #4a4238 0%, #332d26 100%);
+  color: var(--focus-accent);
+
+  /* 内侧顶部一道高光 + 外侧落影，让它"浮"在卡片上 */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.35),
+    0 1px 2px rgba(0, 0, 0, 0.5);
+
+  cursor: pointer;
+  transition: background 0.12s ease, box-shadow 0.12s ease, transform 0.06s ease;
+}
+
+.transfer-btn svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.transfer-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #5a5044 0%, #3d352c 100%);
+  color: #e8c88a;
+}
+
+/* 按下：阴影反过来（内凹）、整体下沉 —— 拟物的"按进去" */
+.transfer-btn:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.6),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.transfer-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* 就地的成功 / 失败反馈 */
+.transfer-btn[data-state='ok'] {
+  color: #6cc04a;
+  border-color: #3d6a2c;
+}
+
+.transfer-btn[data-state='fail'] {
+  color: #e05a4a;
+  border-color: #7a3228;
+}
+
+/* 处理中：轻微呼吸，表示还在跑 */
+.transfer-btn[data-state='busy'] {
+  color: var(--text-muted);
+  animation: transfer-btn-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes transfer-btn-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}

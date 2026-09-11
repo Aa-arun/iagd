@@ -70,3 +70,10 @@
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+
+/* 「取出」按钮那一列：只占按钮宽度，不参与撑开表格 */
+.item-table__action {
+  width: 44px;
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+}
