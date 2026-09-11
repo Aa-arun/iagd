@@ -4,7 +4,6 @@ import {
   fetchGrimDawnInstalls,
   fetchGrimDawnMods,
   fetchMaintenanceStatus,
-  startCleanDatabase,
   startClearCache,
   startLoadDatabase,
   type GrimDawnLocation,
@@ -33,11 +32,15 @@ interface Feedback {
 /**
  * 「数据库」页：把原来 WinForms 的数据库 / Mods 维护窗口搬过来。
  *
- * 四个操作：
- * - **加载数据库**：重新解析游戏数据（分钟级、会先清空数据库）
+ * 三个操作：
+ * - **加载数据库**：重新解析游戏数据（分钟级、会先清空游戏数据）
  * - **配置**：手工指定 Grim Dawn 安装目录
- * - **清除数据库**：清空游戏数据（不影响自己的物品）
  * - **更新项目统计**：重算所有物品的属性（旧界面上叫 Clear cache）
+ *
+ * ⚠️ 旧界面上的「清除数据库」**故意没有搬过来**：它做的事
+ *    「加载数据库」的第一步就做了（先 `Clean()` 再解析），没有它做不到的事，
+ *    却能把界面变成一个"物品还在、但没名字没属性"的状态。
+ *    后端端点 `/api/maintenance/clean` 仍在，但网页不提供入口。
  */
 export default function MaintenanceView({ live }: Props) {
   const [installs, setInstalls] = useState<GrimDawnLocation[]>([]);
@@ -138,16 +141,6 @@ export default function MaintenanceView({ live }: Props) {
     run('加载数据库', () => startLoadDatabase(install, mod || undefined));
   };
 
-  const onClean = () => {
-    const ok = window.confirm(
-      '清除数据库会清空**游戏数据**（物品名称、属性定义）。\n' +
-        '你自己的物品不受影响，但需要重新「加载数据库」才能恢复显示。确定吗？',
-    );
-    if (!ok) return;
-
-    run('清除数据库', startCleanDatabase);
-  };
-
   const onClearCache = () => run('更新项目统计', startClearCache);
 
   const onConfigure = async () => {
@@ -231,9 +224,6 @@ export default function MaintenanceView({ live }: Props) {
           <div className="maintenance__actions">
             <button type="button" className="maintenance__button" onClick={onLoad} disabled={busy}>
               加载数据库
-            </button>
-            <button type="button" className="maintenance__button" onClick={onClean} disabled={busy}>
-              清除数据库
             </button>
             <button type="button" className="maintenance__button" onClick={onClearCache} disabled={busy}>
               更新项目统计
