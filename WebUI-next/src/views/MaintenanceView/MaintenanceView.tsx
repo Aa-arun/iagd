@@ -11,11 +11,16 @@ import {
   type LiveMaintenance,
   type MaintenanceState,
 } from '../../api';
-import { phaseLabel, taskLabel } from '../../model/maintenance';
 import './MaintenanceView.css';
 
 interface Props {
-  /** WebSocket 推来的实时状态。进度靠它，比轮询及时。 */
+  /**
+   * WebSocket 推来的维护状态。
+   *
+   * 只用它判断"忙不忙"（禁用按钮）。**进度显示不在这里**——整屏的维护遮罩
+   * 已经显示了任务名、阶段和百分比，在这里再放一份就是同一件事说两遍
+   * （2026-09-12 使用者反馈）。
+   */
   live: LiveMaintenance | null;
 }
 
@@ -80,20 +85,23 @@ export default function MaintenanceView({ live }: Props) {
     };
   }, []);
 
-  // WS 推来的状态优先（更及时）；它一空闲就重新拉一次权威状态
-  const busy = live?.active ?? status?.busy ?? false;
-  const percent = live?.percent ?? status?.percent ?? 0;
-  const phase = live?.phase ?? status?.phase;
-  const task = live?.task ?? status?.task;
+  // WS 推来的状态优先；没有推送时（页面刚打开、或任务刚结束）回落到 REST 状态。
+  const busy = live ? live.active : (status?.busy ?? false);
 
+  // ⚠️ 维护结束时 App 会把状态置成 `null`（而不是 `{active:false}`），
+  // 所以这里不能只等 `live.active === false` —— 那样 `status` 永远停在旧的
+  // `busy: true`，按钮会一直禁用、要切一次标签页（组件重新挂载）才恢复。
+  // 2026-09-12 使用者实测反馈。
   useEffect(() => {
-    if (live && !live.active) {
-      // 任务刚结束：拉一次最终状态（含 error），并刷新列表（可能是刚解析完）
-      fetchMaintenanceStatus()
-        .then(setStatus)
-        .catch(() => undefined);
-      refreshLists().catch(() => undefined);
+    if (live) {
+      return;
     }
+
+    // `live` 为空：要么是刚打开页面，要么是任务刚结束。两种情况都该拉一次权威状态。
+    fetchMaintenanceStatus()
+      .then(setStatus)
+      .catch(() => undefined);
+    refreshLists().catch(() => undefined);
   }, [live, refreshLists]);
 
   const run = async (label: string, action: () => Promise<{ success: boolean; error?: string }>) => {
@@ -105,8 +113,9 @@ export default function MaintenanceView({ live }: Props) {
         return;
       }
 
-      setFeedback({ ok: true, text: `${label}已开始…` });
-      // 状态本身由 WS 推来；这里只是立刻拿一次，避免页面刚打开时的空档
+      // 成功不报文案：接下来遮罩会立刻接管整个界面，这里再写一句"已开始…"
+      // 就是同一件事说两遍（使用者反馈过这个重复）。
+      // 状态本身由 WS 推来；这里只是立刻拿一次，避免页面刚打开时的空档。
       fetchMaintenanceStatus().then(setStatus).catch(() => undefined);
     } catch (err) {
       setFeedback({ ok: false, text: (err as Error).message });
@@ -174,24 +183,6 @@ export default function MaintenanceView({ live }: Props) {
       </p>
 
       {errorText && <div className="maintenance__error">上次任务出错：{errorText}</div>}
-
-      {busy && (
-        <div className="maintenance__progress">
-          <div className="maintenance__progress-head">
-            <span>{taskLabel(task)}</span>
-            <span>{percent}%</span>
-          </div>
-          <div className="maintenance__bar">
-            <div className="maintenance__bar-fill" style={{ width: `${percent}%` }} />
-          </div>
-          <p className="maintenance__progress-detail">
-            {phaseLabel(phase) || '准备中…'}
-            {live?.phaseCount && live.phaseCount > 1
-              ? ` · 第 ${live.phaseNumber} / ${live.phaseCount} 步`
-              : ''}
-          </p>
-        </div>
-      )}
 
       {loading ? (
         <p className="app__loading">加载中…</p>

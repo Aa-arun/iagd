@@ -59,41 +59,6 @@
   cursor: default;
 }
 
-.maintenance__progress {
-  margin-bottom: 18px;
-  padding: 14px 16px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-panel);
-}
-
-.maintenance__progress-head {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  font-weight: 600;
-}
-
-.maintenance__bar {
-  height: 6px;
-  border-radius: 3px;
-  background: var(--border);
-  overflow: hidden;
-}
-
-.maintenance__bar-fill {
-  height: 100%;
-  background: #6aa84f;
-  /* 进度是离散推送的，补个过渡免得一跳一跳 */
-  transition: width 0.2s linear;
-}
-
-.maintenance__progress-detail {
-  margin: 8px 0 0;
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
 .maintenance__configure {
   padding-top: 18px;
   border-top: 1px solid var(--border);
