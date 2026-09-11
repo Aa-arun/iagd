@@ -1,0 +1,99 @@
+.item-card {
+  display: flex;
+  gap: 14px;
+  max-width: 640px;
+  padding: 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.item-card__icon {
+  flex: 0 0 64px;
+  width: 64px;
+  height: 64px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 4px;
+}
+
+.item-card__icon img {
+  display: block;
+  width: 64px;
+  height: 64px;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+.item-card__icon-missing {
+  width: 64px;
+  height: 64px;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+}
+
+.item-card__body {
+  min-width: 0;
+  flex: 1;
+}
+
+.item-card__name {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.item-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin: 0;
+}
+
+.item-card__meta > div {
+  display: flex;
+  gap: 6px;
+}
+
+.item-card__meta dt {
+  color: var(--text-muted);
+}
+
+.item-card__meta dd {
+  margin: 0;
+}
+
+.item-card__record {
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  word-break: break-all;
+}
+
+/* 品质配色 */
+.quality-legendary {
+  color: var(--q-legendary);
+}
+
+.quality-epic {
+  color: var(--q-epic);
+}
+
+.quality-blue {
+  color: var(--q-blue);
+}
+
+.quality-rare {
+  color: var(--q-rare);
+}
+
+.quality-magical {
+  color: var(--q-magical);
+}
+
+.quality-common {
+  color: var(--q-common);
+}
+
+.quality-broken,
+.quality-unknown {
+  color: var(--q-broken);
+}

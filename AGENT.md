@@ -75,18 +75,30 @@ iagd/
 │   ├── Services/            ← 物品分页、属性计算、消息处理
 │   └── Backup/, Utilities/
 │
-├── WebUI/                   ← 【前端】现有实现是 Preact + TS + Vite（将被 React 重做取代）
+├── WebUI/                   ← 【旧前端】Preact + TS + Vite（保留可构建，直到线 C 完成）
 │   ├── src/components/      ← 组件（App、Header、Item 卡片、提示条）
 │   ├── src/containers/      ← 页面级容器（ItemContainer / Collection / Help…）
 │   ├── src/integration/     ← ★ 与 C# 通信的唯一出入口
 │   ├── src/style/index.css  ← ★ 主题变量（明/暗两套 CSS 变量）
 │   └── build.cmd            ← 构建并把产物拷进 IAGrim 的 Resources
 │
+├── WebUI-next/              ← ★【新前端】React + TS + Vite（线 A 在这里开发）
+│   ├── src/api/             ← 通信层（REST 客户端）
+│   ├── src/model/           ← 领域模型（对应 C# 的 JsonItem）
+│   ├── src/components/      ← 通用组件（ItemCard…）
+│   └── src/styles/          ← 主题变量
+│
+├── tools/devapi/            ← ★ 只读开发数据服务（真实数据 + 线 B 接口原型）
+│
 ├── HookDll/                 ← 注入游戏的 DLL
 ├── DllInjector/             ← 把 DLL 注入游戏进程
 ├── Parser/ DataAccess/ StatTranslator/ Cloud/ EvilsoftCommons/
 └── Installer/ Inno/
 ```
+
+> **两个前端为什么并存**：`@preact/preset-vite` 会把 `react` 别名到 `preact/compat`，
+> 两者无法同项目共存；而 `WebUI/` 的产物是喂给 WebView2 的，
+> 直接在里面改会造成"现有程序加载半成品界面"。详见 `WebUI-next/README.md`。
 
 **命名陷阱**：代码里到处是 `CEF` / `Cef`（`IAGrim.UI.Misc.CEF`、`CefBrowserHandler`），
 但**实际用的是 WebView2**。看到 CEF 按 WebView2 理解。
