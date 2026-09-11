@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using IAGrim.Database;
 using IAGrim.Database.Dto;
 using IAGrim.Database.Interfaces;
+using IAGrim.Services;
 using IAGrim.Settings;
 using IAGrim.Settings.Dto;
 using IAGrim.UI.Controller;
@@ -34,6 +35,17 @@ namespace IAGrim.Http {
     public class SearchRequestDto : ItemSearchRequest {
         public int Offset { get; set; }
         public int Limit { get; set; } = 50;
+    }
+
+    /// <summary>配置请求：手工指定 Grim Dawn 安装目录（浏览器不能开原生文件夹选择器）。</summary>
+    public class ConfigureRequestDto {
+        public string? Path { get; set; }
+    }
+
+    /// <summary>加载数据库请求：选哪个安装、可选哪个 mod。</summary>
+    public class LoadDatabaseRequestDto {
+        public string? Install { get; set; }
+        public string? Mod { get; set; }
     }
 
     /// <summary>
@@ -113,6 +125,9 @@ namespace IAGrim.Http {
         /// </summary>
         private readonly Func<ItemTransferController?> _transferController;
 
+        /// <summary>线 B：数据库 / Mods 维护操作的门面。</summary>
+        private readonly MaintenanceService _maintenance;
+
         /// <summary>线 B（B2）：向已连接的浏览器广播"发生了什么"。</summary>
         private readonly WebSocketHub _hub = new WebSocketHub();
 
@@ -139,12 +154,19 @@ namespace IAGrim.Http {
             IItemTagDao itemTagDao,
             SettingsService settings,
             string storageFolder,
-            Func<ItemTransferController?> transferController) {
+            Func<ItemTransferController?> transferController,
+            MaintenanceService maintenance) {
             _search = search;
             _itemTagDao = itemTagDao;
             _settings = settings;
             _storageFolder = storageFolder;
             _transferController = transferController;
+            _maintenance = maintenance;
+
+            // 维护任务的状态 → 推给网页 + 驱动"维护模式"（维护期间查询会被拒，
+            // 见 MaintenanceGuard）。
+            _maintenance.OnStateChanged += (_, _) => OnMaintenanceStateChanged();
+            _maintenance.OnItemsChanged += (_, _) => BroadcastItemsChanged();
         }
 
         private static IResult Json(object payload) {
@@ -229,6 +251,7 @@ namespace IAGrim.Http {
                 // 前端首次加载时 WS 还没连上，靠这个字段就能知道该不该显示遮罩。
                 maintenance = IsMaintenance,
                 maintenanceMessage = IsMaintenance ? _maintenanceMessage : null,
+                maintenanceState = _maintenance.GetState(),
             }));
 
             // GET /api/items?offset=&limit= —— 对应原 RequestMoreItems()
@@ -370,6 +393,46 @@ namespace IAGrim.Http {
                 }
 
                 return Json(new { success = true });
+            });
+
+            // ── 数据库 / Mods 维护（线 B）────────────────────────────────────
+            //
+            // 这四个操作原来在一个 WinForms 窗口里（ModsDatabaseConfig），
+            // 现在搬到这里。所有写操作都立即返回，进度走 WebSocket；
+            // 页面刷新后用 /api/maintenance/status 恢复。
+            //
+            // ⚠️ 这些端点**不受** MaintenanceGuard 拦截——维护期间正是要靠它们
+            //    查询状态和发起操作。
+
+            app.MapGet("/api/maintenance/status", () => Json(_maintenance.GetState()));
+
+            app.MapGet("/api/grimdawn/installs", () => Json(new {
+                installs = _maintenance.GetInstalls(),
+            }));
+
+            app.MapGet("/api/grimdawn/mods", () => Json(new {
+                mods = _maintenance.GetMods(),
+            }));
+
+            // 配置：浏览器不能打开原生文件夹选择器，所以由前端传路径、后端校验。
+            app.MapPost("/api/grimdawn/configure", (ConfigureRequestDto dto) => {
+                var ok = _maintenance.AddInstall(dto.Path ?? string.Empty, out var error);
+                return Json(new { success = ok, error });
+            });
+
+            app.MapPost("/api/maintenance/load", (LoadDatabaseRequestDto dto) => {
+                var ok = _maintenance.StartLoadDatabase(dto.Install ?? string.Empty, dto.Mod, out var error);
+                return Json(new { success = ok, error });
+            });
+
+            app.MapPost("/api/maintenance/clean", () => {
+                var ok = _maintenance.StartCleanDatabase(out var error);
+                return Json(new { success = ok, error });
+            });
+
+            app.MapPost("/api/maintenance/clear-cache", () => {
+                var ok = _maintenance.StartClearCache(out var error);
+                return Json(new { success = ok, error });
             });
 
             // ── 动作（设置页第二栏）─────────────────────────────────────────
@@ -573,11 +636,7 @@ namespace IAGrim.Http {
             }
 
             Logger.Info("进入维护模式：解析游戏数据库期间，浏览器界面暂停查询");
-            _hub.Broadcast(new {
-                type = "maintenance",
-                active = true,
-                message = _maintenanceMessage,
-            });
+            BroadcastMaintenance();
         }
 
         /// <summary>
@@ -599,13 +658,45 @@ namespace IAGrim.Http {
             }
 
             Logger.Info("退出维护模式，浏览器界面恢复");
+            BroadcastMaintenance();
+            BroadcastItemsChanged();
+        }
+
+        /// <summary>
+        /// 维护任务状态变化：更新维护模式，并把**一条**含进度的状态消息推给所有页面。
+        ///
+        /// 进度字段来自 <see cref="MaintenanceService"/>；页面刷新后也能用
+        /// `/api/maintenance/status` 拿到同一份状态，所以不会丢。
+        /// </summary>
+        private void OnMaintenanceStateChanged() {
+            var state = _maintenance.GetState();
+
+            if (state.Busy) {
+                EnterMaintenance();
+            }
+            else {
+                ExitMaintenance();
+                return;   // ExitMaintenance 里已经广播过了
+            }
+
+            BroadcastMaintenance();
+        }
+
+        /// <summary>广播当前维护状态（含进度）。</summary>
+        private void BroadcastMaintenance() {
+            var state = _maintenance.GetState();
+
             _hub.Broadcast(new {
                 type = "maintenance",
-                active = false,
+                active = IsMaintenance,
                 message = _maintenanceMessage,
+                task = state.Task,
+                phase = state.Phase,
+                percent = state.Percent,
+                phaseNumber = state.PhaseNumber,
+                phaseCount = state.PhaseCount,
+                error = state.Error,
             });
-
-            BroadcastItemsChanged();
         }
 
         /// <summary>

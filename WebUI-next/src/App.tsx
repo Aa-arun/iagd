@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { connectLive, fetchHealth, fetchI18n, fetchItems, searchItems, type I18nMap, type ItemsResponse } from './api';
+import {
+  connectLive,
+  fetchHealth,
+  fetchI18n,
+  fetchItems,
+  searchItems,
+  type I18nMap,
+  type ItemsResponse,
+  type LiveMaintenance,
+} from './api';
+import { phaseLabel, taskLabel } from './model/maintenance';
+import MaintenanceView from './views/MaintenanceView/MaintenanceView';
 import { I18nProvider } from './i18n';
 import { ItemDetailPanel, ItemDetailProvider } from './components/ItemDetail';
 import SearchBar from './components/SearchBar/SearchBar';
@@ -49,8 +60,8 @@ interface Toast {
  * 不使用 mock。
  */
 export default function App() {
-  /** 顶层页签：物品（搜索自己的装备） / 设置 */
-  const [tab, setTab] = useState<'items' | 'settings'>('items');
+  /** 顶层页签：物品（搜索自己的装备） / 数据库（维护） / 设置 */
+  const [tab, setTab] = useState<'items' | 'database' | 'settings'>('items');
   const [keyword, setKeyword] = useState('');
   const [data, setData] = useState<ItemsResponse | null>(null);
   const [i18n, setI18n] = useState<I18nMap>({});
@@ -62,12 +73,12 @@ export default function App() {
   /** `/ws` 是否连着。连着就靠推送，断了才退回轮询 */
   const [live, setLive] = useState(false);
   /**
-   * 维护提示文案，非 null 表示后端正在重建游戏数据库。
+   * 维护状态，非 null 表示后端正在重建游戏数据库或重算物品属性。
    *
    * 那期间后端会把查询全部拒掉（503），因为库被清空了——照常查询会显示
-   * 一个空列表，让人以为自己的物品没了。所以这里要整屏挡住。
+   * 一个空列表，让人以为自己的物品没了。所以这里要整屏挡住，并显示进度。
    */
-  const [maintenance, setMaintenance] = useState<string | null>(null);
+  const [maintenance, setMaintenance] = useState<LiveMaintenance | null>(null);
 
   /** 后端推来的提示。自己操作产生的反馈仍由各自的组件就地显示，不走这里。 */
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -140,7 +151,7 @@ export default function App() {
   useEffect(() => {
     return connectLive({
       onItemsChanged: reload,
-      onMaintenance: (active, message) => setMaintenance(active ? message : null),
+      onMaintenance: (state) => setMaintenance(state.active ? state : null),
       onNotification: (n) => pushToast(n.message, n.level, n.helpUrl, n.fade),
       onStatus: setLive,
     });
@@ -152,9 +163,14 @@ export default function App() {
     let cancelled = false;
     fetchHealth()
       .then((health) => {
-        if (!cancelled && health.maintenance) {
-          setMaintenance(health.maintenanceMessage ?? '正在更新游戏数据库…');
-        }
+        if (cancelled || !health.maintenance) return;
+
+        // 带上进度字段，这样在维护中途打开页面也能看到"到哪一步了"
+        setMaintenance({
+          active: true,
+          message: health.maintenanceMessage ?? '正在更新游戏数据库…',
+          ...health.maintenanceState,
+        });
       })
       .catch(() => {
         /* 忽略：连不上后端时下面的查询自己会报错 */
@@ -240,6 +256,13 @@ export default function App() {
             </button>
             <button
               type="button"
+              className={tab === 'database' ? 'is-active' : ''}
+              onClick={() => setTab('database')}
+            >
+              数据库
+            </button>
+            <button
+              type="button"
               className={tab === 'settings' ? 'is-active' : ''}
               onClick={() => setTab('settings')}
             >
@@ -270,6 +293,8 @@ export default function App() {
               )}
             </>
           )}
+
+          {tab === 'database' && <MaintenanceView live={maintenance} />}
 
           {tab === 'settings' && <SettingsView />}
         </main>
@@ -311,10 +336,22 @@ export default function App() {
         {maintenance && (
           <div className="app__maintenance" role="alertdialog" aria-live="polite">
             <div className="app__maintenance-card">
-              <h2>{maintenance}</h2>
-              <p>
-                程序正在重新解析游戏数据文件，这期间界面无法查询物品。
-                完成后会自动恢复，不需要刷新页面。
+              <h2>{taskLabel(maintenance.task)}</h2>
+              <p>这期间界面无法查询物品，完成后会自动恢复，不需要刷新页面。</p>
+
+              <div className="app__maintenance-bar">
+                <div
+                  className="app__maintenance-bar-fill"
+                  style={{ width: `${maintenance.percent ?? 0}%` }}
+                />
+              </div>
+
+              <p className="app__maintenance-phase">
+                {phaseLabel(maintenance.phase) || maintenance.message}
+                {maintenance.phaseCount && maintenance.phaseCount > 1
+                  ? ` · 第 ${maintenance.phaseNumber} / ${maintenance.phaseCount} 步`
+                  : ''}
+                {` · ${maintenance.percent ?? 0}%`}
               </p>
             </div>
           </div>

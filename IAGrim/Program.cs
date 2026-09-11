@@ -263,6 +263,19 @@ namespace IAGrim
             var itemSkillDao = serviceProvider.Get<IItemSkillDao>();
             ParsingService parsingService = new ParsingService(itemTagDao, string.Empty, databaseItemDao, databaseItemStatDao, itemSkillDao, settingsService.GetLocal().LanguageCode);
 
+            // 线 B：维护操作的门面（加载数据库 / 配置 / 清除数据库 / 更新项目统计）。
+            // 放进容器，HTTP 层与（过渡期的）旧窗口都能拿。它需要 ParsingService，
+            // 而后者是在这里而不是 ServiceProvider.Initialize 里创建的。
+            serviceProvider.Add(new MaintenanceService(
+                parsingService,
+                serviceProvider.Get<IPlayerItemDao>(),
+                serviceProvider.Get<IDatabaseItemDao>(),
+                serviceProvider.Get<IReplicaItemDao>(),
+                serviceProvider.Get<IComputedItemStatDao>(),
+                serviceProvider.Get<GrimDawnDetector>(),
+                settingsService
+            ));
+
             // Before the main window exists: this is modal, and it may reload the language.
             var grimDawnDetector = serviceProvider.Get<GrimDawnDetector>();
             var autoParsed = StartupService.PerformMissingExpansionDataCheck(

@@ -19,7 +19,7 @@
 /** 后端推来的消息。 */
 type LiveMessage =
   | { type: 'itemsChanged' }
-  | { type: 'maintenance'; active: boolean; message?: string }
+  | ({ type: 'maintenance' } & LiveMaintenance)
   | { type: 'notification'; message: string; level: string; helpUrl?: string; fade: boolean };
 
 /** 后端主动发来的一条提示。 */
@@ -32,11 +32,30 @@ export interface LiveNotification {
   fade: boolean;
 }
 
+/**
+ * 维护状态（后端正在重建游戏数据库，或重算物品属性）。
+ *
+ * `phase` / `percent` 让页面显示"正在做什么、到哪了"；页面刷新后用
+ * `fetchMaintenanceStatus()` 拿到同一份状态。
+ */
+export interface LiveMaintenance {
+  active: boolean;
+  message: string;
+  /** loadDatabase / cleanDatabase / clearCache */
+  task?: string;
+  /** 阶段名，如 LoadingItems */
+  phase?: string;
+  percent?: number;
+  phaseNumber?: number;
+  phaseCount?: number;
+  error?: string;
+}
+
 export interface LiveHandlers {
   /** 数据库变了，去重查当前列表 */
   onItemsChanged: () => void;
-  /** 进入/退出维护模式。`message` 是要显示给使用者的说明 */
-  onMaintenance?: (active: boolean, message: string) => void;
+  /** 进入/退出维护模式，含进度 */
+  onMaintenance?: (state: LiveMaintenance) => void;
   /** 后端发来一条提示 */
   onNotification?: (notification: LiveNotification) => void;
   /** 连接状态变化。用来决定"要不要回退到轮询" */
@@ -78,7 +97,10 @@ export function connectLive(handlers: LiveHandlers): () => void {
         if (message.type === 'itemsChanged') {
           handlers.onItemsChanged();
         } else if (message.type === 'maintenance') {
-          handlers.onMaintenance?.(message.active, message.message ?? '正在更新游戏数据库…');
+          handlers.onMaintenance?.({
+            ...message,
+            message: message.message ?? '正在更新游戏数据库…',
+          });
         } else if (message.type === 'notification') {
           handlers.onNotification?.({
             message: message.message,

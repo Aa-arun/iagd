@@ -48,6 +48,8 @@ export interface HealthResponse {
   /** 正在重建游戏数据库：这期间所有查询都会被拒（503） */
   maintenance: boolean;
   maintenanceMessage?: string;
+  /** 维护任务的详细状态（含进度），供页面加载时恢复 */
+  maintenanceState?: MaintenanceState;
 }
 
 /**
@@ -210,4 +212,84 @@ export async function transferItems(
     throw new ApiError(result.error ?? '转移失败', res.status);
   }
   return result;
+}
+
+// ── 数据库 / Mods 维护（线 B）────────────────────────────────────────────
+//
+// 这四个操作原来在一个 WinForms 窗口里。写操作都**立即返回**，进度走 WebSocket；
+// 页面刷新后用 `fetchMaintenanceStatus()` 恢复当前进度。
+
+export interface GrimDawnLocation {
+  name: string;
+  path: string;
+}
+
+/** 维护任务状态。字段与 C# 的 `MaintenanceStateDto` 对应。 */
+export interface MaintenanceState {
+  busy: boolean;
+  /** loadDatabase / cleanDatabase / clearCache */
+  task?: string;
+  /** 阶段名，如 LoadingItems。中文映射见 model/maintenance.ts */
+  phase?: string;
+  percent: number;
+  phaseNumber: number;
+  phaseCount: number;
+  /** 上一次任务的错误，成功则没有 */
+  error?: string;
+}
+
+export interface MaintenanceActionResult {
+  success: boolean;
+  error?: string;
+}
+
+export async function fetchGrimDawnInstalls(): Promise<GrimDawnLocation[]> {
+  const res = await getJson<{ installs: GrimDawnLocation[] }>('/api/grimdawn/installs');
+  return res.installs;
+}
+
+export async function fetchGrimDawnMods(): Promise<GrimDawnLocation[]> {
+  const res = await getJson<{ mods: GrimDawnLocation[] }>('/api/grimdawn/mods');
+  return res.mods;
+}
+
+export function fetchMaintenanceStatus(): Promise<MaintenanceState> {
+  return getJson<MaintenanceState>('/api/maintenance/status');
+}
+
+async function postAction(path: string, body?: unknown): Promise<MaintenanceActionResult> {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
+  const result = (await res.json().catch(() => null)) as MaintenanceActionResult | null;
+  if (!res.ok) {
+    throw new ApiError(result?.error ?? `请求失败：${path}`, res.status);
+  }
+
+  return result ?? { success: false };
+}
+
+/**
+ * 指定 Grim Dawn 安装目录。
+ *
+ * ⚠️ 浏览器**不能**打开原生文件夹选择器（安全限制），所以这里是让使用者
+ * 把路径粘进来，由后端校验目录里有没有 `Grim Dawn.exe`。
+ */
+export function configureGrimDawn(path: string): Promise<MaintenanceActionResult> {
+  return postAction('/api/grimdawn/configure', { path });
+}
+
+export function startLoadDatabase(install: string, mod?: string): Promise<MaintenanceActionResult> {
+  return postAction('/api/maintenance/load', { install, mod });
+}
+
+export function startCleanDatabase(): Promise<MaintenanceActionResult> {
+  return postAction('/api/maintenance/clean');
+}
+
+export function startClearCache(): Promise<MaintenanceActionResult> {
+  return postAction('/api/maintenance/clear-cache');
 }
