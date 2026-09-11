@@ -1,0 +1,95 @@
+/*
+ * 「详细对照」视图。
+ *
+ * 用途是"筛选后并排比较几件装备"，所以刻意与简洁卡片相反：这里要**看全**，
+ * 不做折叠、不截断属性。
+ */
+
+.compare-grid {
+  display: flex;
+  /* 一行放不下就换行，每行独立 */
+  flex-wrap: wrap;
+  /*
+   * ★ 使用者的要求"同一行以最宽的为准"，靠的就是 stretch（也是默认值）：
+   *   同一行的卡片自动等高，取最高的那个。不需要用 JS 量高度——那样还会
+   *   撞上"图标加载完高度才变"的时序问题。
+   * 显式写出来是为了表明这是有意为之，不是碰巧。
+   */
+  align-items: stretch;
+  gap: 12px;
+}
+
+.compare-card {
+  /* 按内容给宽度，空间不够时可以收缩；给个下限免得挤成一条 */
+  flex: 0 1 330px;
+  min-width: 250px;
+
+  display: flex;
+  flex-direction: column; /* 让 __body 能撑满剩余高度 */
+
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.compare-card:hover {
+  border-color: color-mix(in srgb, var(--focus-accent) 55%, var(--border));
+  background: var(--focus-hover-bg);
+}
+
+.compare-card.is-pinned {
+  border-color: var(--focus-accent);
+  background: var(--focus-pinned-bg);
+  box-shadow: 0 0 0 1px var(--focus-accent);
+}
+
+.compare-card__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.compare-card__icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 4px;
+}
+
+.compare-card__title {
+  flex: 1;
+  min-width: 0;
+}
+
+.compare-card__name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.compare-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* 属性区：内容多少决定卡片多高 */
+.compare-card__body {
+  flex: 1;
+  padding: 8px 12px 12px;
+}
+
+.compare-card__empty {
+  margin: 0;
+  color: var(--text-muted);
+}
