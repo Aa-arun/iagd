@@ -194,8 +194,8 @@ export default function SettingsView() {
         <h2 className="settings-section__title">备份</h2>
 
         <Toggle
-          label="压缩备份"
-          hint="备份内容是「角色存档 + 物品数据库」，打成按星期命名的 zip。开启后在下方目录里额外存一份（默认位置的备份始终会做）"
+          label="额外备份到自定义目录"
+          hint="备份内容是「角色存档 + 物品数据库」，打成按星期命名的 zip，每 30 分钟一次、保留最近 7 天（Monday.zip … Sunday.zip）。开启后会往下面的目录再存一份；默认位置（用户数据目录的 backup\\）始终会备份，关不掉。常见用法是指向 OneDrive 之类的同步目录"
           checked={settings.backupCustom}
           onChange={(v) => update({ backupCustom: v })}
         />
