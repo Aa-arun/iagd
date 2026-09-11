@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { fetchSettings, saveSettings, type AppSettings, type SettingsUpdate } from '../../api';
+import {
+  fetchSettings,
+  importSettings,
+  openFolder,
+  resetSettings,
+  saveSettings,
+  SETTINGS_EXPORT_URL,
+  type AppSettings,
+  type SettingsUpdate,
+} from '../../api';
 import './SettingsView.css';
 
 /** 公共仓库数量（游戏固定 6 个；C# 那边 `StashTabPicker` 也硬编码 6） */
@@ -20,6 +29,9 @@ export default function SettingsView() {
   const [showSaved, setShowSaved] = useState(false);
   /** 淡出定时器：连续改动时要把上一个清掉，否则提示会提前消失 */
   const hideTimer = useRef<number | null>(null);
+  /** 第二栏「动作」的反馈（重置/导入的后果比保存设置严重得多，要单独说清楚） */
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,6 +69,48 @@ export default function SettingsView() {
       .catch((err: Error) => setError(err.message));
   };
 
+  // ── 第二栏：动作 ──────────────────────────────────────────────────────
+
+  const handleReset = async () => {
+    const confirmed = window.confirm(
+      '确定要重置所有设置吗？\n\n' +
+        '· 当前的设置文件会先自动备份一份\n' +
+        '· 物品数据不受影响\n' +
+        '· 程序随后会重启',
+    );
+    if (!confirmed) return;
+
+    setActionMessage('正在重置…');
+    try {
+      const result = await resetSettings();
+      setActionMessage(
+        result.backup
+          ? `已重置，原设置已备份到：${result.backup}\n程序正在重启…`
+          : '已重置，程序正在重启…',
+      );
+    } catch (err) {
+      setActionMessage('重置失败：' + (err as Error).message);
+    }
+  };
+
+  const handleImportFile = async (file: File) => {
+    setActionMessage('正在导入…');
+    try {
+      await importSettings(await file.text());
+      setActionMessage('设置已导入，程序正在重启…');
+    } catch (err) {
+      setActionMessage('导入失败：' + (err as Error).message);
+    }
+  };
+
+  const handleOpen = async (target: 'backups' | 'logs') => {
+    try {
+      await openFolder(target);
+    } catch (err) {
+      setActionMessage('打开目录失败：' + (err as Error).message);
+    }
+  };
+
   if (error) {
     return <p className="app__loading">读取设置失败：{error}</p>;
   }
@@ -70,8 +124,10 @@ export default function SettingsView() {
     settings.stashToDepositTo === settings.stashToLootFrom && settings.stashToDepositTo !== 0;
 
   return (
-    <div className="settings">
-      <section className="settings-section">
+    <div className="settings-layout">
+      {/* ── 第一栏：设置项 ── */}
+      <div className="settings">
+        <section className="settings-section">
         <h2 className="settings-section__title">界面</h2>
 
         <Toggle
@@ -157,10 +213,78 @@ export default function SettingsView() {
         </label>
       </section>
 
-      <p className={`settings-saved ${showSaved ? 'is-visible' : ''}`} aria-live="polite">
-        已保存
-      </p>
+        <p className={`settings-saved ${showSaved ? 'is-visible' : ''}`} aria-live="polite">
+          已保存
+        </p>
+      </div>
+
+      {/* ── 第二栏：动作 ── */}
+      <aside className="settings-actions">
+        <h2 className="settings-section__title">动作</h2>
+
+        <ActionButton
+          label="重置设置"
+          hint="先自动备份一份设置，然后重启程序（物品数据不受影响）"
+          onClick={handleReset}
+          danger
+        />
+
+        <ActionButton
+          label="导出设置"
+          hint="把当前设置保存成文件"
+          onClick={() => {
+            // 直接指向后端的下载端点，浏览器会按 Content-Disposition 存成文件
+            window.location.href = SETTINGS_EXPORT_URL;
+          }}
+        />
+
+        <ActionButton
+          label="导入设置"
+          hint="从文件恢复设置（会重启程序）"
+          onClick={() => fileInput.current?.click()}
+        />
+        <input
+          ref={fileInput}
+          type="file"
+          accept="application/json,.json"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            // 清空 value，否则连续选同一个文件不会再触发 change
+            e.target.value = '';
+            if (file) void handleImportFile(file);
+          }}
+        />
+
+        <ActionButton label="查看备份" hint="打开备份目录" onClick={() => handleOpen('backups')} />
+        <ActionButton label="查看日志" hint="打开日志目录" onClick={() => handleOpen('logs')} />
+
+        {actionMessage && <p className="settings-action-message">{actionMessage}</p>}
+      </aside>
     </div>
+  );
+}
+
+function ActionButton({
+  label,
+  hint,
+  onClick,
+  danger,
+}: {
+  label: string;
+  hint?: string;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      className={`settings-action ${danger ? 'is-danger' : ''}`}
+      onClick={onClick}
+    >
+      <span className="settings-action__label">{label}</span>
+      {hint && <span className="settings-action__hint">{hint}</span>}
+    </button>
   );
 }
 

@@ -1,5 +1,87 @@
+/*
+ * 两栏布局：左边是设置项，右边是「动作」。
+ *
+ * 分开的理由：左边都是**可逆的开关**（改错再点一下就回来），
+ * 右边是重置/导入这类**不可逆、会重启程序**的操作。
+ * 混在一起容易误点。
+ */
+.settings-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(230px, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+/* 窄屏改为上下排列 */
+@media (max-width: 900px) {
+  .settings-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .settings {
-  max-width: 720px;
+  min-width: 0;
+}
+
+.settings-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-left: 20px;
+  border-left: 1px solid var(--border);
+}
+
+@media (max-width: 900px) {
+  .settings-actions {
+    padding-left: 0;
+    border-left: none;
+  }
+}
+
+.settings-action {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  background: var(--bg-panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-action:hover {
+  background: var(--bg-hover);
+}
+
+.settings-action__label {
+  font-weight: 600;
+}
+
+.settings-action__hint {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* 危险操作（重置）给个暖色边框，提醒它不可逆 */
+.settings-action.is-danger {
+  border-color: #7a2b22;
+}
+
+.settings-action.is-danger .settings-action__label {
+  color: #e08a7a;
+}
+
+.settings-action-message {
+  margin: 6px 0 0;
+  color: #d8b06a;
+  font-size: 11px;
+  /* 备份路径可能很长，允许换行 */
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
 .settings-section {

@@ -91,6 +91,59 @@ export async function saveSettings(update: SettingsUpdate): Promise<void> {
   }
 }
 
+// ── 动作（设置页第二栏）─────────────────────────────────────────────────
+
+/** 重置设置的响应：`backup` 是重置前自动备份的设置文件路径 */
+export interface ResetSettingsResult {
+  success: boolean;
+  backup: string | null;
+}
+
+/**
+ * 重置设置。
+ *
+ * ⚠️ 备份的是**设置文件**（`settings.json`），不是物品数据。
+ * 后端会先备份、再删除设置文件并**重启程序**（响应发出后约 0.6 秒重启，
+ * 所以调用方拿到结果后应提示用户"程序正在重启"）。
+ */
+export async function resetSettings(): Promise<ResetSettingsResult> {
+  const res = await fetch('/api/settings/reset', { method: 'POST' });
+  if (!res.ok) {
+    throw new ApiError('重置设置失败', res.status);
+  }
+  return (await res.json()) as ResetSettingsResult;
+}
+
+/** 导出设置的下载地址（直接用 `<a download>` 或 `location.href` 触发） */
+export const SETTINGS_EXPORT_URL = '/api/settings/export';
+
+/**
+ * 导入设置（把文件内容作为 JSON 文本提交，不走 multipart）。
+ * 成功后后端同样会重启程序。
+ */
+export async function importSettings(json: string): Promise<void> {
+  const res = await fetch('/api/settings/import', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: json,
+  });
+  if (!res.ok) {
+    throw new ApiError('导入设置失败', res.status);
+  }
+  const result = (await res.json()) as { success: boolean; error?: string };
+  if (!result.success) {
+    throw new Error(result.error ?? '导入失败');
+  }
+}
+
+/** 在资源管理器里打开目录：`backups` = 备份目录，`logs` = 数据目录（含 log.txt） */
+export async function openFolder(target: 'backups' | 'logs'): Promise<void> {
+  const res = await fetch(`/api/open/${target}`, { method: 'POST' });
+  if (!res.ok) {
+    throw new ApiError('打开目录失败', res.status);
+  }
+}
+
 /**
  * 物品图标的 URL。
  *
