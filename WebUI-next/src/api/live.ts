@@ -4,11 +4,13 @@
  * ★ 协议：C# 侧 `/ws` **只发轻量信号**，不带数据。数据仍然走 REST
  * （见 `IAGrim/Http/WebSocketHub.cs` 的类注释）。
  *
- * 目前有两种消息：
+ * 目前有三种消息：
  * - `{ type: 'itemsChanged' }` —— 物品数据库变了（游戏里捡到东西、
  *   转移走了物品、重新解析了游戏数据），前端应当重查当前列表。
  * - `{ type: 'maintenance', active, message }` —— 后端正在重建游戏数据库
  *   （清库 + 解析几分钟）。这期间查询会被拒（503），界面要显示遮罩。
+ * - `{ type: 'notification', message, level, helpUrl, fade }` —— 后端主动
+ *   要给使用者看的一条提示（对应 C# 的 `IUserFeedbackHandler.ShowMessage`）。
  *
  * ⚠️ **连不上不算致命**：`App.tsx` 在断连期间会回退到轮询。
  * 这也是为什么这里要一直重连——它决定了界面是"实时"还是"最多 4 秒延迟"。
@@ -17,13 +19,26 @@
 /** 后端推来的消息。 */
 type LiveMessage =
   | { type: 'itemsChanged' }
-  | { type: 'maintenance'; active: boolean; message?: string };
+  | { type: 'maintenance'; active: boolean; message?: string }
+  | { type: 'notification'; message: string; level: string; helpUrl?: string; fade: boolean };
+
+/** 后端主动发来的一条提示。 */
+export interface LiveNotification {
+  message: string;
+  /** 对应 C# 的 `UserFeedbackLevel`：info / warning / danger / success */
+  level: string;
+  helpUrl?: string;
+  /** true = 自动淡出；false = 留着等使用者处理 */
+  fade: boolean;
+}
 
 export interface LiveHandlers {
   /** 数据库变了，去重查当前列表 */
   onItemsChanged: () => void;
   /** 进入/退出维护模式。`message` 是要显示给使用者的说明 */
   onMaintenance?: (active: boolean, message: string) => void;
+  /** 后端发来一条提示 */
+  onNotification?: (notification: LiveNotification) => void;
   /** 连接状态变化。用来决定"要不要回退到轮询" */
   onStatus?: (connected: boolean) => void;
 }
@@ -64,6 +79,13 @@ export function connectLive(handlers: LiveHandlers): () => void {
           handlers.onItemsChanged();
         } else if (message.type === 'maintenance') {
           handlers.onMaintenance?.(message.active, message.message ?? '正在更新游戏数据库…');
+        } else if (message.type === 'notification') {
+          handlers.onNotification?.({
+            message: message.message,
+            level: message.level,
+            helpUrl: message.helpUrl,
+            fade: message.fade,
+          });
         }
       } catch {
         /* 不是 JSON 就忽略：推送通道不该因为一条坏消息把界面搞崩 */
