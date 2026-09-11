@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { connectLive, fetchI18n, fetchItems, searchItems, type I18nMap, type ItemsResponse } from './api';
+import { connectLive, fetchHealth, fetchI18n, fetchItems, searchItems, type I18nMap, type ItemsResponse } from './api';
 import { I18nProvider } from './i18n';
 import { ItemDetailPanel, ItemDetailProvider } from './components/ItemDetail';
 import SearchBar from './components/SearchBar/SearchBar';
@@ -45,6 +45,13 @@ export default function App() {
   const knownTotalRef = useRef<number | null>(null);
   /** `/ws` 是否连着。连着就靠推送，断了才退回轮询 */
   const [live, setLive] = useState(false);
+  /**
+   * 维护提示文案，非 null 表示后端正在重建游戏数据库。
+   *
+   * 那期间后端会把查询全部拒掉（503），因为库被清空了——照常查询会显示
+   * 一个空列表，让人以为自己的物品没了。所以这里要整屏挡住。
+   */
+  const [maintenance, setMaintenance] = useState<string | null>(null);
 
   const reload = useCallback(() => setReloadToken((n) => n + 1), []);
 
@@ -92,16 +99,39 @@ export default function App() {
     };
   }, [keyword, reloadToken]);
 
-  // 线 B（B2）：订阅后端的 `itemsChanged` 推送。这是"在游戏里捡到东西，
-  // 网页上立刻出现"的正常路径。连接本身由 connectLive 负责自动重连。
+  // 线 B（B2）：订阅后端的 `itemsChanged` / `maintenance` 推送。这是"在游戏里
+  // 捡到东西，网页上立刻出现"的正常路径。连接由 connectLive 负责自动重连。
   useEffect(() => {
-    return connectLive({ onItemsChanged: reload, onStatus: setLive });
+    return connectLive({
+      onItemsChanged: reload,
+      onMaintenance: (active, message) => setMaintenance(active ? message : null),
+      onStatus: setLive,
+    });
   }, [reload]);
+
+  // 初次加载时补一次状态：维护只在**状态变化**时广播，所以如果页面是在
+  // 维护开始之后才打开的，就永远收不到那条推送（只会看到一堆 503）。
+  useEffect(() => {
+    let cancelled = false;
+    fetchHealth()
+      .then((health) => {
+        if (!cancelled && health.maintenance) {
+          setMaintenance(health.maintenanceMessage ?? '正在更新游戏数据库…');
+        }
+      })
+      .catch(() => {
+        /* 忽略：连不上后端时下面的查询自己会报错 */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // 兜底：只有在 /ws 断开时才轮询（见 POLL_INTERVAL_MS 注释）。
   // 窗口重新获得焦点时也立刻查一次——那时可能刚重连上，推送已经错过了。
+  // 维护期间不轮询：后端会一直回 503，白白刷屏。
   useEffect(() => {
-    if (live) return;
+    if (live || maintenance) return;
 
     let cancelled = false;
 
@@ -134,7 +164,7 @@ export default function App() {
       window.removeEventListener('focus', check);
       document.removeEventListener('visibilitychange', check);
     };
-  }, [live, reload]);
+  }, [live, maintenance, reload]);
 
   const searching = keyword.trim().length > 0;
 
@@ -209,6 +239,23 @@ export default function App() {
 
         {/* ★ 详情面板全应用只有一个实例，挂在顶层 */}
         <ItemDetailPanel />
+
+        {/*
+          维护遮罩：后端正在重建游戏数据库（清库 + 解析几分钟）。
+          这期间它会把查询全部拒掉，与其让页面显示"读取失败"或一个空列表，
+          不如直接说清楚在干什么、要等多久。
+        */}
+        {maintenance && (
+          <div className="app__maintenance" role="alertdialog" aria-live="polite">
+            <div className="app__maintenance-card">
+              <h2>{maintenance}</h2>
+              <p>
+                程序正在重新解析游戏数据文件，这期间界面无法查询物品。
+                完成后会自动恢复，不需要刷新页面。
+              </p>
+            </div>
+          </div>
+        )}
       </I18nProvider>
     </ItemDetailProvider>
   );

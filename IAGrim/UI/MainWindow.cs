@@ -639,6 +639,16 @@ namespace IAGrim.UI {
             var cacher = _serviceProvider.Get<TransferStashServiceCache>();
             _parsingService.OnParseComplete += (o, args) => cacher.Refresh();
 
+            // 线 B（B2 补）：解析游戏数据库期间冻结浏览器界面。
+            //
+            // 解析会先 Clean() 掉整个游戏数据库再重建，几分钟。这期间网页如果照常
+            // 查询，拿到的会是空库——使用者会以为物品丢了。所以两头都要告诉它。
+            //
+            // 用闭包而不是当场取 `_webServer`：HTTP 服务是在 WebView2 初始化回调里
+            // 才创建的，时序上晚于这里。
+            _parsingService.OnParseStarted += (o, args) => _webServer?.EnterMaintenance();
+            _parsingService.OnParseComplete += (o, args) => _webServer?.ExitMaintenance();
+
 
             var replicaItemDao = _serviceProvider.Get<IReplicaItemDao>();
             var computedItemStatDao = _serviceProvider.Get<IComputedItemStatDao>();
@@ -675,7 +685,24 @@ namespace IAGrim.UI {
             };
 
 
-            _modsDatabaseConfigTab = new ModsDatabaseConfig(DatabaseLoadedTrigger, playerItemDao, _parsingService, grimDawnDetector, settingsService, _cefBrowserHandler, databaseItemDao, replicaItemDao, computedItemStatDao);
+            _modsDatabaseConfigTab = new ModsDatabaseConfig(
+                DatabaseLoadedTrigger,
+                playerItemDao,
+                _parsingService,
+                grimDawnDetector,
+                settingsService,
+                _cefBrowserHandler,
+                databaseItemDao,
+                replicaItemDao,
+                computedItemStatDao,
+                // 线 B（B2 补）：清库/重建统计这类"会动到整个游戏数据库"的操作，
+                // 期间必须让浏览器界面停止查询。解析本身由 ParsingService 的事件覆盖，
+                // 这里覆盖的是不经过解析的那两个按钮。
+                maintenance => {
+                    if (maintenance) _webServer?.EnterMaintenance();
+                    else _webServer?.ExitMaintenance();
+                }
+            );
             UIHelper.AddAndShow(_modsDatabaseConfigTab, modsPanel);
 
             var itemTagDao = _serviceProvider.Get<IItemTagDao>();
