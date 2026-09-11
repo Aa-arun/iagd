@@ -115,6 +115,23 @@ namespace IAGrim.Http {
 
         /// <summary>线 B（B2）：向已连接的浏览器广播"发生了什么"。</summary>
         private readonly WebSocketHub _hub = new WebSocketHub();
+
+        /// <summary>
+        /// 维护模式深度：正在重新解析游戏数据库（清库 + 解析几分钟）。
+        ///
+        /// ⚠️ 为什么需要它：`ModsDatabaseConfig.buttonForceUpdate_Click` 第一件事就是
+        /// `_databaseItemDao.Clean()`，之后是几分钟的解析。这期间网页如果照常查询，
+        /// 拿到的会是**空库**或半成品——使用者会以为自己的物品丢了。
+        ///
+        /// ★ 用**计数**而不是布尔：维护期会嵌套——`buttonForceUpdate_Click` 自己包一层，
+        /// 里面的 `ParsingService.OnParseStarted` 又包一层。用布尔的话，内层先结束就会
+        /// 把外层也解冻，而那时它还没干完活。
+        /// </summary>
+        private int _maintenanceDepth;
+
+        /// <summary>维护期间给前端显示的说明。</summary>
+        private string _maintenanceMessage = "正在更新游戏数据库…";
+
         private WebApplication? _app;
 
         public WebServer(
@@ -209,10 +226,17 @@ namespace IAGrim.Http {
                 port = Port,
                 // C# 后端是**真后端**（不是 tools/devapi 那个只读原型）
                 readOnly = false,
+                // 前端首次加载时 WS 还没连上，靠这个字段就能知道该不该显示遮罩。
+                maintenance = IsMaintenance,
+                maintenanceMessage = IsMaintenance ? _maintenanceMessage : null,
             }));
 
             // GET /api/items?offset=&limit= —— 对应原 RequestMoreItems()
             app.MapGet("/api/items", (int? offset, int? limit) => {
+                if (MaintenanceGuard() is IResult guard) {
+                    return guard;
+                }
+
                 var off = offset ?? 0;
                 var lim = limit ?? 50;
                 var items = _search.QueryItems(new ItemSearchRequest(), off, lim, out int total, out bool truncated);
@@ -221,6 +245,10 @@ namespace IAGrim.Http {
 
             // POST /api/search —— 请求体结构见 .docs/03-目标架构.md §4.5
             app.MapPost("/api/search", (SearchRequestDto dto) => {
+                if (MaintenanceGuard() is IResult guard) {
+                    return guard;
+                }
+
                 var items = _search.QueryItems(dto, dto.Offset, dto.Limit, out int total, out bool truncated);
                 return Json(new { total, offset = dto.Offset, limit = dto.Limit, truncated, items });
             });
@@ -234,6 +262,11 @@ namespace IAGrim.Http {
             //
             // ⚠️ 控制器在 MainWindow 里稍后才创建，所以用工厂延迟取（见字段注释）。
             app.MapPost("/api/items/transfer", (TransferRequestDto dto) => {
+                // 维护期间游戏数据库正在重建，物品记录也在被重写，不能转移。
+                if (MaintenanceGuard() is IResult guard) {
+                    return guard;
+                }
+
                 var controller = _transferController();
                 if (controller == null) {
                     return Json(new { success = false, error = "转移功能尚未就绪（程序可能仍在启动）" });
@@ -505,6 +538,74 @@ namespace IAGrim.Http {
         /// </summary>
         public void BroadcastItemsChanged() {
             _hub.Broadcast(new { type = "itemsChanged" });
+        }
+
+        /// <summary>是否处于维护模式（HTTP 查询会被拒）。读多写少，用 Volatile 读即可。</summary>
+        public bool IsMaintenance => Volatile.Read(ref _maintenanceDepth) > 0;
+
+        /// <summary>
+        /// 进入维护模式（可嵌套）。最外层进入时才广播。
+        /// </summary>
+        public void EnterMaintenance(string? message = null) {
+            if (!string.IsNullOrEmpty(message)) {
+                _maintenanceMessage = message;
+            }
+
+            if (Interlocked.Increment(ref _maintenanceDepth) != 1) {
+                return;
+            }
+
+            Logger.Info("进入维护模式：解析游戏数据库期间，浏览器界面暂停查询");
+            _hub.Broadcast(new {
+                type = "maintenance",
+                active = true,
+                message = _maintenanceMessage,
+            });
+        }
+
+        /// <summary>
+        /// 退出维护模式。最外层退出时才广播，并让页面重查一次列表
+        /// （数据库整个换过了）。
+        /// </summary>
+        public void ExitMaintenance() {
+            var depth = Interlocked.Decrement(ref _maintenanceDepth);
+
+            if (depth > 0) {
+                return;
+            }
+
+            if (depth < 0) {
+                // Exit 多于 Enter 了。夹回 0，免得计数越跑越负、界面永久卡在可查询状态。
+                Interlocked.Exchange(ref _maintenanceDepth, 0);
+                Logger.Warn("维护模式计数被减到负数（Exit 多于 Enter），已归零");
+                return;
+            }
+
+            Logger.Info("退出维护模式，浏览器界面恢复");
+            _hub.Broadcast(new {
+                type = "maintenance",
+                active = false,
+                message = _maintenanceMessage,
+            });
+
+            BroadcastItemsChanged();
+        }
+
+        /// <summary>
+        /// 维护期间拒绝查询类请求。
+        ///
+        /// 返回 503 而不是让 SQL 在半成品数据库上跑：那既可能报错，
+        /// 更糟的是**可能成功**并返回一个空列表，让人以为物品没了。
+        /// </summary>
+        private IResult? MaintenanceGuard() {
+            if (!IsMaintenance) {
+                return null;
+            }
+
+            return Results.Json(new {
+                error = _maintenanceMessage,
+                maintenance = true,
+            }, statusCode: StatusCodes.Status503ServiceUnavailable);
         }
 
         public void Dispose() {

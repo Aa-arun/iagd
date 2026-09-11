@@ -90,6 +90,44 @@ body {
   color: var(--text-muted);
 }
 
+/*
+  维护遮罩：重新解析游戏数据库期间挡住整个界面。
+  用 fixed 而不是 absolute——它要盖住视口，不受 #root 的 padding 影响。
+*/
+.app__maintenance {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.55);
+  /* 挡住底下的滚动与点击 */
+  overflow: hidden;
+}
+
+.app__maintenance-card {
+  max-width: 420px;
+  padding: 22px 26px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.app__maintenance-card h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.app__maintenance-card p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
 /* 顶层页签：物品 / 图鉴 */
 .app__tabs {
   display: flex;

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -24,6 +24,15 @@ namespace IAGrim.Parsers.GameDataParsing.Service {
         private readonly IItemSkillDao _itemSkillDao;
         private readonly string _languageCode;
         public event EventHandler? OnParseComplete;
+
+        /// <summary>
+        /// 解析**开始**了。
+        ///
+        /// 线 B（B2 补）：解析期间游戏数据库是被清空/重建的，浏览器界面必须
+        /// 停止查询（见 `WebServer.EnterMaintenance`）。`OnParseComplete` 已经存在，
+        /// 这里补上与之配对的开头——只有结尾没有开头，调用方就没法知道该冻结。
+        /// </summary>
+        public event EventHandler? OnParseStarted;
 
 
         public ParsingService(
@@ -73,6 +82,11 @@ namespace IAGrim.Parsers.GameDataParsing.Service {
         }
 
         public void Execute() {
+            // 尽早在最前面：调用方（ModsDatabaseConfig / StartupService）都是在
+            // 调用本方法**之前**就 Clean() 掉了游戏数据库，所以从这一刻起
+            // 浏览器界面就不该再查了。
+            OnParseStarted?.Invoke(this, EventArgs.Empty);
+
             var form = new ParsingDatabaseProgressView();
             var parser = new ArzParsingWrapper();
 

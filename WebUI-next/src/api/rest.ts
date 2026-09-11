@@ -40,6 +40,27 @@ export function fetchItems(offset = 0, limit = 50): Promise<ItemsResponse> {
   return getJson<ItemsResponse>(`/api/items?offset=${offset}&limit=${limit}`);
 }
 
+/** 后端健康状态。 */
+export interface HealthResponse {
+  ok: boolean;
+  port: number;
+  readOnly: boolean;
+  /** 正在重建游戏数据库：这期间所有查询都会被拒（503） */
+  maintenance: boolean;
+  maintenanceMessage?: string;
+}
+
+/**
+ * 查后端状态。
+ *
+ * ⚠️ 存在的理由：`maintenance` 只在**状态变化时**通过 WebSocket 广播，
+ * 所以如果页面是在维护**开始之后**才打开的，它永远收不到那条消息，
+ * 只会看到一堆 503。页面初次加载时靠这个接口补上状态。
+ */
+export function fetchHealth(): Promise<HealthResponse> {
+  return getJson<HealthResponse>('/api/health');
+}
+
 /**
  * 搜索物品（对应原 WinForms 搜索框构造的 `ItemSearchRequest`）。
  *
