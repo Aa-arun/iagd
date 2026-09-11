@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { fetchSettings, saveSettings, type AppSettings, type SettingsUpdate } from '../../api';
 import './SettingsView.css';
 
 /** 公共仓库数量（游戏固定 6 个；C# 那边 `StashTabPicker` 也硬编码 6） */
 const STASH_COUNT = 6;
+
+/** "已保存"提示显示多久后开始淡出 */
+const SAVED_VISIBLE_MS = 1000;
 
 /**
  * 设置。
@@ -14,7 +17,9 @@ const STASH_COUNT = 6;
 export default function SettingsView() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [showSaved, setShowSaved] = useState(false);
+  /** 淡出定时器：连续改动时要把上一个清掉，否则提示会提前消失 */
+  const hideTimer = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -30,11 +35,25 @@ export default function SettingsView() {
     };
   }, []);
 
+  // 卸载时清掉定时器，避免对已卸载的组件 setState
+  useEffect(
+    () => () => {
+      if (hideTimer.current !== null) window.clearTimeout(hideTimer.current);
+    },
+    [],
+  );
+
+  const flashSaved = () => {
+    if (hideTimer.current !== null) window.clearTimeout(hideTimer.current);
+    setShowSaved(true); // 立即出现（CSS 里这一步是"硬切入"，没有过渡）
+    hideTimer.current = window.setTimeout(() => setShowSaved(false), SAVED_VISIBLE_MS);
+  };
+
   const update = (patch: SettingsUpdate) => {
     // 乐观更新：先改界面，再发请求。设置都是幂等的开关，失败时下面会显示错误。
     setSettings((prev) => (prev ? { ...prev, ...patch } : prev));
     saveSettings(patch)
-      .then(() => setSavedAt(Date.now()))
+      .then(flashSaved)
       .catch((err: Error) => setError(err.message));
   };
 
@@ -119,7 +138,7 @@ export default function SettingsView() {
 
         <Toggle
           label="压缩备份"
-          hint="备份打成 zip，省磁盘"
+          hint="备份内容是「角色存档 + 物品数据库」，打成按星期命名的 zip。开启后在下方目录里额外存一份（默认位置的备份始终会做）"
           checked={settings.backupCustom}
           onChange={(v) => update({ backupCustom: v })}
         />
@@ -138,7 +157,9 @@ export default function SettingsView() {
         </label>
       </section>
 
-      <p className="settings-saved">{savedAt ? '已保存' : '\u00a0'}</p>
+      <p className={`settings-saved ${showSaved ? 'is-visible' : ''}`} aria-live="polite">
+        已保存
+      </p>
     </div>
   );
 }

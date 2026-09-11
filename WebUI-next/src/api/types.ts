@@ -1,5 +1,4 @@
 import type IItem from '../model/item';
-import type ICollectionItem from '../model/collection';
 
 /**
  * 分页响应的统一形状。
@@ -16,9 +15,6 @@ export interface Paged<T> {
 
 /** `GET /api/items` 的响应 */
 export type ItemsResponse = Paged<IItem>;
-
-/** `GET /api/collection` 的响应 */
-export type CollectionResponse = Paged<ICollectionItem>;
 
 /** `GET /api/filters/options` 的响应 */
 export interface FiltersOptions {
