@@ -1,0 +1,25 @@
+.view-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.view-switcher__label {
+  color: var(--text-muted);
+}
+
+.view-switcher__select {
+  padding: 4px 8px;
+  background: var(--bg-panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.view-switcher__select:focus-visible {
+  outline: 2px solid var(--q-blue);
+  outline-offset: 1px;
+}
