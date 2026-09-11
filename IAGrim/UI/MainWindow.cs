@@ -1,4 +1,4 @@
-﻿using DllInjector;
+using DllInjector;
 using EvilsoftCommons;
 using EvilsoftCommons.Cloud;
 using EvilsoftCommons.DllInjector;
@@ -72,6 +72,8 @@ namespace IAGrim.UI {
         private WebSocketSyncService? _webSocketSyncService;
         private readonly UserFeedbackService _userFeedbackService;
         private MinimizeToTrayHandler? _minimizeToTrayHandler;
+        /// <summary>线 B（B1）：给系统浏览器用的 HTTP 服务（与 WebView2 路径并存）</summary>
+        private Http.WebServer? _webServer;
         private ModsDatabaseConfig? _modsDatabaseConfigTab;
         private System.Windows.Forms.Timer? _wineMessageTimer;
         public static int NumInstantSyncItemCount = 300;
@@ -279,6 +281,20 @@ namespace IAGrim.UI {
                         var searchController = _serviceProvider.Get<SearchController>();
                         _cefBrowserHandler.InitializeChromium(browser, searchController.JsIntegration, tabControl1);
                         _cefBrowserHandler.IsReady = true;
+
+                        // 线 B（B1）：另起一个 HTTP 服务，让**系统浏览器**也能用新前端。
+                        // 与上面的 WebView2 路径**并存**——启动失败只记日志，不影响程序其他功能。
+                        try {
+                            _webServer = new Http.WebServer(
+                                searchController,
+                                _serviceProvider.Get<IItemTagDao>(),
+                                GlobalPaths.StorageFolder
+                            );
+                            _webServer.Start();
+                        }
+                        catch (Exception webEx) {
+                            Logger.Warn("HTTP 服务启动失败（不影响程序其他功能）：" + webEx.Message);
+                        }
 
                         _searchWindow?.UpdateListViewDelayed();
 
