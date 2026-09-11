@@ -132,38 +132,53 @@ flowchart LR
 
 ---
 
-## 开发环境与依赖
+## 开发环境与工作方式
 
-> 详细见 [`.docs/04-开发环境.md`](./.docs/04-开发环境.md)。
+> 详细见 [`.docs/04-开发环境.md`](./.docs/04-开发环境.md)（实测参数 + 完整流程）。
 
-**主要环境（计划）**：Windows 主机 + WSL2。
+### ★ 工作方式（已定，2026-09-11）
 
-| 依赖 | 用途 | 版本 |
+> **agent 留 WSL，仓库留 WSL，Windows 只当「构建靶机」。**
+
+```
+Windows 主机  ← 只做：编译（需装 SDK）· 跑游戏 · 开浏览器
+     ▲  跨边界只发生在「编译这一刻」（interop 调 dotnet）
+WSL2          ← ★ agent（DSH）· 仓库 /home/jyl/iagd（ext4 原生）· Node / npm / git
+```
+
+理由：agent 的工具链主路径在 Linux（bash/glob/grep 是训练主路径，Windows 原生 PowerShell 是长尾）；
+**工作量最大的前端与界面迁移不依赖 Windows**；跨边界只发生在编译，而 `npm install` 的数万小文件
+留在 WSL 原生文件系统上。
+
+### 实测环境
+
+| 依赖 | 在哪 | 实测状态 |
 |---|---|---|
-| .NET SDK | 编译 IAGrim | **10.0**（Windows 版自带 WinForms 组件） |
-| **VS Code + C# Dev Kit** | 写 C#、编译、调试 | ✅ **足够，不需要 Visual Studio** |
-| Node.js | 编译前端 | **20 LTS** |
-| Git | 版本控制 | 任意较新版本 |
-| WebView2 Runtime | 过渡期需要 | 改造后不再需要 |
-| （可选）AutoUpdater.NET.dll | 缺失时编译报 CS0246 | 见 `README.md` |
+| **.NET SDK 10.0** | Windows | ❌ **待安装**（当前只有 Runtime → `dotnet build` 报 `No .NET SDKs were found`） |
+| Visual Studio | — | ❌ **不需要**（SDK 自带 MSBuild） |
+| Node.js | WSL | ✅ **v22.23.2**（注意 `WebUI/.node-version` 写的是 v20） |
+| git | WSL | ✅ 2.43.0 |
+| WebView2 Runtime | Windows | ⚠️ 过渡期需要，改造后不再需要 |
 
-**常用命令**：
+**常用命令**（都在 WSL 内执行）：
 
 ```bash
-cd WebUI
-npm install        # 首次
-npm run dev        # Vite 开发服务器，默认 http://localhost:3000
-npm run lint       # ESLint
-npm run build      # 产出 build/
+# 前端开发（最常用，完全不碰 Windows）
+cd ~/iagd/WebUI && npm run dev          # → http://localhost:3000
+
+# 后端编译（经 interop 调 Windows 的 dotnet）
+cd /mnt/c && cmd.exe /c 'pushd \\wsl.localhost\Ubuntu-24.04\home\jyl\iagd && dotnet build IAGrim-core.sln && popd'
 ```
 
-```bat
-cd WebUI && build.cmd     REM 构建并拷进 C# 项目（Windows）
-dotnet build IAGrim-core.sln
-```
+### 三条铁律
 
-**当前这台 Linux 开发机**：不能编译 C#（无 dotnet，且目标是 Windows-only）。
-有 Node.js，**可以开始线 A 的步 0、1、4、5**（假数据、纯界面工作）。
+1. **不要调用 `WebUI/build.cmd`** —— 末尾的 `pause` 会让 shell **永久挂住**。用 `.docs/04` §4.3 的 WSL 流程。
+2. **不要在 `/mnt/c` 下做批量文件操作** —— 跨文件系统很慢，仓库必须始终待在 WSL 原生侧。
+3. **跨边界必须用 `pushd`，且前置 `cd /mnt/c`** —— 否则 `cmd.exe` 会因 UNC 限制**静默退回 `C:\Windows`**，
+   命令看似执行、实际在错误目录。
+
+**现在能做什么**：线 A 的步 0、1、4、5（假数据、纯界面工作）**立刻可做**；
+线 B/C 需要先在 Windows 装好 .NET SDK。
 
 ---
 
@@ -174,8 +189,9 @@ dotnet build IAGrim-core.sln
 
 | 线 | 内容 | 需要 |
 |---|---|---|
-| A | 新前端增量开发（步 0–6） | 步 0 / 1 / 4 / 5 只需 Node.js |
-| B | 后端服务化：HTTP + WebSocket 与旧路径并存 | Windows |
-| C | 界面迁移：搜索框、过滤器面板搬进网页（**工作量最大**） | Windows |
+| A | 新前端增量开发（步 0–6） | 步 0 / 1 / 4 / 5 只需 Node.js（**现在就能做**） |
+| B | 后端服务化：HTTP + WebSocket 与旧路径并存 | .NET 10 SDK（**待安装**） |
+| C | 界面迁移：搜索框、过滤器面板搬进网页（**工作量最大**） | .NET 10 SDK（**待安装**） |
 
-**动手前必读**：`.docs/03-目标架构.md` + `.docs/05-实施计划.md`。
+**动手前必读**：`.docs/03-目标架构.md` + `.docs/05-实施计划.md`；
+环境与命令见 `.docs/04-开发环境.md`。
