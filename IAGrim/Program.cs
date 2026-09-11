@@ -315,7 +315,11 @@ namespace IAGrim
             if (settingsService.GetPersistent().DarkMode) {
                 Application.SetColorMode(SystemColorMode.Dark);
             }
-            _mw.Visible = false;
+
+            // 这里原本有一句 `_mw.Visible = false;`——**它是无效的**：
+            // 下面的 `Application.Run(_mw)` 会把窗口重新设为可见，于是启动时旧界面
+            // 会在屏幕上停留几秒（原来是等 WebView2 初始化完成才 Hide）。使用者
+            // 明确反馈过这一点。主窗口现在由 `MainWindow.SetVisibleCore` 永久拦住。
             if (new DonateNagScreen(settingsService).CanNag)
                 Application.Run(new DonateNagScreen(settingsService));
 

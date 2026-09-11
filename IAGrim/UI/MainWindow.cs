@@ -215,11 +215,28 @@ namespace IAGrim.UI {
 
             _minimizeToTrayHandler = new MinimizeToTrayHandler(this, notifyIcon1, serviceProvider.Get<SettingsService>());
 
+            // 线 B（B5/B6）：旧界面删掉后，数据库 / Mods 维护窗口失去了入口——
+            // 主窗口启动几秒后就被 Hide() 收进托盘，而托盘的双击与 Open 都是打开浏览器。
+            // 这四个操作（加载数据库 / 配置 / 清除数据库 / 更新项目统计）留在 WinForms，
+            // 所以必须给托盘菜单补一项。
+            var maintenanceItem = new ToolStripMenuItem("数据库 / Mods（维护）");
+            maintenanceItem.Click += (_, _) => ShowMaintenanceWindow();
+            // 插在 Open 与 Exit 之间
+            trayContextMenuStrip.Items.Insert(1, maintenanceItem);
+
             _automaticUpdateChecker = new AutomaticUpdateChecker(settingsService);
             _parsingService = parsingService;
             // 用闭包延迟取 `_webServer`：HTTP 服务要到 MainWindow_Load 末尾才创建。
             _webUiFeedbackHandler = new WebUiFeedbackHandler(() => _webServer, settingsService);
             _userFeedbackService = new UserFeedbackService(_webUiFeedbackHandler);
+
+            // ⚠️ 必须**手动**跑一次装配，不能靠 `Load` 事件：
+            //   主窗口永不显示（见 SetVisibleCore override），而 WinForms 的 `Load`
+            //   只在窗体**首次显示**时触发——不显示就永远不触发，整个应用起不来
+            //   （HTTP 服务、注入器、CSV 解析全都不会启动）。
+            //
+            //   放在构造函数末尾而不是更早：装配过程要读 Designer 已创建好的控件。
+            MainWindow_Load(this, EventArgs.Empty);
         }
 
         public void UpdateLanguage() {
@@ -330,6 +347,23 @@ namespace IAGrim.UI {
             }
         }
 
+        /// <summary>
+        /// 主窗口**永不显示**。
+        ///
+        /// 它现在只是个不可见的宿主：提供 WinForms 消息循环、给注入器回调与托盘图标
+        /// 一个 `Invoke` 目标。界面全在浏览器里（见 .docs/10-界面解耦.md）。
+        ///
+        /// ⚠️ 为什么要在 `SetVisibleCore` 里拦：`Program.cs` 那句
+        /// `_mw.Visible = false` 是**无效**的——`Application.Run(_mw)` 会把它重新
+        /// 设为可见，于是启动时旧界面会**在屏幕上停留几秒**（原来是等 WebView2
+        /// 初始化完成才 Hide）。使用者明确反馈过这一点。
+        ///
+        /// 注意这会连带让 `Shown` 事件不再触发，所以注入器改成在 Load 末尾启动。
+        /// </summary>
+        protected override void SetVisibleCore(bool value) {
+            base.SetVisibleCore(false);
+        }
+
         protected override void OnHandleCreated(EventArgs e) {
             base.OnHandleCreated(e);
             ShowExistingInstanceMessage.AllowReceiving(Handle);
@@ -420,12 +454,7 @@ namespace IAGrim.UI {
                 var gdPath = grimDawnDetector.GetGrimLocations().First();
 
                 // Attempt to force a database update
-                foreach (Control c in modsPanel.Controls) {
-                    if (c is ModsDatabaseConfig config) {
-                        config.ForceDatabaseUpdate(gdPath, string.Empty);
-                        break;
-                    }
-                }
+                _modsDatabaseConfigTab?.ForceDatabaseUpdate(gdPath, string.Empty);
 
                 Logger.InfoFormat("Found Grim Dawn at {0}", gdPath);
             }
@@ -523,7 +552,6 @@ namespace IAGrim.UI {
                     else _webServer?.ExitMaintenance();
                 }
             );
-            UIHelper.AddAndShow(_modsDatabaseConfigTab, modsPanel);
 
             var itemTagDao = _serviceProvider.Get<IItemTagDao>();
             var backupService = new BackupService(_authService, playerItemDao, settingsService, _browserCallbacks);
@@ -552,16 +580,7 @@ namespace IAGrim.UI {
             }
 #endif
 
-            Shown += (_, __) => { StartInjector(); };
 
-            // The tab panels are sized to their parent when their content is added, which happens here in
-            // Load - before the window is shown and before WindowSizeManager restores the saved geometry.
-            // On some machines the tab pages are not laid out at that point, which leaves the panels (and
-            // everything docked inside them) stuck at a fraction of the window size. Re-fit them once the
-            // real size is known; it is a no-op when they were already correct.
-            Shown += (_, __) => {
-                UIHelper.FitToParent(modsPanel);
-            };
             _buddyItemsService = new BuddyItemsService(
                 buddyItemDao,
                 3 * 60 * 1000,
@@ -653,6 +672,10 @@ namespace IAGrim.UI {
             // 放在 `_transferController` 创建之后，是因为工厂要取它（见下方闭包）。
             StartWebServer();
 
+            // 注入器原本挂在 `Shown` 上，但主窗口现在**不会显示**（见 SetVisibleCore
+            // override），那个事件不会触发。句柄在 Load 时已经创建好，直接启动即可。
+            StartInjector();
+
             Logger.Debug("UI initialization complete");
         }
 
@@ -680,11 +703,6 @@ namespace IAGrim.UI {
                 // 同一入口也挂在托盘图标的双击上（MinimizeToTrayHandler）。
                 Misc.MinimizeToTrayHandler.OpenWebUi();
 
-                // 界面已经搬到浏览器里了，把这个不再承载界面的窗口收进托盘。
-                // 托盘图标仍可双击唤回、右键退出。
-                // ⚠️ 这是**过渡**：完整的 WebView2 / WinForms 移除见
-                // .docs/10-界面解耦.md。
-                BeginInvoke(new Action(() => Hide()));
             }
             catch (Exception ex) {
                 Logger.Warn("HTTP 服务启动失败（不影响程序其他功能）：" + ex.Message);
@@ -802,6 +820,36 @@ namespace IAGrim.UI {
 
         private void trayContextMenuStrip_Opening(object sender, CancelEventArgs e) {
             e.Cancel = false;
+        }
+
+        /// <summary>
+        /// 显示「数据库 / Mods」维护窗口。
+        ///
+        /// ⚠️ 它原来是用 `UIHelper.AddAndShow` **嵌进主窗口的 `modsPanel`** 的
+        /// （那会把 `TopLevel` 设为 false）。旧界面删除后主窗口只是个隐藏壳，
+        /// 所以这里第一次显示时把它还原成独立的顶层窗口。
+        /// </summary>
+        private void ShowMaintenanceWindow() {
+            var config = _modsDatabaseConfigTab;
+            if (config == null || config.IsDisposed) {
+                return;
+            }
+
+            if (!config.TopLevel) {
+                config.TopLevel = true;
+                config.FormBorderStyle = FormBorderStyle.Sizable;
+                config.StartPosition = FormStartPosition.CenterScreen;
+                config.Size = new Size(920, 620);
+                config.MinimumSize = new Size(640, 420);
+            }
+
+            config.Show();
+            if (config.WindowState == FormWindowState.Minimized) {
+                config.WindowState = FormWindowState.Normal;
+            }
+
+            config.BringToFront();
+            config.Activate();
         }
 
         private void exitToolStripMenuItem_Click(object sender, EventArgs e) {
