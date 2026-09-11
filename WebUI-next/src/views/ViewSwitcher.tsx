@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type IItem from '../model/item';
+import { useItemDetail } from '../components/ItemDetail';
 import { DEFAULT_VIEW_ID, ITEM_VIEWS, findView } from './registry';
 import './ViewSwitcher.css';
 
@@ -9,7 +10,8 @@ const STORAGE_KEY = 'iagd.itemView';
 /**
  * 视图切换器：一个选择框 + 它选中的那个视图。
  *
- * 它自己**不碰数据**——`items` 由上层传进来，它只负责"选择哪个视图渲染"。
+ * 它自己**不碰数据**——`items` 由上层传进来；
+ * 详情面板的交互回调也从 Context 取，再交给视图（视图仍是纯展示组件）。
  */
 export default function ViewSwitcher({ items }: { items: IItem[] }) {
   // 惰性初始化：只在首次渲染时读一次 localStorage
@@ -20,6 +22,8 @@ export default function ViewSwitcher({ items }: { items: IItem[] }) {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, viewId);
   }, [viewId]);
+
+  const { onItemHover, onItemActivate, pinnedId } = useItemDetail();
 
   const view = findView(viewId);
   const View = view.component;
@@ -44,7 +48,12 @@ export default function ViewSwitcher({ items }: { items: IItem[] }) {
         </select>
       </div>
 
-      <View items={items} />
+      <View
+        items={items}
+        onItemHover={onItemHover}
+        onItemActivate={onItemActivate}
+        pinnedId={pinnedId}
+      />
     </>
   );
 }

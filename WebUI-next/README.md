@@ -59,7 +59,8 @@ src/
 │   ├── TableView/            ① 分栏列表
 │   └── CompactCardView/      ② 简洁卡片
 ├── components/       通用组件
-│   └── ItemCard/     物品卡片
+│   ├── ItemCard/     物品卡片
+│   └── ItemDetail/   ★ 详情面板（全应用单实例；hover 预览 + 点击固定）
 └── styles/           全局样式与主题变量
 ```
 
@@ -77,7 +78,7 @@ src/
 - [x] **A0** 显示一条真实物品（工具链 + 通信层通了）
 - [x] **A1** 物品列表（自适应网格）
 - [x] **A2** 从后端 HTTP 拿真实列表（已由 A0 / A1 完成）
-- [x] **A4** 视图切换（分栏列表 / 简洁卡片，偏好存 localStorage）—— **P0 核心目标之一**
+- [x] **A4** 视图切换（分栏列表 / 简洁卡片，偏好存 localStorage）—— **P0 核心目标**
+- [x] **A5** hover 预览 + 点击固定的详情面板 —— **P0 核心目标**
 - [ ] A3 搜索框（前置：定义搜索 JSON + 给 devapi 加 `POST /api/search`）
-- [ ] A5 hover 详情面板（P0 核心）—— 属性数据**已就绪**（`headerStats` / `bodyStats`，见 `.docs/08-属性翻译.md`）
-- [ ] A6 转移物品
+- [ ] A6 转移物品（写操作，同样需要 devapi 的写接口）

@@ -1,0 +1,132 @@
+.item-detail {
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* 由内部的 __body 负责滚动 */
+  background: #1f1c18;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+
+  /* ★ 关键：hover 预览时面板不能接收鼠标事件，
+     否则它会挡住指针、立刻触发 mouseleave，导致面板闪烁。 */
+  pointer-events: none;
+}
+
+/* 点击固定之后才允许交互（滚动、点关闭） */
+.item-detail[data-pinned] {
+  pointer-events: auto;
+  border-color: #554c3f;
+}
+
+.item-detail__head {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.item-detail__icon {
+  flex: 0 0 48px;
+  display: block;
+}
+
+.item-detail__title {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-detail__name {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.item-detail__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.item-detail__close {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.item-detail__close:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.item-detail__body {
+  overflow-y: auto; /* ← 属性多时在这里滚动，面板本身不超出视口 */
+  padding: 8px 12px;
+}
+
+.item-detail__stats {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item-detail__stats + .item-detail__stats {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.item-detail__stats li {
+  padding: 2px 0;
+  line-height: 1.5;
+}
+
+/* 数值着色：模板是灰白的，数值是金棕色（借鉴 grimtools 的 .tooltip-param-text） */
+.item-detail__value {
+  color: #d8b06a;
+  font-variant-numeric: tabular-nums;
+}
+
+.item-detail__empty {
+  margin: 4px 0;
+  color: var(--text-muted);
+}
+
+.item-detail__foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+}
+
+.item-detail__foot code {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-detail__tag {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  background: #4a2020;
+  color: #e08a7a;
+  border-radius: 3px;
+}

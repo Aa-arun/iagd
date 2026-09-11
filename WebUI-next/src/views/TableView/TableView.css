@@ -24,8 +24,22 @@
   vertical-align: middle;
 }
 
+.item-table tbody tr {
+  cursor: pointer;
+}
+
 .item-table tbody tr:hover {
   background: var(--bg-hover);
+}
+
+/* 被固定（点击锁定详情）的那一行 */
+.item-table tbody tr.is-pinned {
+  background: rgba(216, 176, 106, 0.14);
+}
+
+.item-table tbody tr.is-pinned .item-table__name {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .item-table__icon-cell {
