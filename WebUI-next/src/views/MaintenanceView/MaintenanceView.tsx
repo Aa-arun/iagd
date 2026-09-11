@@ -171,7 +171,7 @@ export default function MaintenanceView({ live }: Props) {
   return (
     <section className="maintenance">
       <p className="maintenance__intro">
-        这些操作针对的是**游戏数据**（物品的名称与属性从游戏文件里解析而来），
+        这些操作针对的是<strong>游戏数据</strong>（物品的名称与属性从游戏文件里解析而来），
         不是你自己拥有的物品。游戏更新后如果新物品显示不出名字，就来这里重新加载。
       </p>
 
