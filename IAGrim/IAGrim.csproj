@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
 	
@@ -98,6 +98,19 @@
      <EmbeddedResource Include="Database\Model\ReplicaItemRow.hbm.xml" />
    </ItemGroup>
  
+
+  <ItemGroup>
+    <!--
+      B1：HTTP 服务用 Kestrel（见 .docs/03-目标架构.md §4.2 与 §9）。
+      这里用 FrameworkReference 而不是 NuGet 包——Kestrel 属于 ASP.NET Core
+      共享框架的一部分，这样不引入包版本管理，也不增加安装包体积。
+
+      ⚠️ 代价：运行时需要机器上存在 Microsoft.AspNetCore.App。
+      开发机上随 .NET SDK 一起装了；**若要分发给别人，安装包需要额外带上
+      ASP.NET Core Runtime**（见 .docs/04-开发环境.md 的「HTTP 服务依赖」一节）。
+    -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Gameloop.Vdf" Version="0.6.2" />

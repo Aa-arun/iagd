@@ -1,6 +1,7 @@
-﻿using IAGrim.Database;
+using IAGrim.Database;
 using IAGrim.Database.Dto;
 using IAGrim.Database.Interfaces;
+using IAGrim.Database.Model;
 using IAGrim.Services;
 using IAGrim.UI.Controller.dto;
 using IAGrim.UI.Misc.CEF;
@@ -95,6 +96,46 @@ namespace IAGrim.UI.Controller {
                 browser.SetCollectionAggregateData(aggregateStats);
             });
             thread.Start();
+        }
+
+        /// <summary>
+        /// 线 B（B1）：把一次物品查询的结果**作为数据返回**，而不是推送给 WebView2。
+        ///
+        /// 复用与 <see cref="ApplyItems"/> **完全相同**的链路：
+        /// DAO 查询 → 副本/宠物信息 → 属性翻译（ItemStatService）→ JsonItem。
+        /// 只是最后一步不调用 browser.AddItems/SetItems。
+        ///
+        /// 这样新 HTTP 接口与现有界面看到的数据由同一套逻辑产出，不会出现两套行为。
+        /// 供 `GET /api/items` 与 `POST /api/search` 使用。
+        /// </summary>
+        public List<JsonItem> QueryItems(
+            ItemSearchRequest query,
+            int offset,
+            int limit,
+            out int total,
+            out bool truncated) {
+            var page = _playerItemDao.SearchForItems(query, offset, false, false, out total, out truncated);
+
+            var playerItems = page.OfType<PlayerItem>().ToList();
+            _playerItemDao.PopulateReplicaAndPetInfo(playerItems);
+
+            var merged = ItemOperationsUtility.MergeStackSize(page);
+            _itemStatService.ApplyStats(merged.SelectMany(m => m));
+
+            // ToJsonSerializable 返回的是**分组**结构（同一件物品的多份副本在一组），
+            // REST 这边摊平即可——前端本来就是按件渲染的。
+            var flattened = ItemHtmlWriter.ToJsonSerializable(merged).SelectMany(group => group);
+
+            // SearchForItems 有自己的分页上限（MaxSearchResults），这里再按调用方要求截断。
+            return limit > 0 ? flattened.Take(limit).ToList() : flattened.ToList();
+        }
+
+        /// <summary>
+        /// 线 B（B1）：图鉴数据（对应原 <c>RequestCollectionData()</c>）。
+        /// 同样是"直接返回"而不是推送。
+        /// </summary>
+        public IList<CollectionItem> QueryCollection(ItemSearchRequest query) {
+            return _itemCollectionRepo.GetItemCollection(query);
         }
 
         private bool ApplyItems(bool append) {

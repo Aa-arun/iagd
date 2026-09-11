@@ -1,4 +1,4 @@
-﻿using log4net;
+using log4net;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -58,6 +58,11 @@ namespace StatTranslator {
         public string GetTag(string tag, object[] args) {
             return args.Select((t, i) => i)
                 .Aggregate(GetTag(tag), (current, index) => current.Replace($"{{{index}}}", args[index]?.ToString()));
+        }
+
+        /// <summary>导出全部 tag → 文案（供 HTTP 接口使用）。</summary>
+        public IDictionary<string, string> ExportTags() {
+            return new Dictionary<string, string>(_stats);
         }
     }
 }

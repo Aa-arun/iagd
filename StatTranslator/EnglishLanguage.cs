@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace StatTranslator {
@@ -843,6 +843,11 @@ namespace StatTranslator {
 
         public string[] Serialize() {
             return _stats.Keys.ToArray();
+        }
+
+        /// <summary>导出全部 tag → 文案（供 HTTP 接口使用，区别于上面的 <see cref="Export"/>）。</summary>
+        public IDictionary<string, string> ExportTags() {
+            return new Dictionary<string, string>(_stats);
         }
 
         public string GetTag(string tag) {
