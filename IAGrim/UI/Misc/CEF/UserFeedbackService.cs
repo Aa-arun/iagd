@@ -12,10 +12,14 @@ namespace IAGrim.UI.Misc.CEF {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(UserFeedbackService));
         private readonly List<LogHistoryEntry> _history = new List<LogHistoryEntry>();
         private LogHistoryEntry? _previousEntry;
-        private readonly CefBrowserHandler _cefBrowserHandler;
+        /// <summary>
+        /// 解耦 A1：这里原来是具体的 `CefBrowserHandler`（WebView2 宿主）。
+        /// 改成接口后，反馈通道可以是 WS、控制台或测试替身，与 WebView2 无关。
+        /// </summary>
+        private readonly IUserFeedbackHandler _feedback;
 
-        public UserFeedbackService(CefBrowserHandler cefBrowserHandler) {
-            _cefBrowserHandler = cefBrowserHandler;
+        public UserFeedbackService(IUserFeedbackHandler feedback) {
+            _feedback = feedback;
         }
 
         public void SetFeedback(List<UserFeedback> feedbacks) {
@@ -23,11 +27,11 @@ namespace IAGrim.UI.Misc.CEF {
 
                 if (!IsRecent(entry)) {
                     if (!string.IsNullOrEmpty(entry.URL)) {
-                        _cefBrowserHandler.ShowMessage(entry.Message ?? string.Empty, entry.Level, entry.URL);
+                        _feedback.ShowMessage(entry.Message ?? string.Empty, entry.Level, entry.URL);
                         Logger.Info($"Feedback {entry.Message}");
                     }
                     else {
-                        _cefBrowserHandler.ShowMessage(entry.Message ?? string.Empty, entry.Level);
+                        _feedback.ShowMessage(entry.Message ?? string.Empty, entry.Level);
                         Logger.Info($"Feedback {entry.Message}");
                     }
 
@@ -58,11 +62,11 @@ namespace IAGrim.UI.Misc.CEF {
         }
 
         public void SetFeedback(string level, string feedback, string helpUrl) {
-            _cefBrowserHandler.ShowMessage(feedback, UserFeedbackLevel.Info, helpUrl);
+            _feedback.ShowMessage(feedback, UserFeedbackLevel.Info, helpUrl);
         }
 
         public void SetFeedback(string feedback) {
-            _cefBrowserHandler.ShowMessage(feedback, UserFeedbackLevel.Info);
+            _feedback.ShowMessage(feedback, UserFeedbackLevel.Info);
         }
     }
 }

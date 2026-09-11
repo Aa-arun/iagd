@@ -128,6 +128,77 @@ body {
   line-height: 1.6;
 }
 
+/*
+  后端推来的提示（toast）。
+  固定在右下角；详情面板在右侧中部，所以这里从底部往上堆。
+*/
+.app__toasts {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(380px, calc(100vw - 40px));
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: 6px;
+  background: var(--bg-panel);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* 左侧色条表示级别，与 C# 的 UserFeedbackLevel 对应 */
+.toast--info {
+  border-left-color: var(--text-muted);
+}
+.toast--success {
+  border-left-color: #6aa84f;
+}
+.toast--warning {
+  border-left-color: #d9a441;
+}
+.toast--danger {
+  border-left-color: #bf4a4a;
+}
+
+.toast__message {
+  flex: 1;
+  /* 提示里可能带换行 */
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.toast__link {
+  flex: none;
+  color: var(--text-muted);
+  text-decoration: underline;
+}
+
+.toast__close {
+  flex: none;
+  padding: 0 2px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.toast__close:hover {
+  color: var(--text);
+}
+
 /* 顶层页签：物品 / 图鉴 */
 .app__tabs {
   display: flex;

@@ -540,6 +540,23 @@ namespace IAGrim.Http {
             _hub.Broadcast(new { type = "itemsChanged" });
         }
 
+        /// <summary>
+        /// 把一条给使用者看的提示推给所有页面（对应旧的 `IOMessageType.ShowMessage`）。
+        ///
+        /// 解耦 A1：原来这件事由 `CefBrowserHandler` 做（拼一段 JS 塞进 WebView2），
+        /// 所以"显示提示"依赖 WebView2 活着。现在改成推 JSON。
+        /// </summary>
+        /// <param name="fade">true = 前端自动淡出；false = 留着等使用者处理</param>
+        public void BroadcastNotification(string message, string level, string? helpUrl = null, bool fade = true) {
+            _hub.Broadcast(new {
+                type = "notification",
+                message,
+                level,
+                helpUrl,
+                fade,
+            });
+        }
+
         /// <summary>是否处于维护模式（HTTP 查询会被拒）。读多写少，用 Volatile 读即可。</summary>
         public bool IsMaintenance => Volatile.Read(ref _maintenanceDepth) > 0;
 

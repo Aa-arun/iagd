@@ -1,4 +1,4 @@
-﻿using IAGrim.Database;
+using IAGrim.Database;
 using IAGrim.Database.Interfaces;
 using IAGrim.Parsers.Arz;
 using IAGrim.UI.Misc.CEF;
@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using IAGrim.UI.Misc;
 using IAGrim.Settings;
+using IAGrim.Services;
 using System.Windows.Forms;
 using static IAGrim.UI.StashPicker;
 
@@ -17,7 +18,11 @@ namespace IAGrim.UI.Controller {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(ItemTransferController));
         private readonly IPlayerItemDao _dao;
         private readonly Action<string> _setFeedback;
-        private readonly CefBrowserHandler _browser;
+        /// <summary>解耦 A1：原来是用具体的 `CefBrowserHandler`（WebView2 宿主）显示提示。</summary>
+        private readonly IUserFeedbackHandler _feedback;
+
+        /// <summary>解耦 A2：原来也是借 `CefBrowserHandler` 当 `IHelpService`。</summary>
+        private readonly IHelpService _help;
         private readonly TransferStashService _transferStashService;
         private readonly SettingsService _settingsService;
 
@@ -34,13 +39,15 @@ namespace IAGrim.UI.Controller {
         }
 
         public ItemTransferController(
-            CefBrowserHandler browser,
+            IUserFeedbackHandler feedbackHandler,
+            IHelpService help,
             Action<string> feedback,
             IPlayerItemDao playerItemDao,
             TransferStashService transferStashService,
             SettingsService settingsService
             ) {
-            _browser = browser;
+            _feedback = feedbackHandler;
+            _help = help;
             _setFeedback = feedback;
             _dao = playerItemDao;
             _transferStashService = transferStashService;
@@ -81,7 +88,7 @@ namespace IAGrim.UI.Controller {
 
                 var message = RuntimeSettings.Language!.GetTag("iatag_feedback_item_does_not_exist");
                 _setFeedback(message);
-                _browser.ShowMessage(message, UserFeedbackLevel.Danger);
+                _feedback.ShowMessage(message, UserFeedbackLevel.Danger);
 
                 return null;
             }
@@ -126,7 +133,7 @@ namespace IAGrim.UI.Controller {
             StashPickerResult? modOverride = null;
             if (items?.Count > 0) {
                 if (_settingsService.GetPersistent().TransferAnyMod) {
-                    StashPicker picker = new StashPicker(_browser, _dao, _settingsService);
+                    StashPicker picker = new StashPicker(_help, _dao, _settingsService);
                     if (picker.ShowDialog() == DialogResult.OK) {
                         modOverride = picker.Result;
                     }
@@ -136,11 +143,11 @@ namespace IAGrim.UI.Controller {
                 args.NumTransferred = result.NumItemsTransferred;
                 args.IsSuccessful = true;
                 var message = RuntimeSettings.Language!.GetTag("iatag_stash3_success", result.NumItemsTransferred);
-                _browser.ShowMessage(message, UserFeedbackLevel.Success);
+                _feedback.ShowMessage(message, UserFeedbackLevel.Success);
             }
             else {
                 Logger.Warn("Could not find any items for the requested transfer");
-                _browser.ShowMessage(RuntimeSettings.Language!.GetTag("iatag_feedback_unable_to_deposit"), UserFeedbackLevel.Warning);
+                _feedback.ShowMessage(RuntimeSettings.Language!.GetTag("iatag_feedback_unable_to_deposit"), UserFeedbackLevel.Warning);
 
             }
         }

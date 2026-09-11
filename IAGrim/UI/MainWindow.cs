@@ -71,6 +71,18 @@ namespace IAGrim.UI {
         private BackupServiceWorker? _backupServiceWorker;
         private WebSocketSyncService? _webSocketSyncService;
         private readonly UserFeedbackService _userFeedbackService;
+
+        /// <summary>
+        /// 解耦 A1：给使用者看提示的通道。原来这个角色由 `_cefBrowserHandler` 兼任，
+        /// 于是「显示一条提示」依赖 WebView2 活着——WebView2 起不来就什么都报不出来。
+        /// </summary>
+        private readonly WebUiFeedbackHandler _webUiFeedbackHandler;
+
+        /// <summary>
+        /// 解耦 A2：帮助链接。`CefBrowserHandler` 原来也兼任这个，
+        /// 但项目里早就有不依赖 UI 的实现（`Services/HelpService.cs`，直接开系统浏览器）。
+        /// </summary>
+        private readonly IHelpService _helpService = new HelpService();
         private MinimizeToTrayHandler? _minimizeToTrayHandler;
         /// <summary>线 B（B1）：给系统浏览器用的 HTTP 服务（与 WebView2 路径并存）</summary>
         private Http.WebServer? _webServer;
@@ -208,7 +220,9 @@ namespace IAGrim.UI {
             _automaticUpdateChecker = new AutomaticUpdateChecker(settingsService);
             _settingsController = new SettingsController(settingsService);
             _parsingService = parsingService;
-            _userFeedbackService = new UserFeedbackService(_cefBrowserHandler);
+            // 用闭包延迟取 `_webServer`：HTTP 服务要到 MainWindow_Load 末尾才创建。
+            _webUiFeedbackHandler = new WebUiFeedbackHandler(() => _webServer, settingsService);
+            _userFeedbackService = new UserFeedbackService(_webUiFeedbackHandler);
         }
 
         private void Browser_NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e) {
@@ -781,7 +795,8 @@ namespace IAGrim.UI {
 
 
             _transferController = new ItemTransferController(
-                _cefBrowserHandler,
+                _webUiFeedbackHandler,
+                _helpService,
                 SetFeedback,
                 playerItemDao,
                 transferStashService,

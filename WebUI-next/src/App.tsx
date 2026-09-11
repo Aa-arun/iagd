@@ -24,6 +24,22 @@ const SEARCH_DEBOUNCE_MS = 250;
 const POLL_INTERVAL_MS = 4000;
 
 /**
+ * `fade` 的提示在屏幕上停留多久。
+ *
+ * 后端在 `AutoDismissNotifications` 打开、或程序在前台时会要求自动淡出；
+ * 否则（使用者没看着窗口）留着不动，等他自己关掉——那是旧行为，沿用。
+ */
+const TOAST_AUTO_DISMISS_MS = 6000;
+
+/** 一条要显示的提示。 */
+interface Toast {
+  id: number;
+  message: string;
+  level: string;
+  helpUrl?: string;
+}
+
+/**
  * 根组件。
  *
  * A0 显示一条真实物品 → A1 一列 → A4 视图切换 → A5 详情面板
@@ -52,6 +68,26 @@ export default function App() {
    * 一个空列表，让人以为自己的物品没了。所以这里要整屏挡住。
    */
   const [maintenance, setMaintenance] = useState<string | null>(null);
+
+  /** 后端推来的提示。自己操作产生的反馈仍由各自的组件就地显示，不走这里。 */
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const toastIdRef = useRef(0);
+
+  const dismissToast = useCallback((id: number) => {
+    setToasts((list) => list.filter((toast) => toast.id !== id));
+  }, []);
+
+  const pushToast = useCallback(
+    (message: string, level: string, helpUrl: string | undefined, fade: boolean) => {
+      const id = ++toastIdRef.current;
+      setToasts((list) => [...list, { id, message, level, helpUrl }]);
+
+      if (fade) {
+        setTimeout(() => dismissToast(id), TOAST_AUTO_DISMISS_MS);
+      }
+    },
+    [dismissToast],
+  );
 
   const reload = useCallback(() => setReloadToken((n) => n + 1), []);
 
@@ -105,9 +141,10 @@ export default function App() {
     return connectLive({
       onItemsChanged: reload,
       onMaintenance: (active, message) => setMaintenance(active ? message : null),
+      onNotification: (n) => pushToast(n.message, n.level, n.helpUrl, n.fade),
       onStatus: setLive,
     });
-  }, [reload]);
+  }, [reload, pushToast]);
 
   // 初次加载时补一次状态：维护只在**状态变化**时广播，所以如果页面是在
   // 维护开始之后才打开的，就永远收不到那条推送（只会看到一堆 503）。
@@ -239,6 +276,32 @@ export default function App() {
 
         {/* ★ 详情面板全应用只有一个实例，挂在顶层 */}
         <ItemDetailPanel />
+
+        {/*
+          后端推来的提示。堆在右下角，与详情面板互不遮挡（面板固定在右侧中部）。
+        */}
+        {toasts.length > 0 && (
+          <div className="app__toasts" aria-live="polite">
+            {toasts.map((toast) => (
+              <div key={toast.id} className={`toast toast--${toast.level}`}>
+                <span className="toast__message">{toast.message}</span>
+                {toast.helpUrl && (
+                  <a className="toast__link" href={toast.helpUrl} target="_blank" rel="noreferrer">
+                    帮助
+                  </a>
+                )}
+                <button
+                  type="button"
+                  className="toast__close"
+                  onClick={() => dismissToast(toast.id)}
+                  title="关闭"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/*
           维护遮罩：后端正在重建游戏数据库（清库 + 解析几分钟）。
