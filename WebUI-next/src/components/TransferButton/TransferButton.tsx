@@ -2,7 +2,7 @@ import { useState, type MouseEvent } from 'react';
 import { transferItems } from '../../api';
 import { playerItemId } from '../../model/item';
 import type IItem from '../../model/item';
-import { useItemDetail } from '../ItemDetail';
+import { useItemDetail } from '../ItemDetail/ItemDetailContext';
 import './TransferButton.css';
 
 /**
