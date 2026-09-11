@@ -4,6 +4,7 @@ import { I18nProvider } from './i18n';
 import { ItemDetailPanel, ItemDetailProvider } from './components/ItemDetail';
 import SearchBar from './components/SearchBar/SearchBar';
 import ViewSwitcher from './views/ViewSwitcher';
+import CollectionView from './views/CollectionView/CollectionView';
 
 /** 一次取多少件。后端有上限（开发数据服务是 500）。 */
 const PAGE_SIZE = 50;
@@ -21,6 +22,8 @@ const SEARCH_DEBOUNCE_MS = 250;
  * 不使用 mock。
  */
 export default function App() {
+  /** 顶层页签：物品（搜索自己的装备） / 图鉴（游戏里存在哪些物品） */
+  const [tab, setTab] = useState<'items' | 'collection'>('items');
   const [keyword, setKeyword] = useState('');
   const [data, setData] = useState<ItemsResponse | null>(null);
   const [i18n, setI18n] = useState<I18nMap>({});
@@ -80,35 +83,55 @@ export default function App() {
         <main className="app">
           <header className="app__header">
             <h1 className="app__title">Item Assistant</h1>
-            {data && (
+            {tab === 'items' && data && (
               <p className="app__summary">
                 {searching ? '匹配' : '显示'} {data.items.length} / {data.total} 件
               </p>
             )}
           </header>
 
-          <SearchBar value={keyword} onChange={setKeyword} />
+          <nav className="app__tabs">
+            <button
+              type="button"
+              className={tab === 'items' ? 'is-active' : ''}
+              onClick={() => setTab('items')}
+            >
+              物品
+            </button>
+            <button
+              type="button"
+              className={tab === 'collection' ? 'is-active' : ''}
+              onClick={() => setTab('collection')}
+            >
+              图鉴
+            </button>
+          </nav>
 
-          {error && (
-            <div className="app__error">
-              <strong>读取数据失败</strong>
-              <p>{error}</p>
-              <p>
-                请确认开发数据服务已启动：
-                <code>node tools/devapi/server.mjs</code>
-              </p>
-            </div>
+          {tab === 'items' && (
+            <>
+              <SearchBar value={keyword} onChange={setKeyword} />
+
+              {error && (
+                <div className="app__error">
+                  <strong>读取数据失败</strong>
+                  <p>{error}</p>
+                  <p>请确认 IAGrim 正在运行——它提供 127.0.0.1:3031 的服务。</p>
+                </div>
+              )}
+
+              {!error && !data && <p className="app__loading">加载中…</p>}
+
+              {data && data.items.length > 0 && <ViewSwitcher items={data.items} />}
+
+              {data && data.items.length === 0 && (
+                <p className="app__loading">
+                  {searching ? `没有匹配「${keyword.trim()}」的物品。` : '数据库里没有物品。'}
+                </p>
+              )}
+            </>
           )}
 
-          {!error && !data && <p className="app__loading">加载中…</p>}
-
-          {data && data.items.length > 0 && <ViewSwitcher items={data.items} />}
-
-          {data && data.items.length === 0 && (
-            <p className="app__loading">
-              {searching ? `没有匹配「${keyword.trim()}」的物品。` : '数据库里没有物品。'}
-            </p>
-          )}
+          {tab === 'collection' && <CollectionView />}
         </main>
 
         {/* ★ 详情面板全应用只有一个实例，挂在顶层 */}

@@ -1,0 +1,69 @@
+.collection-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 表格式的紧凑行：图鉴条目多，逐条做成卡片会太松散 */
+.collection-row {
+  display: grid;
+  grid-template-columns: 32px 1fr 90px 70px;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.collection-row:hover {
+  background: var(--bg-hover);
+}
+
+.collection-row__icon {
+  display: block;
+}
+
+.collection-row__name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collection-row__quality {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* 拥有数：0 的时候压暗，一眼就能看出"还没有" */
+.collection-row__owned {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.collection-row__owned.is-owned {
+  color: #8fc76a;
+  font-weight: 600;
+}
+
+.collection-more {
+  display: block;
+  margin: 14px auto;
+  padding: 6px 16px;
+  background: var(--bg-panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+}
+
+.collection-more:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.collection-more:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
