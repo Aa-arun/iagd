@@ -147,6 +147,18 @@ namespace IAGrim.Http {
         /// <summary>维护期间给前端显示的说明。</summary>
         private string _maintenanceMessage = "正在更新游戏数据库…";
 
+        /// <summary>
+        /// 上一次广播出去的 Busy 状态。用来判断"到底变没变"。
+        ///
+        /// ⚠️ **必须靠它**：`MaintenanceService.OnStateChanged` 在**每次进度更新**时
+        /// 都会触发（一秒好几次），而 `EnterMaintenance` 是**计数**式的——每次调用
+        /// 都 +1，但退出只减 1。少了这个判断，深度会一路涨到几十，
+        /// `ExitMaintenance` 永远减不回 0，界面就**永久卡在 503**。
+        ///
+        /// 2026-09-12 实测踩到：跑完一次「加载数据库」之后 items 查询再也回不来。
+        /// </summary>
+        private volatile bool _maintenanceActive;
+
         private WebApplication? _app;
 
         public WebServer(
@@ -671,14 +683,22 @@ namespace IAGrim.Http {
         private void OnMaintenanceStateChanged() {
             var state = _maintenance.GetState();
 
-            if (state.Busy) {
-                EnterMaintenance();
-            }
-            else {
-                ExitMaintenance();
-                return;   // ExitMaintenance 里已经广播过了
+            // 只在 Busy **变化**时进出维护模式（见 _maintenanceActive 的注释），
+            // 否则光是进度更新就会把计数推高。
+            if (state.Busy != _maintenanceActive) {
+                _maintenanceActive = state.Busy;
+
+                if (state.Busy) {
+                    EnterMaintenance();
+                }
+                else {
+                    ExitMaintenance();
+                }
+
+                return;   // Enter/Exit 内部已经广播过了
             }
 
+            // 状态没变，只是进度在走
             BroadcastMaintenance();
         }
 

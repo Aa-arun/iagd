@@ -405,9 +405,13 @@ namespace IAGrim {
             parsingService.Update(gdPath, modPath);
             parsingService.Execute();
 
-            using (var updatingPlayerItemsScreen = new UpdatingPlayerItemsScreen(playerItemDao)) {
-                updatingPlayerItemsScreen.ShowDialog();
-            }
+            // 这里原来弹一个模态进度窗口（`UpdatingPlayerItemsScreen`）。
+            // 启动阶段浏览器界面还没起来，没人接收进度，所以直接同步重算即可。
+            //
+            // ⚠️ 与手动「更新项目统计」的差别：这里**不删** replica / computed 缓存，
+            //    那是 `MaintenanceService.ClearCache` 额外做的。保持原行为。
+            var playerItems = playerItemDao.ListAll();
+            playerItemDao.UpdateAllItemStats(playerItems, _ => { });
 
             settings.GetLocal().CurrentGrimdawnLocation = gdPath;
             settings.GetLocal().GrimDawnLocationLastModified = ParsingService.GetHighestTimestamp(gdPath);
