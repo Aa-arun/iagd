@@ -1,5 +1,6 @@
 import type IItem from '../../model/item';
 import { IItemType } from '../../model/enums';
+import { formatNumber } from '../../model/format';
 import { iconUrl } from '../../api';
 import { qualityClass } from './quality';
 import './ItemCard.css';
@@ -33,7 +34,7 @@ export default function ItemCard({ item }: { item: IItem }) {
           </div>
           <div>
             <dt>等级</dt>
-            <dd>{item.level}</dd>
+            <dd>{formatNumber(item.level)}</dd>
           </div>
           <div>
             <dt>来源</dt>

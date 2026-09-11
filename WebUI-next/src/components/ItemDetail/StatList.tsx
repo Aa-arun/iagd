@@ -1,4 +1,5 @@
 import type { IStat } from '../../model/stats';
+import { formatNumber } from '../../model/format';
 
 /**
  * 把属性模板里的 `{N}` 换成 `paramN`，并给数值套一个着色的 `<span>`。
@@ -19,7 +20,7 @@ function renderStat(stat: IStat) {
 
     return (
       <span key={index} className="item-detail__value">
-        {value}
+        {formatNumber(value)}
       </span>
     );
   });

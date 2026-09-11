@@ -159,15 +159,21 @@ namespace IAGrim.Http {
             });
 
             // GET /img/{icon} —— 物品图标。
-            // 数据库里的 icon 形如 `items/gearhead/bitmaps/c216_head.tex`，
-            // 而本地文件是扁平化的 `c216_head.tex.png`，所以要取文件名再补 .png。
+            //
+            // ★ 两种 icon 值的形状不同，这里都要接受：
+            //   - **C# 后端**（`PlayerHeldItem.Bitmap`）：`d014_focus.tex.png`（已带 .png、无路径）
+            //   - **devapi 原型**（数据库的 bitmap 列）：`items/gearhead/bitmaps/c216_head.tex`
+            // 所以取文件名后，只在**还没有** .png 后缀时才补。
             app.MapGet("/img/{**icon}", (string icon) => {
                 var name = Path.GetFileName(icon);
                 if (string.IsNullOrEmpty(name)) {
                     return Results.NotFound();
                 }
 
-                var file = Path.Combine(_storageFolder, name + ".png");
+                var file = name.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+                    ? Path.Combine(_storageFolder, name)
+                    : Path.Combine(_storageFolder, name + ".png");
+
                 return File.Exists(file)
                     ? Results.File(file, "image/png")
                     : Results.NotFound();
