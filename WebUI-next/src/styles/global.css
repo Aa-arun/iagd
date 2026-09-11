@@ -18,12 +18,40 @@
 
   /* 物品品质色（Grim Dawn 的约定） */
   --q-legendary: #a638ff; /* 传奇 · 紫 */
-  --q-epic: #a638ff;
-  --q-blue: #338cce; /* 蓝 */
+  --q-epic: #338cce; /* 史诗 · 蓝（原来与传奇同为紫色，是错的） */
+  --q-blue: #338cce; /* "蓝装"就是史诗，同一个色 */
   --q-rare: #08b908; /* 稀有 · 绿 */
   --q-magical: #f1e51b; /* 魔法 · 黄 */
   --q-common: #9a9384; /* 普通 · 灰白 */
   --q-broken: #81551a;
+
+  /* ── 游戏 tooltip 的颜色（见 components/ItemDetail/ReplicaStatList.css）
+   *
+   * 代码 → 类型 的对应来自汉化包 tags_ui.txt 的颜色表；**RGB 值没有公开来源**
+   * （硬编码在游戏的 gameengine.dbr），所以这套是按颜色名 + 游戏观感定的。
+   */
+  --tt-default: #ddd8cd;
+  --tt-muted: #a39b8c;
+  --tt-value: #e8c86a; /* 数值 / 暴击 —— 金 */
+  --tt-header: #c8a860; /* 段标题 */
+  --tt-skill: #6ab0e8; /* 技能与职业名（统一色，见 ReplicaStatList.tsx） */
+  --tt-flavour: #9a9384; /* 说明文字 */
+  --tt-set-name: #4ac0b0; /* 套装名 */
+
+  --tt-physical: #b88a52; /* ^E 物理 / 创伤 —— 棕 */
+  --tt-pierce: #e0d24a; /* ^Y 穿刺 —— 黄 */
+  --tt-bleed: #b04040; /* ^M 流血 —— 栗 */
+  --tt-elemental: #a8b04a; /* ^L 元素 —— 橄榄 */
+  --tt-fire: #e05a4a; /* ^R 火焰 / 燃烧 —— 红 */
+  --tt-cold: #5a8fd8; /* ^B 冰冷 / 霜燃 —— 蓝 */
+  --tt-lightning: #5ad0d0; /* ^C 闪电 / 精神 —— 青 */
+  --tt-acid: #6cc04a; /* ^G 酸性 / 毒素 —— 绿 */
+  --tt-vitality: #e89090; /* ^F 活力 / 生命 —— 桃红 */
+  --tt-aether: #4ab0b0; /* ^T 虚化 / 能量 —— 水鸭 */
+  --tt-chaos: #e09a4a; /* ^O 混乱 / 体格 —— 橙 */
+  --tt-physique: #6aa0e8; /* ^Z 灵巧 —— 蔚蓝 */
+  --tt-speed: #b878e0; /* ^P 攻击 / 施法 / 所有速度 —— 紫 */
+  --tt-move-speed: #c8b878; /* ^K 移动速度 —— 卡其 */
 }
 
 * {
