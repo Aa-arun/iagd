@@ -584,6 +584,10 @@ namespace IAGrim.UI {
         /// </summary>
         private void ListviewUpdateTrigger() {
             _searchWindow?.UpdateListViewDelayed();
+
+            // 线 B（B2）：浏览器里的界面不归 WinForms 管，得单独告诉它一声。
+            // 这就是"在游戏里捡到东西，网页上几秒内自己出现"的那条链路。
+            _webServer?.BroadcastItemsChanged();
         }
 
         private void DatabaseLoadedTrigger() {
@@ -598,6 +602,9 @@ namespace IAGrim.UI {
 
             _searchWindow?.UpdateListViewDelayed();
             _itemReplicaService?.Reset();
+
+            // 线 B（B2）：重新解析游戏数据后，整库都变了。
+            _webServer?.BroadcastItemsChanged();
         }
 
         private void MainWindow_Load(object sender, EventArgs e) {
@@ -828,6 +835,11 @@ namespace IAGrim.UI {
 
                 // Push the freshly looted item to the user's other machines immediately.
                 _webSocketSyncService?.SendItems(new List<PlayerItem> { item });
+
+                // 线 B（B2）：**这条**才是"在游戏里捡到东西"的路径
+                // （不是 ListviewUpdateTrigger——那个是设置变更时用的）。
+                // 浏览器里的界面不归 WinForms 管，得单独通知。
+                _webServer?.BroadcastItemsChanged();
             };
 
             // Push in-game transfers (deletions) live, so the item disappears from the user's other
