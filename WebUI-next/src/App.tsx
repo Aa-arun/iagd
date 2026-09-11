@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchI18n, fetchItems, searchItems, type I18nMap, type ItemsResponse } from './api';
 import { I18nProvider } from './i18n';
 import { ItemDetailPanel, ItemDetailProvider } from './components/ItemDetail';
@@ -11,6 +11,18 @@ const PAGE_SIZE = 50;
 
 /** 输入停顿多久才发请求。太短会让每敲一个字母都打一次后端。 */
 const SEARCH_DEBOUNCE_MS = 250;
+
+/**
+ * 轮询数据库总数变化的间隔。
+ *
+ * ⚠️ 这是 **B2（后端主动推送）落地前的兜底**：目前后端没有 WebSocket，
+ * 页面上的列表只是"打开页面那一刻"的快照——在游戏里拾取物品后，
+ * 不刷新就永远看不到新物品（2026-09-12 的实际使用反馈）。
+ *
+ * 这里只查 1 件物品拿 `total` 做对比，很轻；一旦发现总数变了才重新查询整页，
+ * 避免无谓地把整页数据反复拉一遍。
+ */
+const POLL_INTERVAL_MS = 4000;
 
 /**
  * 根组件。
@@ -28,8 +40,12 @@ export default function App() {
   const [data, setData] = useState<ItemsResponse | null>(null);
   const [i18n, setI18n] = useState<I18nMap>({});
   const [error, setError] = useState<string | null>(null);
-  /** 自增即触发重新查询（转移物品后用它刷新列表） */
+  /** 自增即触发重新查询（转移物品后、或检测到数据库变化时用它刷新列表） */
   const [reloadToken, setReloadToken] = useState(0);
+  /** 上一次看到的数据库物品总数；用 ref 是因为它只用于比较，不该触发渲染 */
+  const knownTotalRef = useRef<number | null>(null);
+
+  const reload = useCallback(() => setReloadToken((n) => n + 1), []);
 
   // 翻译只取一次。失败也不致命——界面会退化成显示 `iatag_xxx` 原文。
   useEffect(() => {
@@ -75,18 +91,65 @@ export default function App() {
     };
   }, [keyword, reloadToken]);
 
+  // 后台数据库变化 → 自动刷新列表（B2 之前的兜底，见 POLL_INTERVAL_MS 注释）。
+  // 窗口重新获得焦点时也立刻查一次：切回浏览器时不该还看着旧数据。
+  useEffect(() => {
+    let cancelled = false;
+
+    const check = () => {
+      if (document.visibilityState !== 'visible') return;
+
+      // 只取 1 件，只为拿到 total
+      fetchItems(0, 1)
+        .then((res) => {
+          if (cancelled) return;
+          const previous = knownTotalRef.current;
+          knownTotalRef.current = res.total;
+          if (previous !== null && previous !== res.total) {
+            reload();
+          }
+        })
+        .catch(() => {
+          /* 忽略：轮询失败不该弹错误（后端重启期间很常见） */
+        });
+    };
+
+    const timer = setInterval(check, POLL_INTERVAL_MS);
+    window.addEventListener('focus', check);
+    document.addEventListener('visibilitychange', check);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      window.removeEventListener('focus', check);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, [reload]);
+
   const searching = keyword.trim().length > 0;
 
   return (
-    <ItemDetailProvider onTransferred={() => setReloadToken((n) => n + 1)}>
+    <ItemDetailProvider onTransferred={reload}>
       <I18nProvider map={i18n}>
         <main className="app">
           <header className="app__header">
             <h1 className="app__title">Item Assistant</h1>
-            {tab === 'items' && data && (
-              <p className="app__summary">
-                {searching ? '匹配' : '显示'} {data.items.length} / {data.total} 件
-              </p>
+            {tab === 'items' && (
+              <div className="app__header-actions">
+                {data && (
+                  <p className="app__summary">
+                    {searching ? '匹配' : '显示'} {data.items.length} / {data.total} 件
+                  </p>
+                )}
+                <button
+                  type="button"
+                  className="app__refresh"
+                  onClick={reload}
+                  title="重新读取数据库"
+                >
+                  刷新
+                </button>
+              </div>
             )}
           </header>
 

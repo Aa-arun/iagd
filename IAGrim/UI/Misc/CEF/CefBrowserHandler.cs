@@ -1,4 +1,4 @@
-﻿using IAGrim.Database.Model;
+using IAGrim.Database.Model;
 using IAGrim.Services;
 using IAGrim.Services.ItemReplica;
 using IAGrim.Settings;
@@ -20,6 +20,20 @@ namespace IAGrim.UI.Misc.CEF {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(CefBrowserHandler));
         private TabControl? _tabControl; // TODO: UGh.. why?
         private readonly ConcurrentQueue<IOMessage> _initializationQueue = new ConcurrentQueue<IOMessage>();
+
+        /// <summary>
+        /// 队列上限。
+        ///
+        /// ⚠️ 为什么需要它：新前端（WebUI-next）**不调用** `core.SignalReady()`，
+        /// 所以 `_isReadyUi` 永远是 false，`SendMessage` 会把每条消息都塞进
+        /// `_initializationQueue` 且**永不消费**（2026-09-12 实测：隐藏的 WebView2 里
+        /// 每一次拾取都会排入一整份物品列表）。没有上限就是一个无界内存泄漏。
+        ///
+        /// 现在浏览器（系统浏览器 + HTTP）才是真正的界面，这个队列只是给
+        /// WebView2 旧路径留的兼容垫层；满了就丢最旧的即可。
+        /// </summary>
+        private const int MaxQueuedMessages = 100;
+        private int _droppedMessages;
 
         public WebView2? BrowserControl { get; private set; }
 
@@ -78,6 +92,15 @@ namespace IAGrim.UI.Misc.CEF {
                 }
 
                 _initializationQueue.Enqueue(message);
+
+                // 旧 WebView2 路径一直没有就绪时，队列会无限增长（见 MaxQueuedMessages 注释）。
+                while (_initializationQueue.Count > MaxQueuedMessages && _initializationQueue.TryDequeue(out _)) {
+                    _droppedMessages++;
+                    if (_droppedMessages == 1 || _droppedMessages % 100 == 0) {
+                        Logger.Warn($"前端未就绪，已丢弃 {_droppedMessages} 条积压消息（队列上限 {MaxQueuedMessages}）");
+                    }
+                }
+
                 return;
             }
             // window.message({'type':5, 'data':{'items': [], 'replaceExistingItems': true, 'numItemsFound': 0}})
