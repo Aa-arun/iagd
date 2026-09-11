@@ -154,11 +154,12 @@ WSL2          ← ★ agent（DSH）· 仓库 /home/jyl/iagd（ext4 原生）· 
 
 | 依赖 | 在哪 | 实测状态 |
 |---|---|---|
-| **.NET SDK 10.0** | Windows | ❌ **待安装**（当前只有 Runtime → `dotnet build` 报 `No .NET SDKs were found`） |
-| Visual Studio | — | ❌ **不需要**（SDK 自带 MSBuild） |
-| Node.js | WSL | ✅ **v22.23.2**（注意 `WebUI/.node-version` 写的是 v20） |
+| **.NET SDK 10.0** | Windows | ✅ **10.0.401**（已装；首次构建 0 错误） |
+| Visual Studio | — | ❌ **不需要**（SDK 自带 MSBuild，已验证） |
+| Node.js | WSL | ✅ v22.23.2（系统）+ v20.20.2（fnm，匹配 `.node-version`） |
 | git | WSL | ✅ 2.43.0 |
-| WebView2 Runtime | Windows | ⚠️ 过渡期需要，改造后不再需要 |
+| 前端依赖 | WSL | ✅ 已 `npm install` |
+| WebView2 Runtime | Windows | ✅ 已装（过渡期需要，改造后不再需要） |
 
 **常用命令**（都在 WSL 内执行）：
 
@@ -177,8 +178,23 @@ cd /mnt/c && cmd.exe /c 'pushd \\wsl.localhost\Ubuntu-24.04\home\jyl\iagd && dot
 3. **跨边界必须用 `pushd`，且前置 `cd /mnt/c`** —— 否则 `cmd.exe` 会因 UNC 限制**静默退回 `C:\Windows`**，
    命令看似执行、实际在错误目录。
 
-**现在能做什么**：线 A 的步 0、1、4、5（假数据、纯界面工作）**立刻可做**；
-线 B/C 需要先在 Windows 装好 .NET SDK。
+**现在能做什么**：**三条线的环境都已就绪**。
+线 A 直接 `npm run dev`；后端编译已跑通（首次 63 秒、增量 5 秒）。
+
+### ★ 开发数据：可用真实数据库（不必再用 mock）
+
+`tools/devapi/` 是一个**只读**的 Node 服务，直读真实的 `userdata.db`
+（66 件实有物品、3509 条图鉴、4573 个本地图标）：
+
+```bash
+node tools/devapi/server.mjs     # → http://127.0.0.1:42500
+```
+
+它同时是**线 B 的 REST 接口原型**——端点命名与 `03-目标架构.md` §4.2 草案一致，
+将来换 C# 实现时前端不用改。
+
+数据库与物品图标都在 **`%LOCALAPPDATA%\EvilSoft\IAGD\`**，**不在 `Program Files`**。
+详见 `.docs/04-开发环境.md` §8。
 
 ---
 
@@ -189,9 +205,9 @@ cd /mnt/c && cmd.exe /c 'pushd \\wsl.localhost\Ubuntu-24.04\home\jyl\iagd && dot
 
 | 线 | 内容 | 需要 |
 |---|---|---|
-| A | 新前端增量开发（步 0–6） | 步 0 / 1 / 4 / 5 只需 Node.js（**现在就能做**） |
-| B | 后端服务化：HTTP + WebSocket 与旧路径并存 | .NET 10 SDK（**待安装**） |
-| C | 界面迁移：搜索框、过滤器面板搬进网页（**工作量最大**） | .NET 10 SDK（**待安装**） |
+| A | 新前端增量开发（步 0–6） | ✅ 环境已就绪（`npm run dev`） |
+| B | 后端服务化：HTTP + WebSocket 与旧路径并存 | ✅ 环境已就绪（`dotnet build` 已跑通） |
+| C | 界面迁移：搜索框、过滤器面板搬进网页（**工作量最大**） | ✅ 同上 |
 
 **动手前必读**：`.docs/03-目标架构.md` + `.docs/05-实施计划.md`；
 环境与命令见 `.docs/04-开发环境.md`。
