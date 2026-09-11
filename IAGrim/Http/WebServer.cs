@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.WebSockets;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using log4net;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -109,6 +112,9 @@ namespace IAGrim.Http {
         /// 而 HTTP 服务启动得更早，直接注入只会拿到 null。
         /// </summary>
         private readonly Func<ItemTransferController?> _transferController;
+
+        /// <summary>线 B（B2）：向已连接的浏览器广播"发生了什么"。</summary>
+        private readonly WebSocketHub _hub = new WebSocketHub();
         private WebApplication? _app;
 
         public WebServer(
@@ -142,6 +148,13 @@ namespace IAGrim.Http {
 
             _app = builder.Build();
 
+            // 线 B（B2）：WebSocket 用于把"数据库变了"这类事件推给浏览器。
+            // KeepAliveInterval 是必须的：浏览器长时间开着是常态，没有 ping
+            // 的话中间的连接会被悄悄回收，而前端还以为自己连着。
+            _app.UseWebSockets(new WebSocketOptions {
+                KeepAliveInterval = TimeSpan.FromSeconds(30),
+            });
+
             // 静态文件：新前端的构建产物就在 storage 目录——
             // 与 WebView2 虚拟主机映射的是**同一个目录**，所以两者看到的前端一致。
             var files = new PhysicalFileProvider(_storageFolder);
@@ -157,6 +170,40 @@ namespace IAGrim.Http {
         }
 
         private void MapApi(WebApplication app) {
+            // ── 线 B（B2）：WebSocket ───────────────────────────────────────────
+            //
+            // 只做**服务端 → 客户端**的单向推送：前端自己要用什么数据仍然走 REST。
+            // 所以这里的接收循环只为感知断开（前端关页面/刷新），收到的内容一律忽略。
+            app.Map("/ws", async (HttpContext ctx) => {
+                if (!ctx.WebSockets.IsWebSocketRequest) {
+                    ctx.Response.StatusCode = StatusCodes.Status400BadRequest;
+                    await ctx.Response.WriteAsync("此端点只接受 WebSocket 连接");
+                    return;
+                }
+
+                var socket = await ctx.WebSockets.AcceptWebSocketAsync();
+                var id = _hub.Add(socket);
+
+                var buffer = new byte[1024];
+                try {
+                    while (socket.State == WebSocketState.Open) {
+                        var result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), ctx.RequestAborted);
+                        if (result.MessageType == WebSocketMessageType.Close) {
+                            break;
+                        }
+                    }
+                }
+                catch (OperationCanceledException) {
+                    // 程序退出或前端直接关掉页面，都走这里，属正常。
+                }
+                catch (WebSocketException ex) {
+                    Logger.Debug($"WebSocket 连接异常结束：{ex.Message}");
+                }
+                finally {
+                    _hub.Remove(id);
+                }
+            });
+
             app.MapGet("/api/health", () => Json(new {
                 ok = true,
                 port = Port,
@@ -230,6 +277,11 @@ namespace IAGrim.Http {
                 Logger.Info(
                     $"HTTP 转移：请求 {dto.Ids.Length} 件，成功 {transferred} 件，失败 {failed.Count} 件");
 
+                if (transferred > 0) {
+                    // 发起请求的那个页面自己会刷新列表，但**其它**打开的标签页也得跟着变。
+                    BroadcastItemsChanged();
+                }
+
                 return Json(new {
                     success = failed.Count == 0,
                     numTransferred = transferred,
@@ -265,6 +317,11 @@ namespace IAGrim.Http {
                 var local = _settings.GetLocal();
                 var persistent = _settings.GetPersistent();
 
+                // `hideSkills` 会改变物品详情里渲染出来的内容（技能说明整段被隐藏），
+                // 所以它一变，所有页面都得重查列表。其余几项只影响"下一次操作"
+                // （备份路径、延迟、仓库序号），改完不需要刷新列表。
+                var listAffectingChange = dto.HideSkills.HasValue && dto.HideSkills.Value != persistent.HideSkills;
+
                 if (dto.HideSkills.HasValue) persistent.HideSkills = dto.HideSkills.Value;
                 if (dto.TransferAnyMod.HasValue) persistent.TransferAnyMod = dto.TransferAnyMod.Value;
                 if (dto.PreferDelayedSearch.HasValue) local.PreferDelayedSearch = dto.PreferDelayedSearch.Value;
@@ -274,6 +331,11 @@ namespace IAGrim.Http {
                 if (dto.StashToLootFrom.HasValue) local.StashToLootFrom = dto.StashToLootFrom.Value;
 
                 Logger.Info("设置已通过 HTTP 更新");
+
+                if (listAffectingChange) {
+                    BroadcastItemsChanged();
+                }
+
                 return Json(new { success = true });
             });
 
@@ -298,7 +360,15 @@ namespace IAGrim.Http {
                     Logger.Info($"重置设置前已备份到 {backupPath}");
                 }
 
+                var hideSkillsBefore = _settings.GetPersistent().HideSkills;
+
                 _settings.ResetVisibleSettings();
+
+                // 重置也可能把 `hideSkills` 改回初始值（初始是 true，见 PersistentSettings），
+                // 那同样会改变物品详情的渲染内容，得让页面重查。
+                if (hideSkillsBefore != _settings.GetPersistent().HideSkills) {
+                    BroadcastItemsChanged();
+                }
 
                 // 把重置后的值原样返回，前端据此立即刷新界面——不用再发一次 GET。
                 var local = _settings.GetLocal();
@@ -427,6 +497,16 @@ namespace IAGrim.Http {
             });
         }
 
+        /// <summary>
+        /// 告诉所有已连接的浏览器：物品数据库变了，去重新查询。
+        ///
+        /// 只发信号不带数据——新前端自己知道当前在看什么（搜索词、分页），
+        /// 由它自己决定重查什么。这也顺带解决了"推送整份列表"的浪费。
+        /// </summary>
+        public void BroadcastItemsChanged() {
+            _hub.Broadcast(new { type = "itemsChanged" });
+        }
+
         public void Dispose() {
             try {
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
@@ -437,6 +517,7 @@ namespace IAGrim.Http {
             }
 
             _app = null;
+            _hub.Dispose();
         }
     }
 }

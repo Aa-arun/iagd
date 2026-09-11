@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { fetchI18n, fetchItems, searchItems, type I18nMap, type ItemsResponse } from './api';
+import { connectLive, fetchI18n, fetchItems, searchItems, type I18nMap, type ItemsResponse } from './api';
 import { I18nProvider } from './i18n';
 import { ItemDetailPanel, ItemDetailProvider } from './components/ItemDetail';
 import SearchBar from './components/SearchBar/SearchBar';
@@ -15,11 +15,10 @@ const SEARCH_DEBOUNCE_MS = 250;
 /**
  * 轮询数据库总数变化的间隔。
  *
- * ⚠️ 这是 **B2（后端主动推送）落地前的兜底**：目前后端没有 WebSocket，
- * 页面上的列表只是"打开页面那一刻"的快照——在游戏里拾取物品后，
- * 不刷新就永远看不到新物品（2026-09-12 的实际使用反馈）。
+ * ⚠️ 这是 **B2（后端推送）连不上时的兜底**。正常情况下 `/ws` 会主动推
+ * `itemsChanged`，那时完全不轮询。只有 WebSocket 断了才退回这里。
  *
- * 这里只查 1 件物品拿 `total` 做对比，很轻；一旦发现总数变了才重新查询整页，
+ * 只查 1 件物品拿 `total` 做对比，很轻；一旦发现总数变了才重新查询整页，
  * 避免无谓地把整页数据反复拉一遍。
  */
 const POLL_INTERVAL_MS = 4000;
@@ -44,6 +43,8 @@ export default function App() {
   const [reloadToken, setReloadToken] = useState(0);
   /** 上一次看到的数据库物品总数；用 ref 是因为它只用于比较，不该触发渲染 */
   const knownTotalRef = useRef<number | null>(null);
+  /** `/ws` 是否连着。连着就靠推送，断了才退回轮询 */
+  const [live, setLive] = useState(false);
 
   const reload = useCallback(() => setReloadToken((n) => n + 1), []);
 
@@ -91,9 +92,17 @@ export default function App() {
     };
   }, [keyword, reloadToken]);
 
-  // 后台数据库变化 → 自动刷新列表（B2 之前的兜底，见 POLL_INTERVAL_MS 注释）。
-  // 窗口重新获得焦点时也立刻查一次：切回浏览器时不该还看着旧数据。
+  // 线 B（B2）：订阅后端的 `itemsChanged` 推送。这是"在游戏里捡到东西，
+  // 网页上立刻出现"的正常路径。连接本身由 connectLive 负责自动重连。
   useEffect(() => {
+    return connectLive({ onItemsChanged: reload, onStatus: setLive });
+  }, [reload]);
+
+  // 兜底：只有在 /ws 断开时才轮询（见 POLL_INTERVAL_MS 注释）。
+  // 窗口重新获得焦点时也立刻查一次——那时可能刚重连上，推送已经错过了。
+  useEffect(() => {
+    if (live) return;
+
     let cancelled = false;
 
     const check = () => {
@@ -114,6 +123,7 @@ export default function App() {
         });
     };
 
+    check();
     const timer = setInterval(check, POLL_INTERVAL_MS);
     window.addEventListener('focus', check);
     document.addEventListener('visibilitychange', check);
@@ -124,7 +134,7 @@ export default function App() {
       window.removeEventListener('focus', check);
       document.removeEventListener('visibilitychange', check);
     };
-  }, [reload]);
+  }, [live, reload]);
 
   const searching = keyword.trim().length > 0;
 
