@@ -19,8 +19,15 @@
   cursor: pointer;
 }
 
-/* 被固定（点击锁定详情）的那张卡片 */
+/* 悬停：轻微提示"鼠标在这张上" */
+.compact-grid > li:hover > .item-card {
+  border-color: color-mix(in srgb, var(--focus-accent) 55%, var(--border));
+  background: var(--focus-hover-bg);
+}
+
+/* 被固定（点击锁定详情）的那张卡片：边框更亮 + 外发光，与 hover 拉开差距 */
 .compact-grid > li.is-pinned > .item-card {
-  border-color: #d8b06a;
-  box-shadow: 0 0 0 1px #d8b06a;
+  border-color: var(--focus-accent);
+  background: var(--focus-pinned-bg);
+  box-shadow: 0 0 0 1px var(--focus-accent), 0 0 10px rgba(216, 176, 106, 0.25);
 }

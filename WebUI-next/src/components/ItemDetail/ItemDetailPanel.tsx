@@ -47,6 +47,24 @@ const PINNED_STYLE: CSSProperties = {
   maxHeight: 'calc(100vh - 48px)',
 };
 
+/**
+ * 「右侧固定框」模式（使用者 2026-09-12 要求）。
+ *
+ * 与 hover 模式的唯一区别是**定位**：贴着窗口右边、占满高度，不跟鼠标跑。
+ * 选中与 hover 的语义完全复用——所以这里不复制任何逻辑。
+ */
+const DOCKED_STYLE: CSSProperties = {
+  position: 'fixed',
+  right: 0,
+  top: 0,
+  width: PANEL_WIDTH,
+  height: '100vh',
+  borderRadius: 0,
+  borderTop: 'none',
+  borderRight: 'none',
+  borderBottom: 'none',
+};
+
 interface Feedback {
   ok: boolean;
   text: string;
@@ -59,7 +77,7 @@ interface Feedback {
  * 这里只根据状态换内容与位置，不新建 DOM 节点。
  */
 export default function ItemDetailPanel() {
-  const { item, isPinned, anchor, onItemActivate, onTransferred } = useItemDetail();
+  const { item, isPinned, anchor, displayMode, onItemActivate, onTransferred } = useItemDetail();
   const t = useTranslation();
 
   const [busy, setBusy] = useState(false);
@@ -94,10 +112,21 @@ export default function ItemDetailPanel() {
     }
   };
 
-  const style = isPinned || !anchor ? PINNED_STYLE : floatingStyle(anchor);
+  const docked = displayMode === 'docked';
+  const style = docked
+    ? DOCKED_STYLE
+    : isPinned || !anchor
+      ? PINNED_STYLE
+      : floatingStyle(anchor);
 
   return (
-    <aside className="item-detail" style={style} data-pinned={isPinned || undefined}>
+    <aside
+      className="item-detail"
+      style={style}
+      data-pinned={isPinned || undefined}
+      data-docked={docked || undefined}
+      data-mode={displayMode}
+    >
       <header className="item-detail__head">
         {item.icon && (
           <img

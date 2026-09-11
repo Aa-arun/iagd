@@ -28,18 +28,28 @@
   cursor: pointer;
 }
 
+/*
+ * 焦点框：hover 与选中都要显眼，且**强度不同**（使用者 2026-09-12 要求）。
+ * 用左侧竖条而不是只换背景——列表行本来就细，纯背景色变化容易被忽略。
+ */
+.item-table tbody tr {
+  /* 预留竖条的位置，避免 hover 时整行内容横向跳动 */
+  border-left: 3px solid transparent;
+}
+
 .item-table tbody tr:hover {
-  background: var(--bg-hover);
+  background: var(--focus-hover-bg);
+  border-left-color: color-mix(in srgb, var(--focus-accent) 50%, transparent);
 }
 
 /* 被固定（点击锁定详情）的那一行 */
 .item-table tbody tr.is-pinned {
-  background: rgba(216, 176, 106, 0.14);
+  background: var(--focus-pinned-bg);
+  border-left-color: var(--focus-accent);
 }
 
 .item-table tbody tr.is-pinned .item-table__name {
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  font-weight: 600;
 }
 
 .item-table__icon-cell {

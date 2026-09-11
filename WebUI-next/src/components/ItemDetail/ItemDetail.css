@@ -168,3 +168,22 @@
 .item-detail__feedback.is-err {
   color: #e08a7a;
 }
+
+/*
+ * 「右侧固定框」模式（使用者 2026-09-12 要求）。
+ *
+ * 与浮动模式的区别只有两点：
+ * 1. 定位交给 inline style（贴右边、占满高度）
+ * 2. **始终接收鼠标事件** —— 固定框要能滚动。
+ *    浮动模式必须 pointer-events: none，否则面板会挡住指针、
+ *    立刻触发 mouseleave 导致闪烁；固定框不跟随鼠标，没这个问题。
+ */
+.item-detail[data-docked] {
+  pointer-events: auto;
+  box-shadow: -4px 0 18px rgba(0, 0, 0, 0.5);
+}
+
+/* 固定框的关闭按钮始终可用（浮动模式下只有 pinned 才显示） */
+.item-detail[data-docked] .item-detail__close {
+  display: block;
+}
