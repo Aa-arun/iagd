@@ -26,8 +26,12 @@ import { basename, join } from 'node:path';
 // ── 配置 ────────────────────────────────────────────────────────────────
 const DEFAULT_DB = '/mnt/c/Users/jyl96/AppData/Local/EvilSoft/IAGD/data/userdata.db';
 const DEFAULT_STORAGE = '/mnt/c/Users/jyl96/AppData/Local/EvilSoft/IAGD/storage';
+// IA 自己的界面文案（`iatag_*`）不存于游戏数据库，而在仓库的翻译文件里。
+// C# 运行时读的也是这份（IAGrim/Parsers/Arz/LocalizationLoader.cs）。
+const DEFAULT_TRANSLATIONS = new URL('../../IAGrim/Resources/translations/zh.txt', import.meta.url);
 const DB_PATH = process.env.IAGD_DB ?? DEFAULT_DB;
 const STORAGE_DIR = process.env.IAGD_STORAGE ?? DEFAULT_STORAGE;
+const TRANSLATIONS_PATH = process.env.IAGD_TRANSLATIONS ?? DEFAULT_TRANSLATIONS;
 const PORT = Number(process.env.PORT ?? 42500);
 const HOST = '127.0.0.1';
 const MAX_LIMIT = 500;
@@ -104,6 +108,26 @@ const qCollectionCount = db.prepare(`
 `);
 
 const qI18n = db.prepare(`SELECT Tag, Name FROM ItemTag WHERE Name IS NOT NULL`);
+
+/**
+ * 解析 `key=value` 格式的翻译文件（UTF-8）。`#` 开头是注释，空行跳过。
+ */
+function loadTranslationFile(path) {
+  if (!existsSync(path)) return {};
+  const map = {};
+  for (const line of readFileSync(path, 'utf8').split('\n')) {
+    const s = line.trim();
+    if (!s || s.startsWith('#')) continue;
+    const eq = s.indexOf('=');
+    if (eq <= 0) continue;
+    map[s.slice(0, eq)] = s.slice(eq + 1);
+  }
+  return map;
+}
+
+// IA 自己的界面文案（`iatag_*`，共 515 条）。它与游戏文本的 key 空间基本不重叠；
+// 万一重叠，以界面文案为准——那是"这个程序自己想说的话"。
+const iaTranslations = loadTranslationFile(TRANSLATIONS_PATH);
 const qClasses = db.prepare(
   `SELECT DISTINCT textvalue AS v FROM DatabaseItemStat_v2 WHERE stat='Class' ORDER BY textvalue`);
 const qQualities = db.prepare(
@@ -215,7 +239,7 @@ const routes = {
   '/api/i18n': () => {
     const map = {};
     for (const r of qI18n.all()) map[r.Tag] = r.Name;
-    return map;
+    return { ...map, ...iaTranslations };
   },
 
   // 03-目标架构.md 的「新增」端点
@@ -263,6 +287,7 @@ server.listen(PORT, HOST, () => {
   console.log(`  监听   http://${HOST}:${PORT}`);
   console.log(`  数据库 ${DB_PATH}`);
   console.log(`  图标库 ${STORAGE_DIR}`);
+  console.log(`  翻译   IA 界面文案 ${Object.keys(iaTranslations).length} 条 + 游戏文本 ${qI18n.all().length} 条`);
   console.log(`  物品   ${qItemCount.get().n} 件（玩家实际拥有）`);
   console.log(`  图鉴   ${qCollectionCount.get().n} 条`);
   console.log('');

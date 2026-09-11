@@ -1,0 +1,48 @@
+.item-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/* 表头吸顶：长列表滚动时列名始终可见，
+   否则滚到中段就分不清哪列是哪列了。 */
+.item-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px 10px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.item-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.item-table tbody tr:hover {
+  background: var(--bg-hover);
+}
+
+.item-table__icon-cell {
+  width: 32px;
+  padding-right: 0 !important;
+}
+
+.item-table__icon {
+  display: block;
+}
+
+.item-table__name {
+  font-weight: 600;
+}
+
+/* 数字列用等宽数字，右对齐后个位才能对齐成一竖线 */
+.item-table__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

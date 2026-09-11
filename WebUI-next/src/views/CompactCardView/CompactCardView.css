@@ -1,0 +1,16 @@
+/* 自适应网格：每列至少 340px，剩余空间平均分。
+   不用媒体查询就能适配各种窗口宽度。 */
+.compact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 卡片在网格里撑满单元格 */
+.compact-grid > li > .item-card {
+  max-width: none;
+  height: 100%;
+}

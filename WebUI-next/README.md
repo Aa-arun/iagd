@@ -49,20 +49,35 @@ src/
 │   ├── stats.ts      IStat
 │   ├── skill.ts      ISkill
 │   ├── collection.ts ICollectionItem
+│   ├── slot.ts       槽位显示名（复刻 C# SlotTranslator）
 │   └── enums.ts      IItemType / 消息枚举
+├── i18n/             翻译（React Context）
+├── views/            ★ 物品展示视图（可切换）
+│   ├── registry.ts   ★ 视图注册表——新增样式只改这里
+│   ├── types.ts      ItemViewProps（视图只接收 items）
+│   ├── ViewSwitcher.tsx      选择框 + 记住偏好
+│   ├── TableView/            ① 分栏列表
+│   └── CompactCardView/      ② 简洁卡片
 ├── components/       通用组件
 │   └── ItemCard/     物品卡片
 └── styles/           全局样式与主题变量
 ```
 
-`store/`、`views/`、`i18n/` 等到后续步骤再建。
+### 加一种新的展示样式
+
+按 `03-目标架构.md` §6.1 的设计，只需两步：
+
+1. 在 `src/views/` 下新建组件，props 类型用 `ItemViewProps`（**只接收 `items`，不要自己取数据**）
+2. 在 `src/views/registry.ts` 的 `ITEM_VIEWS` 里加一行
+
+切换器、数据加载、其他视图都不用动。
 
 ## 当前进度
 
 - [x] **A0** 显示一条真实物品（工具链 + 通信层通了）
-- [x] **A1** 物品列表（50 / 66 件，自适应网格）
+- [x] **A1** 物品列表（自适应网格）
 - [x] **A2** 从后端 HTTP 拿真实列表（已由 A0 / A1 完成）
-- [ ] A3 搜索框
-- [ ] A4 视图切换（P0 核心）
+- [x] **A4** 视图切换（分栏列表 / 简洁卡片，偏好存 localStorage）—— **P0 核心目标之一**
+- [ ] A3 搜索框（前置：定义搜索 JSON + 给 devapi 加 `POST /api/search`）
 - [ ] A5 hover 详情面板（P0 核心）
 - [ ] A6 转移物品
