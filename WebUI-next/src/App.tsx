@@ -25,6 +25,8 @@ export default function App() {
   const [data, setData] = useState<ItemsResponse | null>(null);
   const [i18n, setI18n] = useState<I18nMap>({});
   const [error, setError] = useState<string | null>(null);
+  /** 自增即触发重新查询（转移物品后用它刷新列表） */
+  const [reloadToken, setReloadToken] = useState(0);
 
   // 翻译只取一次。失败也不致命——界面会退化成显示 `iatag_xxx` 原文。
   useEffect(() => {
@@ -68,12 +70,12 @@ export default function App() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [keyword]);
+  }, [keyword, reloadToken]);
 
   const searching = keyword.trim().length > 0;
 
   return (
-    <ItemDetailProvider>
+    <ItemDetailProvider onTransferred={() => setReloadToken((n) => n + 1)}>
       <I18nProvider map={i18n}>
         <main className="app">
           <header className="app__header">

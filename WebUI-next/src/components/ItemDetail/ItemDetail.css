@@ -130,3 +130,41 @@
   color: #e08a7a;
   border-radius: 3px;
 }
+
+/* 转移按钮（写操作，只在"点击固定"后出现——预览态面板不可交互） */
+.item-detail__transfer {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  background: #3f5a2a;
+  color: #d8e8c8;
+  border: 1px solid #55742f;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.item-detail__transfer:hover:not(:disabled) {
+  background: #4a6b31;
+}
+
+.item-detail__transfer:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* 转移结果提示 */
+.item-detail__feedback {
+  margin: 0;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+}
+
+.item-detail__feedback.is-ok {
+  color: #8fc76a;
+}
+
+.item-detail__feedback.is-err {
+  color: #e08a7a;
+}

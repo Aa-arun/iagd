@@ -4,6 +4,7 @@ import type {
   I18nMap,
   ItemSearchRequest,
   ItemsResponse,
+  TransferResult,
 } from './types';
 
 /**
@@ -79,4 +80,29 @@ export function fetchFilterOptions(): Promise<FiltersOptions> {
  */
 export function iconUrl(icon: string): string {
   return icon ? `/img/${icon}` : '';
+}
+
+/**
+ * 转移物品回游戏（**写操作**）。
+ *
+ * 对应原 `TransferItem(url[], transferAll)`。
+ *
+ * ⚠️ 两处与真实后端的差异，见 [`.docs/03-目标架构.md`](../../../.docs/03-目标架构.md) §4.5：
+ * 1. 真实 C# 接受 identifier 数组（Base/Prefix/Suffix/…），这里简化为直接传 `PlayerItem.Id`；
+ * 2. 真实程序还会把物品写进**游戏共享仓库存档**，devapi 只模拟数据库侧的效果。
+ */
+export async function transferItems(
+  ids: number[],
+  transferAll: boolean,
+): Promise<TransferResult> {
+  const res = await fetch('/api/items/transfer', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ ids, transferAll }),
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => null);
+    throw new ApiError(detail?.error ?? '转移失败', res.status);
+  }
+  return (await res.json()) as TransferResult;
 }
