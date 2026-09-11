@@ -27,7 +27,6 @@ using IAGrim.Utilities;
 using IAGrim.Utilities.Cloud;
 using IAGrim.Utilities.HelperClasses;
 using log4net;
-using Microsoft.Web.WebView2.Core;
 using System.Collections.Generic;
 using System.ComponentModel;
 
@@ -465,10 +464,6 @@ namespace IAGrim.UI {
             // Chicken and the egg.. search controller needs browser, browser needs search controllers var.
             var databaseItemDao = _serviceProvider.Get<IDatabaseItemDao>();
             var searchController = _serviceProvider.Get<SearchController>();
-            searchController.JsIntegration.OnRequestSetItemAssociations += (s, evvv) => { (evvv as GetSetItemAssociationsEventArgs).Elements = databaseItemDao.GetItemSetAssociations(); };
-
-            searchController.JsIntegration.OnDismissNumericFilterBanner += (_, _) => settingsService.GetPersistent().NumericFilterBannerDismissed = true;
-
             var playerItemDao = _serviceProvider.Get<IPlayerItemDao>();
             var cacher = _serviceProvider.Get<TransferStashServiceCache>();
             _parsingService.OnParseComplete += (o, args) => cacher.Refresh();
@@ -540,16 +535,6 @@ namespace IAGrim.UI {
             // source of truth; this only makes updates propagate faster.
             _webSocketSyncService = new WebSocketSyncService(new AuthenticationProvider(settingsService), settingsService, playerItemDao);
             _webSocketSyncService.Start();
-            searchController.JsIntegration.OnRequestBackedUpCharacterList += (_, args) => {
-                RequestCharacterListEventArg a = args as RequestCharacterListEventArg;
-                a.Characters = _charBackupService.ListBackedUpCharacters();
-            };
-            searchController.JsIntegration.OnRequestCharacterDownloadUrl += (_, args) => {
-                RequestCharacterDownloadUrlEventArg a = args as RequestCharacterDownloadUrlEventArg;
-                if (a.Character != null) {
-                    a.Url = _charBackupService.GetDownloadUrl(a.Character);
-                }
-            };
 
             searchController.OnSearch += (o, args) => backupService.OnSearch();
 
@@ -602,15 +587,6 @@ namespace IAGrim.UI {
                 transferStashService,
                 settingsService
             );
-            Application.AddMessageFilter(new MousewheelMessageFilter());
-
-
-            if (_authService.CheckAuthentication() == AuthService.AccessStatus.Unauthorized && !settingsService.GetLocal().OptOutOfBackups && playerItemDao.GetNumItems() > 100) {
-                var authService = new AuthService(new AuthenticationProvider(settingsService), _serviceProvider.Get<IPlayerItemDao>());
-                new BackupLoginNagScreen(authService, settingsService).Show();
-            }
-
-            searchController.JsIntegration.ItemTransferEvent += TransferItem;
             new WindowSizeManager(this, settingsService);
 
 
@@ -712,16 +688,6 @@ namespace IAGrim.UI {
             }
             catch (Exception ex) {
                 Logger.Warn("HTTP 服务启动失败（不影响程序其他功能）：" + ex.Message);
-            }
-        }
-
-        void TransferItem(object? ignored, EventArgs args) {
-            if (_transferController == null) {
-                return;
-            }
-
-            if (args is StashTransferEventArgs transferArgs) {
-                _transferController.TransferItem(transferArgs);
             }
         }
 
