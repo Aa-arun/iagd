@@ -282,32 +282,9 @@ namespace IAGrim.UI {
                         _cefBrowserHandler.InitializeChromium(browser, searchController.JsIntegration, tabControl1);
                         _cefBrowserHandler.IsReady = true;
 
-                        // 线 B（B1）：另起一个 HTTP 服务，让**系统浏览器**也能用新前端。
-                        // 与上面的 WebView2 路径**并存**——启动失败只记日志，不影响程序其他功能。
-                        try {
-                            _webServer = new Http.WebServer(
-                                searchController,
-                                _serviceProvider.Get<IItemTagDao>(),
-                                _serviceProvider.Get<SettingsService>(),
-                                GlobalPaths.StorageFolder,
-                                // 延迟取：转移控制器要到 MainWindow_Load 里才创建
-                                () => _transferController
-                            );
-                            _webServer.Start();
-
-                            // 线 B（B4）：用系统默认浏览器打开新前端。
-                            // 同一入口也挂在托盘图标的双击上（MinimizeToTrayHandler）。
-                            Misc.MinimizeToTrayHandler.OpenWebUi();
-
-                            // 界面已经搬到浏览器里了，把这个不再承载界面的窗口收进托盘。
-                            // 托盘图标仍可双击唤回、右键退出。
-                            // ⚠️ 这是**过渡**：完整的 WebView2 / WinForms 移除见
-                            // .docs/05-实施计划.md §3 的 B5、B6。
-                            BeginInvoke(new Action(() => Hide()));
-                        }
-                        catch (Exception webEx) {
-                            Logger.Warn("HTTP 服务启动失败（不影响程序其他功能）：" + webEx.Message);
-                        }
+                        // ⚠️ HTTP 服务**不在这里**启动。原来是的，但那样它的生命周期
+                        // 就挂在 WebView2 上了——见 MainWindow.StartWebServer() 的注释
+                        // 与 .docs/10-界面解耦.md 的 P1。
 
                         _searchWindow?.UpdateListViewDelayed();
 
@@ -883,7 +860,54 @@ namespace IAGrim.UI {
             var preloadThread= new Thread(_itemReplicaParser.Preload);
             preloadThread.Start();
 
+            // ── 线 B（B1/B4）：HTTP 服务 ────────────────────────────────────────
+            //
+            // ★ P1（界面解耦）：这一块**原来在 WebView2 初始化回调里**
+            //   （`Browser_CoreWebView2InitializationCompleted`）。那样有两个后果：
+            //     1. 没有 WebView2 运行时（或它初始化失败）就**没有 HTTP 服务**
+            //        ——浏览器界面跟着一起没了；
+            //     2. HTTP 服务要等 WebView2 起来才能用（几百毫秒到几秒）。
+            //   现在它只依赖本方法里已经装配好的服务，与 WebView2 完全无关。
+            //
+            // 放在 `_transferController` 创建之后，是因为工厂要取它（见下方闭包）。
+            StartWebServer();
+
             Logger.Debug("UI initialization complete");
+        }
+
+        /// <summary>
+        /// 启动给**系统浏览器**用的 HTTP 服务（Kestrel，`127.0.0.1:3031`）。
+        ///
+        /// 失败只记日志、不抛出：它是与旧路径并存的另一条通路，
+        /// 起不来也不该让整个程序挂掉（B5/B6 之后它才是唯一通路，那时再改成致命错误）。
+        /// </summary>
+        private void StartWebServer() {
+            try {
+                var searchController = _serviceProvider.Get<SearchController>();
+
+                _webServer = new Http.WebServer(
+                    searchController,
+                    _serviceProvider.Get<IItemTagDao>(),
+                    _serviceProvider.Get<SettingsService>(),
+                    GlobalPaths.StorageFolder,
+                    // 延迟取：工厂在每次转移请求时才求值，那时控制器一定已经建好了。
+                    () => _transferController
+                );
+                _webServer.Start();
+
+                // 线 B（B4）：用系统默认浏览器打开新前端。
+                // 同一入口也挂在托盘图标的双击上（MinimizeToTrayHandler）。
+                Misc.MinimizeToTrayHandler.OpenWebUi();
+
+                // 界面已经搬到浏览器里了，把这个不再承载界面的窗口收进托盘。
+                // 托盘图标仍可双击唤回、右键退出。
+                // ⚠️ 这是**过渡**：完整的 WebView2 / WinForms 移除见
+                // .docs/10-界面解耦.md。
+                BeginInvoke(new Action(() => Hide()));
+            }
+            catch (Exception ex) {
+                Logger.Warn("HTTP 服务启动失败（不影响程序其他功能）：" + ex.Message);
+            }
         }
 
         void TransferItem(object? ignored, EventArgs args) {
