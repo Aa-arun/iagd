@@ -1,0 +1,44 @@
+/**
+ * 全局样式与主题变量。
+ *
+ * 变量取值参考旧前端 WebUI/src/style/index.css 的**暗色主题**，
+ * 以便新旧界面观感一致。等 A4/A5 做视图与详情面板时再逐步补齐。
+ */
+
+:root {
+  /* 页面与面板 */
+  --bg: #1c1a17;
+  --bg-panel: #26231f;
+  --bg-hover: #302c27;
+  --border: #3a352d;
+
+  /* 文字 */
+  --text: #ddd8cd;
+  --text-muted: #a39b8c;
+
+  /* 物品品质色（Grim Dawn 的约定） */
+  --q-legendary: #a638ff; /* 传奇 · 紫 */
+  --q-epic: #a638ff;
+  --q-blue: #338cce; /* 蓝 */
+  --q-rare: #08b908; /* 稀有 · 绿 */
+  --q-magical: #f1e51b; /* 魔法 · 黄 */
+  --q-common: #9a9384; /* 普通 · 灰白 */
+  --q-broken: #81551a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'verdana', 'geneva', 'lucida', 'lucida grande', 'arial', 'helvetica', sans-serif;
+  font-size: 12px;
+}
+
+#root {
+  padding: 24px;
+}

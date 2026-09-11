@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "name": "iagd-webui-next",
+  "version": "0.0.0",
+  "type": "module",
+  "description": "IAGD 新前端（React 重做）——见 .docs/03-目标架构.md",
+  "scripts": {
+    "dev": "vite --port 3000",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 3000"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0"
+  }
+}
