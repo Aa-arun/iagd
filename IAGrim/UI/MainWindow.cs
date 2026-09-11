@@ -86,7 +86,6 @@ namespace IAGrim.UI {
         private MinimizeToTrayHandler? _minimizeToTrayHandler;
         /// <summary>线 B（B1）：给系统浏览器用的 HTTP 服务（与 WebView2 路径并存）</summary>
         private Http.WebServer? _webServer;
-        private ModsDatabaseConfig? _modsDatabaseConfigTab;
         private System.Windows.Forms.Timer? _wineMessageTimer;
         public static int NumInstantSyncItemCount = 300;
 
@@ -214,15 +213,6 @@ namespace IAGrim.UI {
             FormClosing += MainWindow_FormClosing;
 
             _minimizeToTrayHandler = new MinimizeToTrayHandler(this, notifyIcon1, serviceProvider.Get<SettingsService>());
-
-            // 线 B（B5/B6）：旧界面删掉后，数据库 / Mods 维护窗口失去了入口——
-            // 主窗口启动几秒后就被 Hide() 收进托盘，而托盘的双击与 Open 都是打开浏览器。
-            // 这四个操作（加载数据库 / 配置 / 清除数据库 / 更新项目统计）留在 WinForms，
-            // 所以必须给托盘菜单补一项。
-            var maintenanceItem = new ToolStripMenuItem("数据库 / Mods（维护）");
-            maintenanceItem.Click += (_, _) => ShowMaintenanceWindow();
-            // 插在 Open 与 Exit 之间
-            trayContextMenuStrip.Items.Insert(1, maintenanceItem);
 
             _automaticUpdateChecker = new AutomaticUpdateChecker(settingsService);
             _parsingService = parsingService;
@@ -454,21 +444,10 @@ namespace IAGrim.UI {
                 var gdPath = grimDawnDetector.GetGrimLocations().First();
 
                 // Attempt to force a database update
-                _modsDatabaseConfigTab?.ForceDatabaseUpdate(gdPath, string.Empty);
+                _serviceProvider.Get<MaintenanceService>().StartLoadDatabase(gdPath, null, out _);
 
                 Logger.InfoFormat("Found Grim Dawn at {0}", gdPath);
             }
-        }
-
-        /// <summary>
-        /// 游戏数据库重新解析完成（由 `ModsDatabaseConfig` 解析后回调）。
-        /// 界面部分随旧界面删除，这里只做与界面无关的收尾 + 通知浏览器。
-        /// </summary>
-        private void DatabaseLoadedTrigger() {
-            _itemReplicaService?.Reset();
-
-            // 线 B（B2）：重新解析游戏数据后，整库都变了。
-            _webServer?.BroadcastItemsChanged();
         }
 
         private void MainWindow_Load(object sender, EventArgs e) {
@@ -500,6 +479,10 @@ namespace IAGrim.UI {
             // 线 B：维护模式现在由 `MaintenanceService` 的状态驱动
             // （见 WebServer.OnMaintenanceStateChanged）——它覆盖 "加载数据库 /
             // 清除数据库 / 更新项目统计" 三个操作，而不只是解析本身。
+            //
+            // 这一条是原来 `ModsDatabaseConfig` 的回调干的：数据库重建后，
+            // 待处理的 replica 请求就没意义了。
+            _serviceProvider.Get<MaintenanceService>().OnItemsChanged += (_, _) => _itemReplicaService?.Reset();
 
 
             var replicaItemDao = _serviceProvider.Get<IReplicaItemDao>();
@@ -527,40 +510,6 @@ namespace IAGrim.UI {
 
             _authService = new AuthService(new AuthenticationProvider(settingsService), playerItemDao);
 
-
-            _modsDatabaseConfigTab = new ModsDatabaseConfig(
-                DatabaseLoadedTrigger,
-                playerItemDao,
-                _parsingService,
-                grimDawnDetector,
-                settingsService,
-                _helpService,
-                databaseItemDao,
-                replicaItemDao,
-                computedItemStatDao,
-                // 线 B（B2 补）：清库/重建统计这类"会动到整个游戏数据库"的操作，
-                // 期间必须让浏览器界面停止查询。解析本身由 ParsingService 的事件覆盖，
-                // 这里覆盖的是不经过解析的那两个按钮。
-                maintenance => {
-                    if (maintenance) _webServer?.EnterMaintenance();
-                    else _webServer?.ExitMaintenance();
-                }
-            );
-
-            // 线 B（B5/B6）：它不再是嵌进 `modsPanel` 的子窗口（那样的窗口没有标题栏
-            // 也没有关闭按钮），而是一个按需显示的独立窗口。属性在这里一次设好，
-            // `ShowMaintenanceWindow()` 只负责显示。
-            //
-            // ⚠️ 别用 `if (!config.TopLevel)` 判断"是否已被嵌入"：`Form.TopLevel`
-            // 默认就是 `true`，只有旧的 `UIHelper.AddAndShow` 会把它设成 `false`。
-            _modsDatabaseConfigTab.Text = "数据库 / Mods（维护）";
-            _modsDatabaseConfigTab.FormBorderStyle = FormBorderStyle.Sizable;
-            _modsDatabaseConfigTab.StartPosition = FormStartPosition.CenterScreen;
-            _modsDatabaseConfigTab.ShowIcon = true;
-            _modsDatabaseConfigTab.MinimizeBox = true;
-            _modsDatabaseConfigTab.MaximizeBox = true;
-            _modsDatabaseConfigTab.Size = new Size(920, 620);
-            _modsDatabaseConfigTab.MinimumSize = new Size(640, 420);
 
             var itemTagDao = _serviceProvider.Get<IItemTagDao>();
             var backupService = new BackupService(_authService, playerItemDao, settingsService, _browserCallbacks);
@@ -830,27 +779,6 @@ namespace IAGrim.UI {
 
         private void trayContextMenuStrip_Opening(object sender, CancelEventArgs e) {
             e.Cancel = false;
-        }
-
-        /// <summary>
-        /// 显示「数据库 / Mods」维护窗口。
-        ///
-        /// 窗口样式在装配时就设好了（见 `MainWindow_Load`），这里只负责显示。
-        /// 它曾经是嵌进 `modsPanel` 的子窗口，旧界面删除后改为独立窗口。
-        /// </summary>
-        private void ShowMaintenanceWindow() {
-            var config = _modsDatabaseConfigTab;
-            if (config == null || config.IsDisposed) {
-                return;
-            }
-
-            config.Show();
-            if (config.WindowState == FormWindowState.Minimized) {
-                config.WindowState = FormWindowState.Normal;
-            }
-
-            config.BringToFront();
-            config.Activate();
         }
 
         private void exitToolStripMenuItem_Click(object sender, EventArgs e) {
