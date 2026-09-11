@@ -10,11 +10,22 @@ import './CompactCardView.css';
  * 卡片本体复用 `components/ItemCard`——视图只负责**怎么排**，
  * 单个物品长什么样是组件的职责。
  */
-export default function CompactCardView({ items }: ItemViewProps) {
+export default function CompactCardView({
+  items,
+  onItemHover,
+  onItemActivate,
+  pinnedId,
+}: ItemViewProps) {
   return (
     <ul className="compact-grid">
       {items.map((item) => (
-        <li key={item.uniqueIdentifier}>
+        <li
+          key={item.uniqueIdentifier}
+          className={pinnedId === item.uniqueIdentifier ? 'is-pinned' : undefined}
+          onMouseEnter={(e) => onItemHover?.(item, e.currentTarget)}
+          onMouseLeave={() => onItemHover?.(null, null)}
+          onClick={() => onItemActivate?.(item)}
+        >
           <ItemCard item={item} />
         </li>
       ))}

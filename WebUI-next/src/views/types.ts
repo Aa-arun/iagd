@@ -5,13 +5,20 @@ import type IItem from '../model/item';
  * 所有物品视图的统一接口。
  *
  * ★ 架构约束（[`.docs/03-目标架构.md`](../../../.docs/03-目标架构.md) §6.1）：
- * 视图**只接收 `items`**，自己不做数据获取。
+ * 视图**只接收 `items` 与回调**，自己不做数据获取，也不自己管详情面板。
  *
- * 这条约束的价值在于：新增一种展示样式 = 新增一个组件 + 在注册表加一行，
- * **完全不动数据逻辑**（分页、排序、转移那些）。视图之间也无法互相影响。
+ * 这条约束的价值：新增一种展示样式 = 新增组件 + 注册一行，
+ * **完全不动数据逻辑**；而 hover/点击详情这类交互对所有视图是同一套。
  */
 export interface ItemViewProps {
   items: IItem[];
+
+  /** 悬停某件物品；`null` 表示移开。`element` 用于定位详情面板。 */
+  onItemHover?: (item: IItem | null, element: HTMLElement | null) => void;
+  /** 点击某件物品：固定 / 取消固定详情面板 */
+  onItemActivate?: (item: IItem) => void;
+  /** 当前已固定的物品 id，供视图做高亮 */
+  pinnedId?: string | null;
 }
 
 /** 注册表里的一项。 */

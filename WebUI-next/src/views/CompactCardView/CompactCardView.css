@@ -14,3 +14,13 @@
   max-width: none;
   height: 100%;
 }
+
+.compact-grid > li {
+  cursor: pointer;
+}
+
+/* 被固定（点击锁定详情）的那张卡片 */
+.compact-grid > li.is-pinned > .item-card {
+  border-color: #d8b06a;
+  box-shadow: 0 0 0 1px #d8b06a;
+}

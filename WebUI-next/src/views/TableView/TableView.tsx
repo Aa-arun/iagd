@@ -14,7 +14,12 @@ import './TableView.css';
  * 用真正的 `<table>` 而不是 CSS grid：语义正确（表头与单元格有关系），
  * 屏幕阅读器能念出"名称/品质/等级"的对应关系，且天然支持列对齐。
  */
-export default function TableView({ items }: ItemViewProps) {
+export default function TableView({
+  items,
+  onItemHover,
+  onItemActivate,
+  pinnedId,
+}: ItemViewProps) {
   const t = useTranslation();
 
   return (
@@ -30,7 +35,13 @@ export default function TableView({ items }: ItemViewProps) {
       </thead>
       <tbody>
         {items.map((item) => (
-          <tr key={item.uniqueIdentifier}>
+          <tr
+            key={item.uniqueIdentifier}
+            className={pinnedId === item.uniqueIdentifier ? 'is-pinned' : undefined}
+            onMouseEnter={(e) => onItemHover?.(item, e.currentTarget)}
+            onMouseLeave={() => onItemHover?.(null, null)}
+            onClick={() => onItemActivate?.(item)}
+          >
             <td className="item-table__icon-cell">
               {item.icon ? (
                 <img

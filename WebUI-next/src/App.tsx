@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fetchItems, fetchI18n, type I18nMap, type ItemsResponse } from './api';
 import { I18nProvider } from './i18n';
+import { ItemDetailPanel, ItemDetailProvider } from './components/ItemDetail';
 import ViewSwitcher from './views/ViewSwitcher';
 
 /** 一次取多少件。后端有上限（开发数据服务是 500）。 */
@@ -12,6 +13,7 @@ const PAGE_SIZE = 50;
  * A0：显示一条真实物品，证明工具链通了。
  * A1：显示一列真实物品，验证渲染逻辑。
  * A4：视图切换——同一批数据用不同样式呈现。
+ * A5：hover 预览 + 点击固定的详情面板。
  *
  * 数据与界面文案全部来自开发数据服务（tools/devapi）读取的真实数据，
  * 不使用 mock。
@@ -43,36 +45,41 @@ export default function App() {
   }, []);
 
   return (
-    <I18nProvider map={i18n}>
-      <main className="app">
-        <header className="app__header">
-          <h1 className="app__title">Item Assistant</h1>
-          {data && (
-            <p className="app__summary">
-              显示 {data.items.length} / {data.total} 件
-            </p>
+    <ItemDetailProvider>
+      <I18nProvider map={i18n}>
+        <main className="app">
+          <header className="app__header">
+            <h1 className="app__title">Item Assistant</h1>
+            {data && (
+              <p className="app__summary">
+                显示 {data.items.length} / {data.total} 件
+              </p>
+            )}
+          </header>
+
+          {error && (
+            <div className="app__error">
+              <strong>读取数据失败</strong>
+              <p>{error}</p>
+              <p>
+                请确认开发数据服务已启动：
+                <code>node tools/devapi/server.mjs</code>
+              </p>
+            </div>
           )}
-        </header>
 
-        {error && (
-          <div className="app__error">
-            <strong>读取数据失败</strong>
-            <p>{error}</p>
-            <p>
-              请确认开发数据服务已启动：
-              <code>node tools/devapi/server.mjs</code>
-            </p>
-          </div>
-        )}
+          {!error && !data && <p className="app__loading">加载中…</p>}
 
-        {!error && !data && <p className="app__loading">加载中…</p>}
+          {data && data.items.length > 0 && <ViewSwitcher items={data.items} />}
 
-        {data && data.items.length > 0 && <ViewSwitcher items={data.items} />}
+          {data && data.items.length === 0 && (
+            <p className="app__loading">数据库里没有物品。</p>
+          )}
+        </main>
 
-        {data && data.items.length === 0 && (
-          <p className="app__loading">数据库里没有物品。</p>
-        )}
-      </main>
-    </I18nProvider>
+        {/* ★ 详情面板全应用只有一个实例，挂在顶层 */}
+        <ItemDetailPanel />
+      </I18nProvider>
+    </ItemDetailProvider>
   );
 }
