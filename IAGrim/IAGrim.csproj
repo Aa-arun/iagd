@@ -102,12 +102,12 @@
   <ItemGroup>
     <!--
       B1：HTTP 服务用 Kestrel（见 .docs/03-目标架构.md §4.2 与 §9）。
-      这里用 FrameworkReference 而不是 NuGet 包——Kestrel 属于 ASP.NET Core
-      共享框架的一部分，这样不引入包版本管理，也不增加安装包体积。
+      用 FrameworkReference 而不是 NuGet 包：Kestrel 属于 ASP.NET Core 共享框架，
+      属**框架依赖发布（FDD）**——实测应用输出目录 0 增长（48 个文件 / 20 MB，
+      一个 ASP.NET Core 程序集都没被拷进来）。
 
-      ⚠️ 代价：运行时需要机器上存在 Microsoft.AspNetCore.App。
-      开发机上随 .NET SDK 一起装了；**若要分发给别人，安装包需要额外带上
-      ASP.NET Core Runtime**（见 .docs/04-开发环境.md 的「HTTP 服务依赖」一节）。
+      唯一前提是运行时存在 Microsoft.AspNetCore.App：开发机随 SDK 已有；
+      分发时按现有 .NET Desktop Runtime 的同样方式带即可（约 29 MB 共享框架）。
     -->
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
