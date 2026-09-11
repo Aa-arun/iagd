@@ -291,6 +291,19 @@ namespace IAGrim.UI {
                                 GlobalPaths.StorageFolder
                             );
                             _webServer.Start();
+
+                            // 线 B（B4）：用系统默认浏览器打开新前端。
+                            // 只监听 127.0.0.1，所以这个地址在本机之外不可达。
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
+                                FileName = $"http://127.0.0.1:{Http.WebServer.Port}/",
+                                UseShellExecute = true,
+                            });
+
+                            // 界面已经搬到浏览器里了，把这个不再承载界面的窗口收进托盘。
+                            // 托盘图标仍可双击唤回、右键退出。
+                            // ⚠️ 这是**过渡**：完整的 WebView2 / WinForms 移除见
+                            // .docs/05-实施计划.md §3 的 B5、B6。
+                            BeginInvoke(new Action(() => Hide()));
                         }
                         catch (Exception webEx) {
                             Logger.Warn("HTTP 服务启动失败（不影响程序其他功能）：" + webEx.Message);
