@@ -44,6 +44,42 @@ export interface TransferResult {
 }
 
 /**
+ * 设置（用户可改的那些）。
+ *
+ * ★ 这是**刻意收窄**过的子集——2026-09-12 与使用者逐项确认。
+ * 暗色模式、最小化到托盘、自动更新、多电脑共用、在线备份、语言选择都**不在**这里：
+ *   - 前几个在新架构下没有意义（界面在浏览器里）
+ *   - 多电脑/在线备份依赖原作者的服务器，将来要做自建云备份
+ *   - 语言暂锁中文
+ * 见 [`.docs/00-当前状态.md`](../../../.docs/00-当前状态.md) 的待办。
+ */
+export interface AppSettings {
+  /** 隐藏物品上的技能说明 */
+  hideSkills: boolean;
+  /** 允许把物品转移到任意 Mod 的仓库（而不限于当前 Mod） */
+  transferAnyMod: boolean;
+  /** 搜索延迟（输入后稍等再查） */
+  preferDelayedSearch: boolean;
+  /** 备份压缩成 zip */
+  backupCustom: boolean;
+  /** 备份目录（`backupCustom` 为 true 时使用） */
+  backupCustomLocation: string;
+  /**
+   * 物品转移到哪个公共仓库。
+   * `0` = 倒数第二个；`1..6` = 公共仓库 N。
+   */
+  stashToDepositTo: number;
+  /**
+   * 从哪个公共仓库取出物品。
+   * `0` = 最后一个；`1..6` = 公共仓库 N。
+   */
+  stashToLootFrom: number;
+}
+
+/** 设置的增量更新：只提交被改动的项 */
+export type SettingsUpdate = Partial<AppSettings>;
+
+/**
  * 搜索请求。
  *
  * ★ 字段对齐 C# 的 `IAGrim/Database/Dto/ItemSearchRequest.cs`——

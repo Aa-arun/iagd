@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using IAGrim.Database;
 using IAGrim.Database.Dto;
 using IAGrim.Database.Interfaces;
+using IAGrim.Settings;
 using IAGrim.UI.Controller;
 using IAGrim.Utilities;
 using Newtonsoft.Json;
@@ -28,6 +29,31 @@ namespace IAGrim.Http {
     public class SearchRequestDto : ItemSearchRequest {
         public int Offset { get; set; }
         public int Limit { get; set; } = 50;
+    }
+
+    /// <summary>
+    /// 设置的增量更新。
+    ///
+    /// 所有字段**可空**：`null` 表示"这次不改这项"。
+    /// 这样前端可以只提交被改动的项，也避免未来的字段增删造成整份覆盖。
+    ///
+    /// ⚠️ 字段是**刻意收窄**过的（2026-09-12 与使用者逐项确认）：
+    /// 暗色模式、最小化到托盘、启动最小化、自动关闭通知、检查更新、
+    /// 多电脑共用、在线备份、语言选择都**不在**这里——原因见
+    /// .docs/00-当前状态.md 的待办与 .docs/05-实施计划.md 的决策记录。
+    /// </summary>
+    public class SettingsUpdateDto {
+        public bool? HideSkills { get; set; }
+        public bool? TransferAnyMod { get; set; }
+        public bool? PreferDelayedSearch { get; set; }
+        public bool? BackupCustom { get; set; }
+        public string? BackupCustomLocation { get; set; }
+
+        /// <summary>物品转移到哪个公共仓库：0 = 倒数第二个，1..6 = 公共仓库 N</summary>
+        public int? StashToDepositTo { get; set; }
+
+        /// <summary>从哪个公共仓库取出物品：0 = 最后一个，1..6 = 公共仓库 N</summary>
+        public int? StashToLootFrom { get; set; }
     }
 
     /// <summary>
@@ -60,12 +86,18 @@ namespace IAGrim.Http {
 
         private readonly SearchController _search;
         private readonly IItemTagDao _itemTagDao;
+        private readonly SettingsService _settings;
         private readonly string _storageFolder;
         private WebApplication? _app;
 
-        public WebServer(SearchController search, IItemTagDao itemTagDao, string storageFolder) {
+        public WebServer(
+            SearchController search,
+            IItemTagDao itemTagDao,
+            SettingsService settings,
+            string storageFolder) {
             _search = search;
             _itemTagDao = itemTagDao;
+            _settings = settings;
             _storageFolder = storageFolder;
         }
 
@@ -134,6 +166,46 @@ namespace IAGrim.Http {
                     limit = lim,
                     items = all.Skip(off).Take(lim).ToList(),
                 });
+            });
+
+            // GET /api/settings —— 设置（只暴露用户可改的那些）
+            //
+            // 不把 LocalSettings/PersistentSettings 整个序列化出去：那里面有窗口位置、
+            // 云 token、解析状态等一堆内部字段，既不该给前端，序列化也会很啰嗦。
+            app.MapGet("/api/settings", () => {
+                var local = _settings.GetLocal();
+                var persistent = _settings.GetPersistent();
+
+                return Json(new {
+                    hideSkills = persistent.HideSkills,
+                    transferAnyMod = persistent.TransferAnyMod,
+                    preferDelayedSearch = local.PreferDelayedSearch,
+                    backupCustom = local.BackupCustom,
+                    backupCustomLocation = local.BackupCustomLocation,
+                    stashToDepositTo = local.StashToDepositTo,
+                    stashToLootFrom = local.StashToLootFrom,
+                });
+            });
+
+            // POST /api/settings —— 增量更新。
+            //
+            // 设属性会触发各自的 OnMutate 事件，SettingsService 据此自动落盘
+            // （见 SettingsService 构造函数里的 `OnMutate += ... Persist()`），
+            // 所以这里**不需要**显式保存。
+            app.MapPost("/api/settings", (SettingsUpdateDto dto) => {
+                var local = _settings.GetLocal();
+                var persistent = _settings.GetPersistent();
+
+                if (dto.HideSkills.HasValue) persistent.HideSkills = dto.HideSkills.Value;
+                if (dto.TransferAnyMod.HasValue) persistent.TransferAnyMod = dto.TransferAnyMod.Value;
+                if (dto.PreferDelayedSearch.HasValue) local.PreferDelayedSearch = dto.PreferDelayedSearch.Value;
+                if (dto.BackupCustom.HasValue) local.BackupCustom = dto.BackupCustom.Value;
+                if (dto.BackupCustomLocation != null) local.BackupCustomLocation = dto.BackupCustomLocation;
+                if (dto.StashToDepositTo.HasValue) local.StashToDepositTo = dto.StashToDepositTo.Value;
+                if (dto.StashToLootFrom.HasValue) local.StashToLootFrom = dto.StashToLootFrom.Value;
+
+                Logger.Info("设置已通过 HTTP 更新");
+                return Json(new { success = true });
             });
 
             // GET /api/i18n —— 对应原 GetTranslationStrings()

@@ -1,9 +1,11 @@
 import type {
+  AppSettings,
   CollectionResponse,
   FiltersOptions,
   I18nMap,
   ItemSearchRequest,
   ItemsResponse,
+  SettingsUpdate,
   TransferResult,
 } from './types';
 
@@ -70,6 +72,29 @@ export function fetchI18n(): Promise<I18nMap> {
 /** 过滤器可选项 */
 export function fetchFilterOptions(): Promise<FiltersOptions> {
   return getJson<FiltersOptions>('/api/filters/options');
+}
+
+/** 读取设置（只含用户可改的那些） */
+export function fetchSettings(): Promise<AppSettings> {
+  return getJson<AppSettings>('/api/settings');
+}
+
+/**
+ * 保存设置（**增量**）。
+ *
+ * 只提交改动的字段——后端用可空字段表示"这项不改"，
+ * 避免整份覆盖带来的竞态与意外重置。
+ * 后端设属性时会自动落盘，不需要额外的 save 调用。
+ */
+export async function saveSettings(update: SettingsUpdate): Promise<void> {
+  const res = await fetch('/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(update),
+  });
+  if (!res.ok) {
+    throw new ApiError('保存设置失败', res.status);
+  }
 }
 
 /**
