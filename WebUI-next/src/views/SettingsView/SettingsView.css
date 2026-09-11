@@ -148,15 +148,30 @@
   font-size: 11px;
 }
 
-/* Stash Configuration：两组并排，和原界面一致 */
+/*
+ * Stash Configuration：两组并排。
+ *
+ * ★ 断点刻意与上面的 `.settings-layout` **保持一致**（800px）：
+ *   宽度够的时候两组左右排列，只有窄到"动作栏被挤到设置栏下方"时，
+ *   才跟着分成上下。
+ *
+ * 之前这里用 `flex-wrap: wrap` + `flex: 1 1 260px`，结果是**永远堆成上下**——
+ * 因为左栏本身有 520px 上限，260×2 加间距已经放不下，跟窗口多宽无关。
+ */
 .settings-stash {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 18px;
 }
 
+@media (max-width: 800px) {
+  .settings-stash {
+    grid-template-columns: 1fr;
+  }
+}
+
 .stash-group {
-  flex: 1 1 260px;
+  min-width: 0;
   margin: 0;
   padding: 10px 12px;
   border: 1px solid var(--border);
