@@ -289,7 +289,9 @@ namespace IAGrim.UI {
                                 searchController,
                                 _serviceProvider.Get<IItemTagDao>(),
                                 _serviceProvider.Get<SettingsService>(),
-                                GlobalPaths.StorageFolder
+                                GlobalPaths.StorageFolder,
+                                // 延迟取：转移控制器要到 MainWindow_Load 里才创建
+                                () => _transferController
                             );
                             _webServer.Start();
 

@@ -62,6 +62,30 @@ body {
   color: var(--text-muted);
 }
 
+/* 统计信息 + 刷新按钮。放在标题右侧，统计信息宽度会变，所以用 margin-left:auto 顶到最右 */
+.app__header-actions {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.app__refresh {
+  padding: 3px 10px;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.app__refresh:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
 .app__loading {
   color: var(--text-muted);
 }

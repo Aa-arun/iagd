@@ -163,9 +163,12 @@ export function iconUrl(icon: string): string {
  *
  * 对应原 `TransferItem(url[], transferAll)`。
  *
- * ⚠️ 两处与真实后端的差异，见 [`.docs/03-目标架构.md`](../../../.docs/03-目标架构.md) §4.5：
- * 1. 真实 C# 接受 identifier 数组（Base/Prefix/Suffix/…），这里简化为直接传 `PlayerItem.Id`；
- * 2. 真实程序还会把物品写进**游戏共享仓库存档**，devapi 只模拟数据库侧的效果。
+ * ⚠️ 与旧接口的差异：真实 C# 后端的 `/api/items/transfer` 接受的是
+ * `PlayerItem.Id` 数组（由后端自己拼成 `["PI", id, ...]` 的 identifier），
+ * 而不是前端传 Base/Prefix/Suffix。
+ *
+ * 注意后端**失败时也返回 HTTP 200**（`{success:false, error:"…"}`），
+ * 所以只看 `res.ok` 会把"转移失败"当成"已转移 0 件"。必须判 `success`。
  */
 export async function transferItems(
   ids: number[],
@@ -180,5 +183,10 @@ export async function transferItems(
     const detail = await res.json().catch(() => null);
     throw new ApiError(detail?.error ?? '转移失败', res.status);
   }
-  return (await res.json()) as TransferResult;
+
+  const result = (await res.json()) as TransferResult & { error?: string };
+  if (!result.success) {
+    throw new ApiError(result.error ?? '转移失败', res.status);
+  }
+  return result;
 }

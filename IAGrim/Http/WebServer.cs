@@ -15,6 +15,7 @@ using IAGrim.Database.Interfaces;
 using IAGrim.Settings;
 using IAGrim.Settings.Dto;
 using IAGrim.UI.Controller;
+using IAGrim.UI.Misc;
 using IAGrim.Utilities;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
@@ -30,6 +31,17 @@ namespace IAGrim.Http {
     public class SearchRequestDto : ItemSearchRequest {
         public int Offset { get; set; }
         public int Limit { get; set; } = 50;
+    }
+
+    /// <summary>
+    /// 转移请求：把物品从 IA 送回游戏。
+    ///
+    /// `ids` 是 `PlayerItem.Id`（前端从 `uniqueIdentifier` 的 `PI/{Id}/{...}` 解析出来）。
+    /// </summary>
+    public class TransferRequestDto {
+        public long[] Ids { get; set; } = Array.Empty<long>();
+        /// <summary>true = 连同一物品的其它份一起转移</summary>
+        public bool TransferAll { get; set; }
     }
 
     /// <summary>
@@ -67,8 +79,11 @@ namespace IAGrim.Http {
     ///
     /// 数据侧完全复用 <see cref="SearchController"/>，因此 HTTP 接口返回的
     /// 物品与界面里看到的**由同一套逻辑产出**（含真正的属性翻译）。
+    ///
+    /// 注意是 `internal`：构造函数要接收 `ItemTransferController`，而它是 internal 的
+    /// ——public 类型的方法签名不能暴露更低的可访问性。
     /// </summary>
-    public class WebServer : IDisposable {
+    internal class WebServer : IDisposable {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(WebServer));
 
         /// <summary>固定端口；被占用则启动失败并报错（使用者决定，见 .docs/03-目标架构.md §9）</summary>
@@ -89,17 +104,24 @@ namespace IAGrim.Http {
         private readonly IItemTagDao _itemTagDao;
         private readonly SettingsService _settings;
         private readonly string _storageFolder;
+        /// <summary>
+        /// 转移控制器。用**工厂**而不是直接注入：它是在 `MainWindow` 稍后才创建的，
+        /// 而 HTTP 服务启动得更早，直接注入只会拿到 null。
+        /// </summary>
+        private readonly Func<ItemTransferController?> _transferController;
         private WebApplication? _app;
 
         public WebServer(
             SearchController search,
             IItemTagDao itemTagDao,
             SettingsService settings,
-            string storageFolder) {
+            string storageFolder,
+            Func<ItemTransferController?> transferController) {
             _search = search;
             _itemTagDao = itemTagDao;
             _settings = settings;
             _storageFolder = storageFolder;
+            _transferController = transferController;
         }
 
         private static IResult Json(object payload) {
@@ -154,6 +176,65 @@ namespace IAGrim.Http {
             app.MapPost("/api/search", (SearchRequestDto dto) => {
                 var items = _search.QueryItems(dto, dto.Offset, dto.Limit, out int total, out bool truncated);
                 return Json(new { total, offset = dto.Offset, limit = dto.Limit, truncated, items });
+            });
+
+            // POST /api/items/transfer —— 把物品转移回游戏（**写操作**）
+            //
+            // 复用 ItemTransferController，它做两件事：
+            //   ① 把物品序列化成 CSV 放进 `CsvLocationOutgoing`（**不是直接写存档**），
+            //      由注入游戏的 hook 读取后放进共享仓库；
+            //   ② 把 StackCount 置 0，随后 `Update` 会删掉该记录。
+            //
+            // ⚠️ 控制器在 MainWindow 里稍后才创建，所以用工厂延迟取（见字段注释）。
+            app.MapPost("/api/items/transfer", (TransferRequestDto dto) => {
+                var controller = _transferController();
+                if (controller == null) {
+                    return Json(new { success = false, error = "转移功能尚未就绪（程序可能仍在启动）" });
+                }
+
+                if (dto.Ids.Length == 0) {
+                    return Json(new { success = false, error = "没有指定要转移的物品" });
+                }
+
+                // TransferAnyMod 会弹出 `StashPicker` 模态对话框让人选 mod —— 那必须在 UI 线程上。
+                // HTTP 请求跑在线程池线程，弹窗会直接抛异常，所以这里明确拒绝而不是让它半路炸掉。
+                if (_settings.GetPersistent().TransferAnyMod) {
+                    return Json(new {
+                        success = false,
+                        error = "已开启「允许转移到任意 mod」，该功能需要弹窗选择目标 mod，暂不支持从浏览器转移。请在设置中关闭后重试。",
+                    });
+                }
+
+                var transferred = 0;
+                var failed = new List<long>();
+
+                foreach (var id in dto.Ids) {
+                    // identifier 的格式由 StashTransferEventArgs 决定：
+                    //   ["PI", <PlayerItemId>, "", "", "", IsHardcore]
+                    // 长度必须**恰好 6**，且第 0 位是 "PI" 才会被识别为"按 id 精确转移"。
+                    var identifier = new object[] {
+                        "PI", id, string.Empty, string.Empty, string.Empty, false,
+                    };
+                    var args = new StashTransferEventArgs(identifier, dto.TransferAll);
+
+                    controller.TransferItem(args);
+
+                    if (args.IsSuccessful) {
+                        transferred += args.NumTransferred;
+                    }
+                    else {
+                        failed.Add(id);
+                    }
+                }
+
+                Logger.Info(
+                    $"HTTP 转移：请求 {dto.Ids.Length} 件，成功 {transferred} 件，失败 {failed.Count} 件");
+
+                return Json(new {
+                    success = failed.Count == 0,
+                    numTransferred = transferred,
+                    failed,
+                });
             });
 
             // GET /api/settings —— 设置（只暴露用户可改的那些）
