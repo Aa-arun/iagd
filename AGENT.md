@@ -75,20 +75,22 @@ iagd/
 │   ├── Services/            ← 物品分页、属性计算、消息处理
 │   └── Backup/, Utilities/
 │
-├── WebUI/                   ← 【旧前端】Preact + TS + Vite（保留可构建，直到线 C 完成）
+├── WebUI/                   ← 【旧前端】Preact + TS + Vite ⚠️ 已停用，待删（B5/B6）
 │   ├── src/components/      ← 组件（App、Header、Item 卡片、提示条）
 │   ├── src/containers/      ← 页面级容器（ItemContainer / Collection / Help…）
-│   ├── src/integration/     ← ★ 与 C# 通信的唯一出入口
-│   ├── src/style/index.css  ← ★ 主题变量（明/暗两套 CSS 变量）
+│   ├── src/integration/     ← 与 C# 通信的唯一出入口（hostObjects）
+│   ├── src/style/index.css  ← 主题变量（明/暗两套 CSS 变量）
 │   └── build.cmd            ← 构建并把产物拷进 IAGrim 的 Resources
 │
-├── WebUI-next/              ← ★【新前端】React + TS + Vite（线 A 在这里开发）
+├── WebUI-next/              ← ★【新前端】React + TS + Vite —— **当前实际使用**
 │   ├── src/api/             ← 通信层（REST 客户端）
 │   ├── src/model/           ← 领域模型（对应 C# 的 JsonItem）
-│   ├── src/components/      ← 通用组件（ItemCard…）
+│   ├── src/components/      ← 通用组件（ItemCard、ItemDetail、SearchBar…）
+│   ├── src/views/           ← 页面与视图（TableView / CompactCardView / SettingsView）
+│   ├── src/i18n/            ← 翻译（React Context）
 │   └── src/styles/          ← 主题变量
 │
-├── tools/devapi/            ← ★ 只读开发数据服务（真实数据 + 线 B 接口原型）
+├── tools/devapi/            ← 只读开发数据服务（Node）—— ⚠️ **已退役**，仅供对照
 │
 ├── HookDll/                 ← 注入游戏的 DLL
 ├── DllInjector/             ← 把 DLL 注入游戏进程
@@ -96,9 +98,14 @@ iagd/
 └── Installer/ Inno/
 ```
 
-> **两个前端为什么并存**：`@preact/preset-vite` 会把 `react` 别名到 `preact/compat`，
-> 两者无法同项目共存；而 `WebUI/` 的产物是喂给 WebView2 的，
-> 直接在里面改会造成"现有程序加载半成品界面"。详见 `WebUI-next/README.md`。
+> **两个前端的历史与现状**：`@preact/preset-vite` 会把 `react` 别名到 `preact/compat`，
+> 两者无法同项目共存，所以新前端一开始是独立目录。
+>
+> **2026-09-12 起已经切换**：`storage/` 里的前端产物换成了 `WebUI-next` 的构建结果，
+> 程序启动会打开系统浏览器加载它（`127.0.0.1:3031`）。
+> `WebUI/` 的产物已备份到 `~/iagd-backup-storage-frontend/`，
+> **代码保留未删**——它的界面仍挂在 WebView2 上（已失效），
+> 彻底移除是 B5/B6，见 `.docs/05-实施计划.md` §3。
 
 **命名陷阱**：代码里到处是 `CEF` / `Cef`（`IAGrim.UI.Misc.CEF`、`CefBrowserHandler`），
 但**实际用的是 WebView2**。看到 CEF 按 WebView2 理解。
@@ -110,26 +117,35 @@ iagd/
 ```mermaid
 %%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
 flowchart LR
-    subgraph Before["现在（WebView2 私有机制）"]
+    subgraph Now["★ 现在：系统浏览器 + C# 自带服务"]
         direction LR
-        FE1["前端 Preact"] -- "hostObjects.sync.core.方法()<br/>同步阻塞" --> C1["C# 业务逻辑"]
+        FE2["新前端 React<br/>（WebUI-next）"] -- "HTTP /api/*（REST）<br/>异步 · 请求-响应" --> C2["C# Kestrel<br/>127.0.0.1:3031"]
+    end
+
+    subgraph Legacy["⚠️ 遗留：代码还在，界面已失效（待 B5/B6 移除）"]
+        direction LR
+        FE1["旧前端 Preact<br/>（WebUI）"] -- "hostObjects.sync<br/>同步阻塞" --> C1["C# 业务逻辑"]
         C1 -- "ExecuteScriptAsync<br/>window.message(...)" --> FE1
     end
 
-    subgraph After["改造后（通用 Web 协议）"]
-        direction LR
-        FE2["前端 React"] -- "HTTP 请求（REST）<br/>异步 · 请求-响应" --> C2["C# HTTP 服务"]
-        C2 -- "WebSocket 推送<br/>异步 · 单向" --> FE2
-    end
-
-    Before ==> After
+    C2 --- C1
 ```
 
-**核心设计**：WebSocket 消息**沿用现有枚举编号**（`SetItems`=5、`UpdateItemStats`=9…），
-只换传输层、不改语义。详见 `.docs/03-目标架构.md` §4。
+**WebSocket 尚未实现**（那是 B2）：消息沿用现有枚举编号
+（`SetItems`=5、`UpdateItemStats`=9…），只换传输层、不改语义 → `.docs/03-目标架构.md` §4。
 
-**开发时的关键能力**：现有前端在浏览器里跑时 `isEmbedded === false`，走 mock 数据分支，
-因此**纯界面工作不需要后端、不需要 Windows**。
+**开发新前端的两种方式**：
+
+1. **改完构建、拷进 storage**（贴近真实运行）：
+   ```bash
+   cd WebUI-next && npm run build
+   rm -rf "$LOCALAPPDATA/EvilSoft/IAGD/storage/assets"
+   cp -r build/. "$LOCALAPPDATA/EvilSoft/IAGD/storage/"
+   ```
+   然后刷新浏览器。
+2. **vite dev server**（热更新，改样式时更舒服）：需要把 `IAGD_API_TARGET`
+   指向 `http://127.0.0.1:3031`——⚠️ 但 **WSL 里的 vite 访问不到 Windows 的 127.0.0.1**，
+   所以这条路在 WSL 环境下不通，见 `.docs/04-开发环境.md` §9.4。
 
 ---
 
@@ -171,42 +187,40 @@ WSL2          ← ★ agent（DSH）· 仓库 /home/jyl/iagd（ext4 原生）· 
 | Node.js | WSL | ✅ v22.23.2（系统）+ v20.20.2（fnm，匹配 `.node-version`） |
 | git | WSL | ✅ 2.43.0 |
 | 前端依赖 | WSL | ✅ 已 `npm install` |
-| WebView2 Runtime | Windows | ✅ 已装（过渡期需要，改造后不再需要） |
+| WebView2 Runtime | Windows | ⚠️ 已不需要（界面搬到了系统浏览器），但**代码还在**（B5/B6 才删） |
 
 **常用命令**（都在 WSL 内执行）：
 
 ```bash
-# 前端开发（最常用，完全不碰 Windows）
-cd ~/iagd/WebUI && npm run dev          # → http://localhost:3000
+# ① 前端：构建 + 部署到 storage（当前主力流程，改完刷新浏览器即可）
+cd ~/iagd/WebUI-next && npm run build
+rm -rf /mnt/c/Users/jyl96/AppData/Local/EvilSoft/IAGD/storage/assets
+cp -r build/. /mnt/c/Users/jyl96/AppData/Local/EvilSoft/IAGD/storage/
 
-# 后端编译（经 interop 调 Windows 的 dotnet）
-cd /mnt/c && cmd.exe /c 'pushd \\wsl.localhost\Ubuntu-24.04\home\jyl\iagd && dotnet build IAGrim-core.sln && popd'
+# ② 后端：编译（经 interop 调 Windows 的 dotnet）
+cd /mnt/c && cmd.exe /c 'pushd \\wsl.localhost\Ubuntu-24.04\home\jyl\iagd && dotnet build IAGrim-core.sln -c Release && popd'
+
+# ③ 运行：必须复制到 Windows 本地（UNC 路径跑不了 exe，会静默失败）
+#    然后启动 C:\Users\jyl96\iagd-release\IAGrim.exe
 ```
 
 ### 三条铁律
 
-1. **不要调用 `WebUI/build.cmd`** —— 末尾的 `pause` 会让 shell **永久挂住**。用 `.docs/04` §4.3 的 WSL 流程。
+1. **不要调用 `WebUI/build.cmd`** —— 末尾的 `pause` 会让 shell **永久挂住**（那是旧前端的构建脚本）。
 2. **不要在 `/mnt/c` 下做批量文件操作** —— 跨文件系统很慢，仓库必须始终待在 WSL 原生侧。
 3. **跨边界必须用 `pushd`，且前置 `cd /mnt/c`** —— 否则 `cmd.exe` 会因 UNC 限制**静默退回 `C:\Windows`**，
    命令看似执行、实际在错误目录。
 
-**现在能做什么**：**三条线的环境都已就绪**。
-线 A 直接 `npm run dev`；后端编译已跑通（首次 63 秒、增量 5 秒）。
+**现在的状态**：**程序已经能日常使用**——
+启动 → 托盘常驻 + 自动开浏览器 → 新前端跑在 C# 后端上（`127.0.0.1:3031`）。
+线的进度见 [`.docs/00-当前状态.md`](./.docs/00-当前状态.md)。
 
-### ★ 开发数据：可用真实数据库（不必再用 mock）
+### 数据从哪来
 
-`tools/devapi/` 是一个**只读**的 Node 服务，直读真实的 `userdata.db`
-（66 件实有物品、3509 条图鉴、4573 个本地图标）：
-
-```bash
-node tools/devapi/server.mjs     # → http://127.0.0.1:42500
-```
-
-它同时是**线 B 的 REST 接口原型**——端点命名与 `03-目标架构.md` §4.2 草案一致，
-将来换 C# 实现时前端不用改。
-
-数据库与物品图标都在 **`%LOCALAPPDATA%\EvilSoft\IAGD\`**，**不在 `Program Files`**。
-详见 `.docs/04-开发环境.md` §8。
+- **运行时**：新前端连 **C# 自带的 HTTP 服务**（`127.0.0.1:3031`），数据是真实的。
+- **数据库与图标**在 `%LOCALAPPDATA%\EvilSoft\IAGD\`，**不在 `Program Files`** —— 详见 `.docs/04-开发环境.md` §8。
+- `tools/devapi/`（Node 只读服务）⚠️ **已退役**：新前端不再连它。留着仅供对照，
+  里面有从**另一个角度**验证过的数据（比如属性翻译的"简单层"）。
 
 ---
 
@@ -215,11 +229,11 @@ node tools/devapi/server.mjs     # → http://127.0.0.1:42500
 > ★ **动态内容已移到 [`.docs/00-当前状态.md`](./.docs/00-当前状态.md)。**
 > 本节只保留稳定的路线概览。
 
-| 线 | 内容 | 需要 |
+| 线 | 内容 | 状态 |
 |---|---|---|
-| A | 新前端增量开发（步 0–6） | ✅ 环境已就绪（`npm run dev`） |
-| B | 后端服务化：HTTP + WebSocket 与旧路径并存 | ✅ 环境已就绪（`dotnet build` 已跑通） |
-| C | 界面迁移：搜索框、过滤器面板搬进网页（**工作量最大**） | ✅ 同上 |
+| A | 新前端增量开发（步 0–6） | ✅ **全部完成**（列表 / 视图切换 / 搜索 / 详情 / 转移） |
+| B | 后端服务化 | ✅ B1 HTTP、B3 前端切 REST、B4 开浏览器 —— ▶ 剩 **B2 WebSocket** 与 B5/B6 删旧代码 |
+| C | 界面迁移 | ✅ C1 搜索框、C3 设置页（部分）—— ▶ 剩 **C2 过滤面板**（工作量最大）等 |
 
 **动手前必读**：`.docs/03-目标架构.md` + `.docs/05-实施计划.md`；
-环境与命令见 `.docs/04-开发环境.md`。
+环境与命令见 `.docs/04-开发环境.md`；**进度看 [`.docs/00-当前状态.md`](./.docs/00-当前状态.md)**。
