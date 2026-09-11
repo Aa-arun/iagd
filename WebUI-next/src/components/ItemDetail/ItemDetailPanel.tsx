@@ -1,8 +1,9 @@
-import type { CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { useTranslation } from '../../i18n';
-import { iconUrl } from '../../api';
+import { iconUrl, transferItems } from '../../api';
 import { qualityClass } from '../ItemCard/quality';
 import { slotLabel } from '../../model/slot';
+import { playerItemId } from '../../model/item';
 import { useItemDetail } from './ItemDetailContext';
 import StatList from './StatList';
 import './ItemDetail.css';
@@ -44,6 +45,11 @@ const PINNED_STYLE: CSSProperties = {
   maxHeight: 'calc(100vh - 48px)',
 };
 
+interface Feedback {
+  ok: boolean;
+  text: string;
+}
+
 /**
  * 物品详情面板。
  *
@@ -51,10 +57,40 @@ const PINNED_STYLE: CSSProperties = {
  * 这里只根据状态换内容与位置，不新建 DOM 节点。
  */
 export default function ItemDetailPanel() {
-  const { item, isPinned, anchor, onItemActivate } = useItemDetail();
+  const { item, isPinned, anchor, onItemActivate, onTransferred } = useItemDetail();
   const t = useTranslation();
 
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
+
+  // 换了一件事物就把上一次的"转移结果"清掉，否则会张冠李戴。
+  // 注意：这个 effect 必须在下面的提前 return 之前——否则 hook 调用顺序会变。
+  useEffect(() => {
+    setFeedback(null);
+    setBusy(false);
+  }, [item?.uniqueIdentifier]);
+
   if (!item) return null;
+
+  const handleTransfer = async () => {
+    const id = playerItemId(item);
+    if (id === null) {
+      setFeedback({ ok: false, text: '无法从标识里解析出物品 id' });
+      return;
+    }
+
+    setBusy(true);
+    setFeedback(null);
+    try {
+      const result = await transferItems([id], true);
+      setFeedback({ ok: true, text: `已转移 ${result.numTransferred} 件` });
+      onTransferred?.();
+    } catch (err) {
+      setFeedback({ ok: false, text: (err as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const style = isPinned || !anchor ? PINNED_STYLE : floatingStyle(anchor);
 
@@ -106,7 +142,21 @@ export default function ItemDetailPanel() {
         <footer className="item-detail__foot">
           <code title={item.baseRecord}>{item.baseRecord}</code>
           {item.isHardcore && <span className="item-detail__tag">硬核</span>}
+          <button
+            type="button"
+            className="item-detail__transfer"
+            disabled={busy}
+            onClick={handleTransfer}
+          >
+            {busy ? '转移中…' : '转移到游戏'}
+          </button>
         </footer>
+      )}
+
+      {feedback && (
+        <p className={`item-detail__feedback ${feedback.ok ? 'is-ok' : 'is-err'}`}>
+          {feedback.text}
+        </p>
       )}
     </aside>
   );

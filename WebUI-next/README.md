@@ -82,4 +82,29 @@ src/
 - [x] **A4** 视图切换（分栏列表 / 简洁卡片，偏好存 localStorage）—— **P0 核心目标**
 - [x] **A5** hover 预览 + 点击固定的详情面板 —— **P0 核心目标**
 - [x] **A3** 搜索框（关键词 / 等级 / 品质；防抖 250ms）
-- [ ] A6 转移物品（**写操作**，需先设计验证方式）
+- [x] **A6** 转移物品（**写操作**，经沙盒写模式验证）
+
+## 线 A 全部完成 🎉
+
+步 0–6 均已落地，**P0 目标**（可切换的装备展示界面 + hover 详情）在 A4/A5 达成。
+
+### 转移需要沙盒写服务
+
+转移是**写操作**，默认的 devapi 是只读的。验证它要另起一个指向**副本库**的写服务：
+
+```bash
+# ① 建沙盒（副本）
+mkdir -p ~/iagd-sandbox
+cp ~/iagd-db-backup/userdata-20260911.db ~/iagd-sandbox/userdata.db
+chmod u+w ~/iagd-sandbox/userdata.db
+
+# ② 起写服务（42501）
+IAGD_DB=$HOME/iagd-sandbox/userdata.db IAGD_WRITABLE=1 PORT=42501 \
+  node tools/devapi/server.mjs
+
+# ③ 前端指向它
+cd WebUI-next && IAGD_API_TARGET=http://127.0.0.1:42501 npm run dev
+```
+
+> **安全闸**：`IAGD_WRITABLE=1` 且库是原库时，服务**拒绝启动**。
+> 详见 [`.docs/04-开发环境.md`](../.docs/04-开发环境.md) §8.7。

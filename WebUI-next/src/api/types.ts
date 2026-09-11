@@ -32,6 +32,18 @@ export interface FiltersOptions {
 export type I18nMap = Record<string, string>;
 
 /**
+ * `POST /api/items/transfer` 的响应。
+ * 对应原 `TransferItem()` 返回的 `{success, numTransferred}`。
+ */
+export interface TransferResult {
+  success: boolean;
+  /** 实际转移的物品数（堆叠按整叠计） */
+  numTransferred: number;
+  /** devapi 扩展：被删除的 PlayerItem 记录数 */
+  deleted?: number;
+}
+
+/**
  * 搜索请求。
  *
  * ★ 字段对齐 C# 的 `IAGrim/Database/Dto/ItemSearchRequest.cs`——

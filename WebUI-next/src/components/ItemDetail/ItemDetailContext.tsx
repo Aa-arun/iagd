@@ -32,11 +32,23 @@ interface ItemDetailContextValue {
   // ↓ 交给视图的回调（视图仍然只"接数据 + 发事件"，不自己取数据）
   onItemHover: (item: IItem | null, element: HTMLElement | null) => void;
   onItemActivate: (item: IItem) => void;
+
+  /**
+   * 转移成功后由面板调用，通知外层刷新列表。
+   * 由 App 通过 Provider 的 prop 注入——面板自己不该知道"列表怎么重新加载"。
+   */
+  onTransferred?: () => void;
 }
 
 const ItemDetailContext = createContext<ItemDetailContextValue | null>(null);
 
-export function ItemDetailProvider({ children }: { children: ReactNode }) {
+export function ItemDetailProvider({
+  children,
+  onTransferred,
+}: {
+  children: ReactNode;
+  onTransferred?: () => void;
+}) {
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [pinned, setPinned] = useState<IItem | null>(null);
 
@@ -66,8 +78,9 @@ export function ItemDetailProvider({ children }: { children: ReactNode }) {
       pinnedId: pinned?.uniqueIdentifier ?? null,
       onItemHover,
       onItemActivate,
+      onTransferred,
     }),
-    [pinned, preview, onItemHover, onItemActivate],
+    [pinned, preview, onItemHover, onItemActivate, onTransferred],
   );
 
   return <ItemDetailContext.Provider value={value}>{children}</ItemDetailContext.Provider>;

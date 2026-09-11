@@ -47,3 +47,14 @@ export default interface IItem {
   isHardcore: boolean;
   replicaStats: IReplicaRow[];
 }
+
+/**
+ * 从 `uniqueIdentifier`（形如 `PI/{Id}/{CloudId}`）解析出 `PlayerItem.Id`。
+ *
+ * 转移物品时需要它——devapi 的转移接口收的就是这串 id。
+ * 格式与 C# 的 `ItemHtmlWriter.GetUniqueIdentifier` 一致。
+ */
+export function playerItemId(item: IItem): number | null {
+  const match = /^PI\/(\d+)\//.exec(item.uniqueIdentifier);
+  return match ? Number(match[1]) : null;
+}

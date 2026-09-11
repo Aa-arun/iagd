@@ -36,6 +36,14 @@ const PORT = Number(process.env.PORT ?? 42500);
 const HOST = '127.0.0.1';
 const MAX_LIMIT = 500;
 
+/**
+ * 写模式。**默认关闭**，必须显式设置 `IAGD_WRITABLE=1` 才开启。
+ *
+ * 写模式只为 A6（转移物品）的沙盒验证存在，用途是让前端走通真实的写链路，
+ * 而**不是**给日常开发用。
+ */
+const WRITABLE = process.env.IAGD_WRITABLE === '1';
+
 // 对应前端 src/interfaces/ 的 `enum IItemType { Recipe, Buddy, Player, Augmentation }`
 const ITEM_TYPE = { Recipe: 0, Buddy: 1, Player: 2, Augmentation: 3 };
 
@@ -45,8 +53,20 @@ if (!existsSync(DB_PATH)) {
   process.exit(1);
 }
 
-// ── 数据库（只读）───────────────────────────────────────────────────────
-const db = new DatabaseSync(DB_PATH, { readOnly: true });
+// ★ 安全闸：绝不允许以写模式打开真实数据库。
+// 这一条是硬性的——写错会移动玩家多年积累的物品，而备份不一定覆盖得到。
+if (WRITABLE && DB_PATH === DEFAULT_DB) {
+  console.error('✗ 拒绝以写模式打开**原库**。');
+  console.error('');
+  console.error('  写模式只允许作用在副本上，例如：');
+  console.error('    IAGD_DB=~/iagd-sandbox/userdata.db IAGD_WRITABLE=1 \\');
+  console.error('      node tools/devapi/server.mjs');
+  process.exit(1);
+}
+
+// ── 数据库 ──────────────────────────────────────────────────────────────
+// 默认只读；只有写模式（且已通过上面的安全闸）才以可写方式打开。
+const db = new DatabaseSync(DB_PATH, { readOnly: !WRITABLE });
 
 // 物品查询的公共 SELECT 部分。搜索（/api/search）要复用同一套字段，
 // 否则两条路径返回的结构会悄悄分叉。
@@ -376,8 +396,83 @@ function searchItems(query) {
   return { total, offset, limit, items };
 }
 
+/**
+ * 转移物品——**仅沙盒写模式可用**（见文件顶部的安全闸）。
+ *
+ * 复刻 C# 的两段逻辑：`ItemTransferController.TransferItems` +
+ * `PlayerItemDaoImpl.Update`（后者见该文件 236-266 行）：
+ *
+ *   1. `StackCount` 递减（`transferAll` 则清零）
+ *   2. 归零且 `cloudid` 非空 → 记入 `deletedplayeritem_v3`
+ *   3. 删除该物品的 `ReplicaItemRow` / `ReplicaItem2`
+ *   4. 删除 `StackCount <= 0` 的 `PlayerItem`
+ *
+ * ⚠️ **真实程序还会把物品写进游戏共享仓库存档**（`TransferStashService.Deposit`），
+ * 那需要 GD 存档的二进制格式、加密与校验和，devapi 不做。
+ * 这里模拟的是**数据库侧**的效果——足以验证写链路、事务与前端交互。
+ */
+function transferItems(body) {
+  if (!WRITABLE) {
+    const err = new Error('本服务是只读的（未设置 IAGD_WRITABLE=1）');
+    err.status = 403;
+    throw err;
+  }
+
+  const ids = Array.isArray(body?.ids) ? body.ids.map(Number).filter(Number.isFinite) : [];
+  if (ids.length === 0) {
+    const err = new Error('缺少 ids');
+    err.status = 400;
+    throw err;
+  }
+
+  const transferAll = body?.transferAll === true;
+  const marks = ids.map(() => '?').join(',');
+
+  db.exec('BEGIN');
+  try {
+    // 1. 递减：transferAll 清空整叠，否则只取 1 个
+    const rows = db
+      .prepare(`SELECT Id, StackCount FROM PlayerItem WHERE Id IN (${marks})`)
+      .all(...ids);
+    const update = db.prepare('UPDATE PlayerItem SET StackCount = ? WHERE Id = ?');
+
+    let numTransferred = 0;
+    for (const row of rows) {
+      const current = Math.max(1, Number(row.StackCount) || 1);
+      const take = transferAll ? current : 1;
+      numTransferred += take; // 对齐 C#: Sum(Math.Max(1, StackCount))
+      update.run(current - take, row.Id);
+    }
+
+    // 2. 标记删除（供跨机器同步用，保留 cloud id）
+    db.prepare(
+      `INSERT OR IGNORE INTO deletedplayeritem_v3 (id)
+         SELECT cloudid FROM PlayerItem
+        WHERE cloudid IS NOT NULL AND StackCount <= 0 AND Id IN (${marks})`,
+    ).run(...ids);
+
+    // 3. 清掉该物品的副本数据
+    db.prepare(
+      `DELETE FROM ReplicaItemRow
+        WHERE replicaitemid IN (SELECT Id FROM ReplicaItem2 WHERE playeritemid IN (${marks}))`,
+    ).run(...ids);
+    db.prepare(`DELETE FROM ReplicaItem2 WHERE playeritemid IN (${marks})`).run(...ids);
+
+    // 4. 删除已经归零的物品
+    const deleted = db
+      .prepare(`DELETE FROM PlayerItem WHERE StackCount <= 0 AND Id IN (${marks})`)
+      .run(...ids);
+
+    db.exec('COMMIT');
+    return { success: true, numTransferred, deleted: Number(deleted.changes) };
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+}
+
 const routes = {
-  '/api/health': () => ({ ok: true, db: DB_PATH, readOnly: true }),
+  '/api/health': () => ({ ok: true, db: DB_PATH, readOnly: !WRITABLE, writable: WRITABLE }),
 
   // 对应前端 RequestMoreItems() → WebSocket SetItems(5)
   '/api/items': (url) => {
@@ -451,6 +546,21 @@ const server = createServer(async (req, res) => {
     }
   }
 
+  // 转移物品——**写操作**，只在沙盒写模式下可用。
+  if (req.method === 'POST' && url.pathname === '/api/items/transfer') {
+    try {
+      const body = await readJsonBody(req);
+      const result = transferItems(body);
+      console.log(
+        `  ↳ 转移 ${result.numTransferred} 件，删除 ${result.deleted} 条记录（沙盒）`,
+      );
+      return send(res, 200, result);
+    } catch (err) {
+      console.error('✗ /api/items/transfer', err.message);
+      return send(res, err.status ?? 500, { error: err.message });
+    }
+  }
+
   const handler = routes[url.pathname];
   if (!handler) {
     return send(res, 404, {
@@ -469,7 +579,9 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log('IAGD 开发数据服务（只读）');
+  console.log(
+    WRITABLE ? 'IAGD 开发数据服务（⚠️  沙盒 · 可写）' : 'IAGD 开发数据服务（只读）',
+  );
   console.log(`  监听   http://${HOST}:${PORT}`);
   console.log(`  数据库 ${DB_PATH}`);
   console.log(`  图标库 ${STORAGE_DIR}`);
@@ -481,4 +593,7 @@ server.listen(PORT, HOST, () => {
   for (const p of Object.keys(routes)) console.log(`    GET  ${p}`);
   console.log('    GET  /img/<icon>       （物品图标，本地提供）');
   console.log('    POST /api/search       （搜索；仍是只读查询）');
+  if (WRITABLE) {
+    console.log('    POST /api/items/transfer（⚠️ 写操作——只应指向沙盒副本）');
+  }
 });
