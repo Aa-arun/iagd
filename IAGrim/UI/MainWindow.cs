@@ -553,6 +553,21 @@ namespace IAGrim.UI {
                 }
             );
 
+            // 线 B（B5/B6）：它不再是嵌进 `modsPanel` 的子窗口（那样的窗口没有标题栏
+            // 也没有关闭按钮），而是一个按需显示的独立窗口。属性在这里一次设好，
+            // `ShowMaintenanceWindow()` 只负责显示。
+            //
+            // ⚠️ 别用 `if (!config.TopLevel)` 判断"是否已被嵌入"：`Form.TopLevel`
+            // 默认就是 `true`，只有旧的 `UIHelper.AddAndShow` 会把它设成 `false`。
+            _modsDatabaseConfigTab.Text = "数据库 / Mods（维护）";
+            _modsDatabaseConfigTab.FormBorderStyle = FormBorderStyle.Sizable;
+            _modsDatabaseConfigTab.StartPosition = FormStartPosition.CenterScreen;
+            _modsDatabaseConfigTab.ShowIcon = true;
+            _modsDatabaseConfigTab.MinimizeBox = true;
+            _modsDatabaseConfigTab.MaximizeBox = true;
+            _modsDatabaseConfigTab.Size = new Size(920, 620);
+            _modsDatabaseConfigTab.MinimumSize = new Size(640, 420);
+
             var itemTagDao = _serviceProvider.Get<IItemTagDao>();
             var backupService = new BackupService(_authService, playerItemDao, settingsService, _browserCallbacks);
             _charBackupService = new CharacterBackupService(settingsService, _authService);
@@ -825,22 +840,13 @@ namespace IAGrim.UI {
         /// <summary>
         /// 显示「数据库 / Mods」维护窗口。
         ///
-        /// ⚠️ 它原来是用 `UIHelper.AddAndShow` **嵌进主窗口的 `modsPanel`** 的
-        /// （那会把 `TopLevel` 设为 false）。旧界面删除后主窗口只是个隐藏壳，
-        /// 所以这里第一次显示时把它还原成独立的顶层窗口。
+        /// 窗口样式在装配时就设好了（见 `MainWindow_Load`），这里只负责显示。
+        /// 它曾经是嵌进 `modsPanel` 的子窗口，旧界面删除后改为独立窗口。
         /// </summary>
         private void ShowMaintenanceWindow() {
             var config = _modsDatabaseConfigTab;
             if (config == null || config.IsDisposed) {
                 return;
-            }
-
-            if (!config.TopLevel) {
-                config.TopLevel = true;
-                config.FormBorderStyle = FormBorderStyle.Sizable;
-                config.StartPosition = FormStartPosition.CenterScreen;
-                config.Size = new Size(920, 620);
-                config.MinimumSize = new Size(640, 420);
             }
 
             config.Show();
