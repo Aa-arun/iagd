@@ -66,6 +66,35 @@ body {
   color: var(--text-muted);
 }
 
+/* 顶层页签：物品 / 图鉴 */
+.app__tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.app__tabs button {
+  padding: 6px 14px;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  /* 下边框当"选中下划线"用；未选中时留同宽透明边，避免选中时跳动 */
+  border-bottom: 2px solid transparent;
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+}
+
+.app__tabs button:hover {
+  color: var(--text);
+}
+
+.app__tabs button.is-active {
+  color: var(--text);
+  border-bottom-color: var(--q-blue);
+}
+
 /* 错误面板：把"服务没启动"这类问题直接说清楚，而不是只显示一句报错 */
 .app__error {
   max-width: 560px;
