@@ -61,7 +61,7 @@ function isSkillRow(text: string, type: number): boolean {
  * 再插进 DOM，等于把数据库里的文本当代码执行。这里切成 React 元素，文本永远
  * 只是文本。
  */
-function parseRow(text: string, skillRow: boolean): ReactNode[] {
+export function parseRow(text: string, skillRow = false): ReactNode[] {
   const parts: ReactNode[] = [];
   let className = '';
   let buffer = '';

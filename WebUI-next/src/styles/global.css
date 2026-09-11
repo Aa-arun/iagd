@@ -299,3 +299,25 @@ body {
   margin: 0;
   font-size: 12px;
 }
+
+/* ── 物品名里的词缀颜色 ────────────────────────────────────────────────
+ *
+ * 汉化包把前缀/后缀定义成带颜色代码的文本（`^y启悟·` / `^g暴君☆·`），
+ * 而 `ItemOperationsUtility.GetItemName` 是直接取 tag 文本拼名字的，
+ * 所以这些代码会原样出现在 `item.name` 里，由 `parseRow` 解析成 span。
+ *
+ * ⚠️ 同一个代码在 tooltip 里可能另有含义（`^g` 在职业标记 `^g<^F神秘^g>`
+ *    里是尖括号的颜色），所以这里按**容器**限定作用域，不去改 .tt 里的定义。
+ *
+ * ℹ️ `^y` = 普通词缀（黄），`^g` = 稀有词缀（绿）——Grim Dawn 的惯例。
+ *    `☆` 是汉化包给"推荐词缀"加的标记，它是普通字符，直接显示。
+ */
+.item-detail__name .tt-y,
+.item-card__name .tt-y {
+  color: #d8c840;
+}
+
+.item-detail__name .tt-g,
+.item-card__name .tt-g {
+  color: #4ac04a;
+}
