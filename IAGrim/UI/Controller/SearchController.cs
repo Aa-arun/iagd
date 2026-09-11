@@ -23,7 +23,6 @@ namespace IAGrim.UI.Controller {
 
 
         public IBrowserCallbacks? Browser;
-        public readonly JavascriptIntegration JsIntegration = new JavascriptIntegration();
         public event EventHandler? OnSearch;
 
         // The most recent search query, used to (re)build the Collection tab on demand. The Collection
@@ -59,22 +58,6 @@ namespace IAGrim.UI.Controller {
             _buddyItemDao = buddyItemDao;
             _itemCollectionRepo = itemCollectionRepo;
 
-            JsIntegration.OnRequestItems += JsBind_OnRequestItems;
-            JsIntegration.OnRequestCollectionData += JsBind_OnRequestCollectionData;
-        }
-
-        private void JsBind_OnRequestCollectionData(object? sender, EventArgs e) {
-            if (_lastQuery == null) {
-                return; // No search has run yet; nothing to build the collection view from.
-            }
-
-            UpdateCollectionItems(_lastQuery);
-        }
-
-        // TODO: Redo! Infiscroll
-        private void JsBind_OnRequestItems(object? sender, EventArgs e) {
-            ApplyItems(true);
-            OnSearch?.Invoke(this, EventArgs.Empty);
         }
 
         private void UpdateCollectionItems(ItemSearchRequest query) {

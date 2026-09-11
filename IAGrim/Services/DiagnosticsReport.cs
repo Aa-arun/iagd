@@ -98,10 +98,6 @@ namespace IAGrim.Services {
             Item("Prefix (compatdata)", ProtonPaths.CompatData);
             Item("Game folder (Proton)", ProtonPaths.GameInstallDir);
 
-            Section("WebView2");
-            Item("Runtime version", WebView2Runtime.InstalledVersion);
-            Item("Cache folder", SafeGet(() => GlobalPaths.EdgeCacheLocation));
-
             Section("Paths");
             Item("Settings file", SafeGet(() => GlobalPaths.SettingsFile));
             Item("Data folder", SafeGet(() => GlobalPaths.CoreFolder));
