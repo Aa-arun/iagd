@@ -284,7 +284,13 @@ function serveIcon(url, res) {
   if (!name || name.includes('..')) {
     return send(res, 400, { error: 'bad icon name' });
   }
-  const file = join(STORAGE_DIR, `${name}.png`);
+  // ★ 两种 icon 值的形状不同，都要接受（与 IAGrim/Http/WebServer.cs 同一处逻辑）：
+  //   - C# 后端返回 `d014_focus.tex.png`（已带 .png）
+  //   - devapi 从数据库取的是 `items/gearhead/bitmaps/c216_head.tex`
+  // 所以只在还没有 .png 后缀时才补。
+  const file = name.toLowerCase().endsWith('.png')
+    ? join(STORAGE_DIR, name)
+    : join(STORAGE_DIR, `${name}.png`);
   if (!existsSync(file)) {
     res.writeHead(404, { 'Access-Control-Allow-Origin': '*' });
     return res.end('icon not found');

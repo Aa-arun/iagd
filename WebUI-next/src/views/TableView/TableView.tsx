@@ -2,6 +2,7 @@ import type { ItemViewProps } from '../types';
 import { iconUrl } from '../../api';
 import { qualityClass } from '../../components/ItemCard/quality';
 import { slotLabel } from '../../model/slot';
+import { formatNumber } from '../../model/format';
 import { useTranslation } from '../../i18n';
 import './TableView.css';
 
@@ -56,7 +57,7 @@ export default function TableView({
             </td>
             <td className={`item-table__name ${qualityClass(item.quality)}`}>{item.name}</td>
             <td className={qualityClass(item.quality)}>{item.quality}</td>
-            <td className="item-table__num">{item.level}</td>
+            <td className="item-table__num">{formatNumber(item.level)}</td>
             <td>{slotLabel(item.slot, t)}</td>
           </tr>
         ))}
