@@ -97,3 +97,16 @@
 .quality-unknown {
   color: var(--q-broken);
 }
+
+/* 名字与「取出」按钮同一行：名字占满剩余宽度，按钮靠右 */
+.item-card__name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.item-card__name-row .item-card__name {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}

@@ -21,6 +21,7 @@ export default function CompactCardView({
       {items.map((item) => (
         <li
           key={item.uniqueIdentifier}
+          data-item-card
           className={pinnedId === item.uniqueIdentifier ? 'is-pinned' : undefined}
           onMouseEnter={(e) => onItemHover?.(item, e.currentTarget)}
           onMouseLeave={() => onItemHover?.(null, null)}

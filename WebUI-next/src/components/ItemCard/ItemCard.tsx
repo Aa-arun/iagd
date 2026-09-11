@@ -4,6 +4,7 @@ import { formatNumber } from '../../model/format';
 import { iconUrl } from '../../api';
 import { qualityClass } from './quality';
 import { parseRow } from '../ItemDetail/ReplicaStatList';
+import TransferButton from '../TransferButton/TransferButton';
 import './ItemCard.css';
 
 /**
@@ -26,9 +27,12 @@ export default function ItemCard({ item }: { item: IItem }) {
       </div>
 
       <div className="item-card__body">
-        <h2 className={`item-card__name ${qualityClass(item.quality)}`}>
-          {parseRow(item.name)}
-        </h2>
+        <div className="item-card__name-row">
+          <h2 className={`item-card__name ${qualityClass(item.quality)}`}>
+            {parseRow(item.name)}
+          </h2>
+          <TransferButton item={item} />
+        </div>
 
         <dl className="item-card__meta">
           <div>
