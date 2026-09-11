@@ -38,7 +38,8 @@
 ### ★ 技术路线（已定，2026-09-11）
 
 > **后端服务化 + 系统浏览器访问 + 前端用 React 重做，通信 REST + WebSocket。**
-> **WinForms 外壳与 WebView2 最终全部去掉**，只保留托盘图标（`NotifyIcon`）。
+> **WinForms 外壳与 WebView2 已全部去掉**（2026-09-12）：所有主界面都在网页上，
+> 程序本体只剩一个托盘图标 + 一个**不可见**的宿主窗口。
 >
 > - 目标设计：**`.docs/03-目标架构.md`**
 > - 实施步骤：**`.docs/05-实施计划.md`**
@@ -63,19 +64,21 @@ iagd/
 ├── LINUX.md                 ← 上游的 Linux 运行指南，**本项目用不到**
 ├── IAGrim-core.sln          ← Visual Studio 解决方案
 │
-├── IAGrim/                  ← 【主程序】WinForms 外壳 + 全部业务逻辑（.NET 10）
+├── IAGrim/                  ← 【主程序】业务逻辑 + 内置 HTTP 服务（.NET 10）
 │   ├── Program.cs / StartupService.cs    进程入口与启动编排
-│   ├── UI/                  ← WinForms 界面
-│   │   ├── MainWindow.cs / .Designer.cs  主窗口（TabControl 外壳）
-│   │   ├── Tabs/SplitSearchWindow.cs     ★ Items 页：左过滤面板 + 右 WebView2
-│   │   ├── Misc/CEF/                     ★ 前后端桥（名字是历史遗留，实为 WebView2）
-│   │   └── Filters/, Popups/, Controller/
+│   ├── Http/                ← ★ Kestrel：WebServer.cs（REST + 静态文件）
+│   │                          与 WebSocketHub.cs（/ws 推送）
+│   ├── Services/            ← ★ MaintenanceService（维护操作）、属性翻译、
+│   │                          WebUiFeedbackHandler（提示走 WS）等
+│   ├── UI/                  ← 只剩**不可见宿主**与按需弹出的对话框
+│   │   ├── MainWindow.cs                宿主：永不显示，提供消息循环与 Invoke
+│   │   └── Popups/, Misc/, Controller/
 │   ├── Database/            ← SQLite + NHibernate：DAO / Model / Dto / Migrations
 │   ├── Parsers/             ← 解析游戏数据（Arz）与 transfer 存档
 │   ├── Services/            ← 物品分页、属性计算、消息处理
 │   └── Backup/, Utilities/
 │
-├── WebUI/                   ← 【旧前端】Preact + TS + Vite ⚠️ 已停用，待删（B5/B6）
+├── WebUI/                   ← 【旧前端】Preact + TS + Vite ⚠️ 已停用（只作参考）
 │   ├── src/components/      ← 组件（App、Header、Item 卡片、提示条）
 │   ├── src/containers/      ← 页面级容器（ItemContainer / Collection / Help…）
 │   ├── src/integration/     ← 与 C# 通信的唯一出入口（hostObjects）
@@ -86,7 +89,8 @@ iagd/
 │   ├── src/api/             ← 通信层（REST 客户端）
 │   ├── src/model/           ← 领域模型（对应 C# 的 JsonItem）
 │   ├── src/components/      ← 通用组件（ItemCard、ItemDetail、SearchBar…）
-│   ├── src/views/           ← 页面与视图（TableView / CompactCardView / SettingsView）
+│   ├── src/views/           ← 页面与视图（TableView / CompactCardView /
+│   │                          SettingsView / MaintenanceView）
 │   ├── src/i18n/            ← 翻译（React Context）
 │   └── src/styles/          ← 主题变量
 │
@@ -101,14 +105,17 @@ iagd/
 > **两个前端的历史与现状**：`@preact/preset-vite` 会把 `react` 别名到 `preact/compat`，
 > 两者无法同项目共存，所以新前端一开始是独立目录。
 >
-> **2026-09-12 起已经切换**：`storage/` 里的前端产物换成了 `WebUI-next` 的构建结果，
-> 程序启动会打开系统浏览器加载它（`127.0.0.1:3031`）。
-> `WebUI/` 的产物已备份到 `~/iagd-backup-storage-frontend/`，
-> **代码保留未删**——它的界面仍挂在 WebView2 上（已失效），
-> 彻底移除是 B5/B6，见 `.docs/05-实施计划.md` §3。
-
-**命名陷阱**：代码里到处是 `CEF` / `Cef`（`IAGrim.UI.Misc.CEF`、`CefBrowserHandler`），
-但**实际用的是 WebView2**。看到 CEF 按 WebView2 理解。
+> **2026-09-12 起 `WebUI-next` 是唯一在用的前端**：`storage/` 里放的是它的构建结果，
+> 程序启动打开系统浏览器加载它（`127.0.0.1:3031`）。
+> `WebUI/`（Preact 版）已停用，目录还在但只是参考；它的旧产物备份在
+> `~/iagd-backup-storage-frontend/`。
+>
+> **WebView2 已经彻底删除**（B5 完成）：`CefBrowserHandler`、`JavascriptIntegration`、
+> `IOMessage*` 协议等全部移除，`IAGrim.csproj` 也不再有 `Microsoft.Web.WebView2`
+> 包引用。所以代码里已经**看不到** `Cef` 命名空间了。
+>
+> 施工过程、踩到的坑、以及"为什么这样拆"见
+> [`10-界面解耦.md`](./.docs/10-界面解耦.md)。
 
 ---
 
@@ -117,22 +124,23 @@ iagd/
 ```mermaid
 %%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
 flowchart LR
-    subgraph Now["★ 现在：系统浏览器 + C# 自带服务"]
+    subgraph Now["★ 现在：系统浏览器 + C# 自带服务（唯一通路）"]
         direction LR
-        FE2["新前端 React<br/>（WebUI-next）"] -- "HTTP /api/*（REST）<br/>异步 · 请求-响应" --> C2["C# Kestrel<br/>127.0.0.1:3031"]
+        FE2["前端 React<br/>（WebUI-next）"] -- "HTTP /api/*（REST）<br/>请求-响应 · 取数据" --> C2["C# Kestrel<br/>127.0.0.1:3031"]
+        C2 -- "WebSocket /ws<br/>只发轻量信号" --> FE2
     end
-
-    subgraph Legacy["⚠️ 遗留：代码还在，界面已失效（待 B5/B6 移除）"]
-        direction LR
-        FE1["旧前端 Preact<br/>（WebUI）"] -- "hostObjects.sync<br/>同步阻塞" --> C1["C# 业务逻辑"]
-        C1 -- "ExecuteScriptAsync<br/>window.message(...)" --> FE1
-    end
-
-    C2 --- C1
 ```
 
-**WebSocket 尚未实现**（那是 B2）：消息沿用现有枚举编号
-（`SetItems`=5、`UpdateItemStats`=9…），只换传输层、不改语义 → `.docs/03-目标架构.md` §4。
+**WebSocket 只发轻量信号，数据仍走 REST**（2026-09-12 实现）。
+三种消息：`itemsChanged`（去重查列表）、`maintenance`（维护进度，含百分比与阶段名）、
+`notification`（后端主动提示）。
+
+> ⚠️ 早期设计曾打算"沿用旧的 `IOMessage` 枚举、只换传输层"。**那个前提已经不成立**：
+> 枚举是喂给旧 Preact 前端的，而 React 前端从来没消费过它。详见
+> `.docs/03-目标架构.md` §4.3。
+
+前端 `connectLive()` 自动重连；**断连期间回退到轮询**（每 4 秒比较物品总数），
+所以后端重启时界面不会变成死数据。
 
 **开发新前端的两种方式**：
 
@@ -187,7 +195,7 @@ WSL2          ← ★ agent（DSH）· 仓库 /home/jyl/iagd（ext4 原生）· 
 | Node.js | WSL | ✅ v22.23.2（系统）+ v20.20.2（fnm，匹配 `.node-version`） |
 | git | WSL | ✅ 2.43.0 |
 | 前端依赖 | WSL | ✅ 已 `npm install` |
-| WebView2 Runtime | Windows | ⚠️ 已不需要（界面搬到了系统浏览器），但**代码还在**（B5/B6 才删） |
+| ~~WebView2 Runtime~~ | Windows | ❌ **已完全不需要**（2026-09-12 代码与包引用都已移除） |
 
 **常用命令**（都在 WSL 内执行）：
 
@@ -212,7 +220,8 @@ cd /mnt/c && cmd.exe /c 'pushd \\wsl.localhost\Ubuntu-24.04\home\jyl\iagd && dot
    命令看似执行、实际在错误目录。
 
 **现在的状态**：**程序已经能日常使用**——
-启动 → 托盘常驻 + 自动开浏览器 → 新前端跑在 C# 后端上（`127.0.0.1:3031`）。
+启动 → **主窗口不显示**（只有托盘图标）→ 自动开系统浏览器 → 界面跑在 C# 后端上
+（`127.0.0.1:3031`）。三个页面：物品 / 设置 / 数据库。
 线的进度见 [`.docs/00-当前状态.md`](./.docs/00-当前状态.md)。
 
 ### 数据从哪来
@@ -232,8 +241,8 @@ cd /mnt/c && cmd.exe /c 'pushd \\wsl.localhost\Ubuntu-24.04\home\jyl\iagd && dot
 | 线 | 内容 | 状态 |
 |---|---|---|
 | A | 新前端增量开发（步 0–6） | ✅ **全部完成**（列表 / 视图切换 / 搜索 / 详情 / 转移） |
-| B | 后端服务化 | ✅ B1 HTTP、B3 前端切 REST、B4 开浏览器 —— ▶ 剩 **B2 WebSocket** 与 B5/B6 删旧代码 |
-| C | 界面迁移 | ✅ C1 搜索框、C3 设置页（部分）—— ▶ 剩 **C2 过滤面板**（工作量最大）等 |
+| B | 后端服务化 | ✅ **全部完成**：B1 HTTP、B2 WebSocket、B3 前端切 REST、B4 开浏览器、B5/B6 删掉 WebView2 与 WinForms 界面 |
+| C | 界面迁移 | ✅ C1 搜索框、C3 设置页、C3 数据库 / Mods 维护页 —— ▶ 剩 **C2 过滤面板**（工作量最大）与物品页显示细节 |
 
 **动手前必读**：`.docs/03-目标架构.md` + `.docs/05-实施计划.md`；
 环境与命令见 `.docs/04-开发环境.md`；**进度看 [`.docs/00-当前状态.md`](./.docs/00-当前状态.md)**。
