@@ -48,7 +48,9 @@ if (!existsSync(DB_PATH)) {
 // ── 数据库（只读）───────────────────────────────────────────────────────
 const db = new DatabaseSync(DB_PATH, { readOnly: true });
 
-const qItems = db.prepare(`
+// 物品查询的公共 SELECT 部分。搜索（/api/search）要复用同一套字段，
+// 否则两条路径返回的结构会悄悄分叉。
+const ITEMS_SELECT = `
   SELECT
     pi.Id,
     pi.baserecord      AS BaseRecord,
@@ -70,9 +72,10 @@ const qItems = db.prepare(`
        JOIN DatabaseItem_v2 d ON d.id_databaseitem = s2.id_databaseitem
       WHERE d.baserecord = pi.baserecord AND s2.stat = 'Class' LIMIT 1) AS Slot
   FROM PlayerItem pi
-  ORDER BY pi.Id
-  LIMIT ? OFFSET ?
-`);
+`;
+
+const qItems = db.prepare(`${ITEMS_SELECT} ORDER BY pi.Id LIMIT ? OFFSET ?`);
+
 
 const qItemCount = db.prepare(`SELECT COUNT(*) AS n FROM PlayerItem`);
 
@@ -276,6 +279,103 @@ function serveIcon(url, res) {
   res.end(buf);
 }
 
+// ── 搜索（POST /api/search）──────────────────────────────────────────────
+// 请求体的 JSON 结构定义见 .docs/03-目标架构.md §4.4。
+//
+// ★ 语义对齐 C# 的 PlayerItemDaoImpl.SearchForItems（该文件 807 行起）：
+//   - `Mod` 为空字符串 = "只看非 Mod 物品"（不是"不过滤"）
+//   - `wildcard` 的**空格会被换成 %**，所以"神话 面具"能匹配"神话 费坦面具"
+//   - `isHardcore` 是**二选一**（查普通仓库还是硬核仓库），不是可选过滤
+
+function pageFromBody(body) {
+  const limit = Math.min(Number(body.limit ?? 50) || 50, MAX_LIMIT);
+  const offset = Math.max(Number(body.offset ?? 0) || 0, 0);
+  return { limit, offset };
+}
+
+/** 读取并解析 JSON 请求体（1 MB 上限，防止畸形请求拖垮进程） */
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let raw = '';
+    req.on('data', (chunk) => {
+      raw += chunk;
+      if (raw.length > 1_000_000) {
+        req.destroy();
+        reject(new Error('请求体过大'));
+      }
+    });
+    req.on('end', () => {
+      try {
+        resolve(raw ? JSON.parse(raw) : {});
+      } catch {
+        reject(new Error('请求体不是合法 JSON'));
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
+/**
+ * 搜索玩家物品。
+ *
+ * **已实现**：`wildcard` / `minimumLevel` / `maximumLevel` / `rarity` /
+ * `isHardcore` / `socketedOnly`。
+ *
+ * **结构已定义但未实现**（留待后续步骤或线 B）：`slot` / `classes` /
+ * `filters` / `statValueFilters` / `duplicatesOnly` / `hasPetBonus` 等。
+ * 传了也不会报错，只是不生效。
+ */
+function searchItems(query) {
+  const req = query ?? {};
+  const { limit, offset } = pageFromBody(req);
+
+  const where = [];
+  const params = [];
+
+  where.push("(pi.Mod IS NULL OR pi.Mod = '')");
+  where.push(req.isHardcore ? 'pi.IsHardcore' : 'NOT pi.IsHardcore');
+
+  if (req.wildcard) {
+    where.push('pi.namelowercase LIKE ?');
+    params.push(`%${String(req.wildcard).toLowerCase().replace(/ /g, '%')}%`);
+  }
+  if (Number(req.minimumLevel) > 0) {
+    where.push('pi.LevelRequirement >= ?');
+    params.push(Number(req.minimumLevel));
+  }
+  if (Number(req.maximumLevel) > 0) {
+    where.push('pi.LevelRequirement <= ?');
+    params.push(Number(req.maximumLevel));
+  }
+  if (req.rarity) {
+    where.push('pi.Rarity = ?');
+    params.push(String(req.rarity));
+  }
+  if (req.socketedOnly) {
+    where.push("(pi.MateriaRecord IS NOT NULL AND pi.MateriaRecord != '')");
+  }
+
+  const clause = where.map((w) => `AND ${w}`).join(' ');
+  const withStats = req.stats !== false;
+
+  const total = db
+    .prepare(`SELECT COUNT(*) AS n FROM PlayerItem pi WHERE 1=1 ${clause}`)
+    .get(...params).n;
+
+  const rows = db
+    .prepare(`${ITEMS_SELECT} WHERE 1=1 ${clause} ORDER BY pi.Id LIMIT ? OFFSET ?`)
+    .all(...params, limit, offset);
+
+  const items = rows.map((r) => {
+    const { headerStats, bodyStats } = withStats
+      ? translateItemStats(r.BaseRecord)
+      : { headerStats: [], bodyStats: [] };
+    return toJsonItem(r, headerStats, bodyStats);
+  });
+
+  return { total, offset, limit, items };
+}
+
 const routes = {
   '/api/health': () => ({ ok: true, db: DB_PATH, readOnly: true }),
 
@@ -323,7 +423,7 @@ const routes = {
   }),
 };
 
-const server = createServer((req, res) => {
+const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://${HOST}:${PORT}`);
 
   if (req.method === 'OPTIONS') {
@@ -339,12 +439,24 @@ const server = createServer((req, res) => {
     return serveIcon(url, res);
   }
 
+  // 搜索是唯一的 POST 端点。注意它仍然是**只读查询**——
+  // 用 POST 只是因为搜索条件（过滤器数组）放在请求体里更自然。
+  if (req.method === 'POST' && url.pathname === '/api/search') {
+    try {
+      const body = await readJsonBody(req);
+      return send(res, 200, searchItems(body));
+    } catch (err) {
+      console.error('✗ /api/search', err.message);
+      return send(res, 400, { error: err.message });
+    }
+  }
+
   const handler = routes[url.pathname];
   if (!handler) {
     return send(res, 404, {
       error: 'not found',
-      available: Object.keys(routes),
-      note: '写操作（transfer/search）属于线 B，本服务只读，未实现。',
+      available: [...Object.keys(routes), 'POST /api/search'],
+      note: '本服务是**只读**的：transfer 等写操作属于线 B，尚未实现。',
     });
   }
 
@@ -366,6 +478,7 @@ server.listen(PORT, HOST, () => {
   console.log(`  图鉴   ${qCollectionCount.get().n} 条`);
   console.log('');
   console.log('  端点：');
-  for (const p of Object.keys(routes)) console.log(`    GET ${p}`);
-  console.log('    GET /img/<icon>        （物品图标，本地提供）');
+  for (const p of Object.keys(routes)) console.log(`    GET  ${p}`);
+  console.log('    GET  /img/<icon>       （物品图标，本地提供）');
+  console.log('    POST /api/search       （搜索；仍是只读查询）');
 });
