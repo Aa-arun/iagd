@@ -13,6 +13,7 @@ using IAGrim.Database;
 using IAGrim.Database.Dto;
 using IAGrim.Database.Interfaces;
 using IAGrim.Settings;
+using IAGrim.Settings.Dto;
 using IAGrim.UI.Controller;
 using IAGrim.Utilities;
 using Newtonsoft.Json;
@@ -195,8 +196,104 @@ namespace IAGrim.Http {
                 return Json(new { success = true });
             });
 
-            // GET /api/i18n —— 对应原 GetTranslationStrings()
+            // ── 动作（设置页第二栏）─────────────────────────────────────────
+
+            // POST /api/settings/reset —— 重置设置。
+            //
+            // ★ 使用者的要求：重置前**先备份一份「设置」**。
+            //   备份的是设置文件（settings.json），**不是物品数据**——两者完全不同。
+            //
+            // 重置方式沿用原程序：删掉 settings.json 然后重启
+            //（见 StartupService.ResetSettingsAndRestart 的注释——必须"杀掉"进程重启，
+            //  因为正常退出时会把内存里的设置写回去，等于白删）。
+            app.MapPost("/api/settings/reset", () => {
+                var settingsFile = GlobalPaths.SettingsFile;
+                string? backupPath = null;
+
+                if (File.Exists(settingsFile)) {
+                    var backupDir = Path.Combine(GlobalPaths.CoreFolder, "settings-backups");
+                    Directory.CreateDirectory(backupDir);
+                    backupPath = Path.Combine(backupDir, $"settings-{DateTime.Now:yyyyMMdd-HHmmss}.json");
+                    File.Copy(settingsFile, backupPath, overwrite: true);
+                    Logger.Info($"重置设置前已备份到 {backupPath}");
+                }
+
+                // 先把响应发出去再重启——否则前端只会看到一个断掉的连接，
+                // 以为操作失败了。
+                Task.Run(async () => {
+                    await Task.Delay(600);
+                    StartupService.ResetSettingsAndRestart();
+                });
+
+                return Json(new { success = true, backup = backupPath });
+            });
+
+            // GET /api/settings/export —— 导出设置文件（浏览器直接下载）
+            app.MapGet("/api/settings/export", () => {
+                var settingsFile = GlobalPaths.SettingsFile;
+                return File.Exists(settingsFile)
+                    ? Results.File(settingsFile, "application/json", "iagd-settings.json")
+                    : Results.NotFound();
+            });
+
+            // POST /api/settings/import —— 导入设置（用请求体传 JSON，避免 multipart）
+            app.MapPost("/api/settings/import", async (HttpContext ctx) => {
+                string json;
+                using (var reader = new StreamReader(ctx.Request.Body)) {
+                    json = await reader.ReadToEndAsync();
+                }
+
+                // 先确认它是能解析的设置文件，别把坏数据写进去
+                try {
+                    JsonConvert.DeserializeObject<SettingsTemplate>(json);
+                }
+                catch (Exception ex) {
+                    return Json(new { success = false, error = "不是合法的设置文件：" + ex.Message });
+                }
+
+                var settingsFile = GlobalPaths.SettingsFile;
+                if (File.Exists(settingsFile)) {
+                    var backupDir = Path.Combine(GlobalPaths.CoreFolder, "settings-backups");
+                    Directory.CreateDirectory(backupDir);
+                    var backupPath = Path.Combine(backupDir, $"settings-{DateTime.Now:yyyyMMdd-HHmmss}.json");
+                    File.Copy(settingsFile, backupPath, overwrite: true);
+                    Logger.Info($"导入设置前已备份到 {backupPath}");
+                }
+
+                File.WriteAllText(settingsFile, json);
+                Logger.Info("设置已导入，准备重启以生效");
+
+                Task.Run(async () => {
+                    await Task.Delay(600);
+                    StartupService.Restart();
+                });
+
+                return Json(new { success = true });
+            });
+
+            // POST /api/open/{target} —— 在资源管理器里打开目录
+            //   backups = 备份目录；logs = 数据目录（log.txt 在那里）
+            app.MapPost("/api/open/{target}", (string target) => {
+                var path = target switch {
+                    "backups" => GlobalPaths.BackupLocation,
+                    "logs" => GlobalPaths.CoreFolder,
+                    _ => null,
+                };
+
+                if (path == null || !Directory.Exists(path)) {
+                    return Json(new { success = false, error = "目录不存在：" + target });
+                }
+
+                // 与旧界面一致：shell 打开目录
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
+                    FileName = "file://" + path,
+                    UseShellExecute = true,
+                });
+
+                return Json(new { success = true, path });
+            });
             // 合并两个来源：游戏文本（数据库）+ IA 自己的界面文案（语言对象）。
+            // GET /api/i18n —— 对应原 GetTranslationStrings()
             app.MapGet("/api/i18n", () => {
                 var map = new Dictionary<string, string>();
 

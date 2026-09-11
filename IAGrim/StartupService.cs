@@ -1,4 +1,4 @@
-﻿using EvilsoftCommons.Exceptions;
+using EvilsoftCommons.Exceptions;
 using IAGrim.Database;
 using IAGrim.Database.Dto;
 using IAGrim.Database.Interfaces;
@@ -182,6 +182,18 @@ namespace IAGrim {
         }
 
         /// <summary>
+        /// 重启程序：起一个新进程，然后**杀掉**当前进程。
+        ///
+        /// 为什么要"杀"而不是干净退出：正常退出时会把内存里的设置写回文件
+        /// （窗口位置等），对"重置设置"来说等于白删。
+        /// </summary>
+        public static void Restart() {
+            Process.Start(new ProcessStartInfo { FileName = Application.ExecutablePath, UseShellExecute = true });
+            LogManager.Shutdown();
+            Environment.Exit(0);
+        }
+
+        /// <summary>
         /// Deletes the settings file and restarts IA, leaving the item database untouched.
         /// The process is killed rather than shut down cleanly: the in-memory settings are written back
         /// on exit (window position), which would recreate the file we just deleted.
@@ -197,9 +209,7 @@ namespace IAGrim {
                 return;
             }
 
-            Process.Start(new ProcessStartInfo { FileName = Application.ExecutablePath, UseShellExecute = true });
-            LogManager.Shutdown();
-            Environment.Exit(0);
+            Restart();
         }
 
         public static void PerformGrimUpdateCheck(SettingsService settingsService) {
