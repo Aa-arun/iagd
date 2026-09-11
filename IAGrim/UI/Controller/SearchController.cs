@@ -130,14 +130,6 @@ namespace IAGrim.UI.Controller {
             return limit > 0 ? flattened.Take(limit).ToList() : flattened.ToList();
         }
 
-        /// <summary>
-        /// 线 B（B1）：图鉴数据（对应原 <c>RequestCollectionData()</c>）。
-        /// 同样是"直接返回"而不是推送。
-        /// </summary>
-        public IList<CollectionItem> QueryCollection(ItemSearchRequest query) {
-            return _itemCollectionRepo.GetItemCollection(query);
-        }
-
         private bool ApplyItems(bool append) {
             var browser = Browser;
             if (browser == null) {

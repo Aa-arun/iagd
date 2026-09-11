@@ -155,19 +155,6 @@ namespace IAGrim.Http {
                 return Json(new { total, offset = dto.Offset, limit = dto.Limit, truncated, items });
             });
 
-            // GET /api/collection —— 对应原 RequestCollectionData()
-            app.MapGet("/api/collection", (int? offset, int? limit) => {
-                var all = _search.QueryCollection(new ItemSearchRequest());
-                var off = offset ?? 0;
-                var lim = limit ?? 50;
-                return Json(new {
-                    total = all.Count,
-                    offset = off,
-                    limit = lim,
-                    items = all.Skip(off).Take(lim).ToList(),
-                });
-            });
-
             // GET /api/settings —— 设置（只暴露用户可改的那些）
             //
             // 不把 LocalSettings/PersistentSettings 整个序列化出去：那里面有窗口位置、

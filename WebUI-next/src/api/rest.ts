@@ -1,6 +1,5 @@
 import type {
   AppSettings,
-  CollectionResponse,
   FiltersOptions,
   I18nMap,
   ItemSearchRequest,
@@ -57,11 +56,6 @@ export async function searchItems(query: ItemSearchRequest): Promise<ItemsRespon
     throw new ApiError('搜索失败', res.status);
   }
   return (await res.json()) as ItemsResponse;
-}
-
-/** 图鉴（对应原 `RequestCollectionData()`） */
-export function fetchCollection(offset = 0, limit = 50): Promise<CollectionResponse> {
-  return getJson<CollectionResponse>(`/api/collection?offset=${offset}&limit=${limit}`);
 }
 
 /** 界面文案的翻译表（对应原 `GetTranslationStrings()`） */

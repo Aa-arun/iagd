@@ -115,9 +115,24 @@
   font-size: inherit;
 }
 
+/*
+ * "已保存"提示。
+ *
+ * 显示效果刻意做成「硬切入 → 淡出」：
+ *   - 出现：立即（`.is-visible` 里 transition:none），一眼就能看到保存发生了
+ *   - 消失：1 秒后淡出（基类里的 transition）
+ * 反过来做（淡入 → 硬消失）会让人怀疑到底存没存上。
+ */
 .settings-saved {
+  min-height: 1em;
+  margin: 0;
   color: #8fc76a;
   font-size: 11px;
-  /* 固定高度，保存提示出现/消失时不会把下面的内容顶动 */
-  min-height: 1em;
+  opacity: 0;
+  transition: opacity 400ms ease-out;
+}
+
+.settings-saved.is-visible {
+  opacity: 1;
+  transition: none;
 }

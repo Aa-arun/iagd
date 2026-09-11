@@ -4,7 +4,6 @@ import { I18nProvider } from './i18n';
 import { ItemDetailPanel, ItemDetailProvider } from './components/ItemDetail';
 import SearchBar from './components/SearchBar/SearchBar';
 import ViewSwitcher from './views/ViewSwitcher';
-import CollectionView from './views/CollectionView/CollectionView';
 import SettingsView from './views/SettingsView/SettingsView';
 
 /** 一次取多少件。后端有上限（开发数据服务是 500）。 */
@@ -23,8 +22,8 @@ const SEARCH_DEBOUNCE_MS = 250;
  * 不使用 mock。
  */
 export default function App() {
-  /** 顶层页签：物品（搜索自己的装备） / 图鉴（游戏里存在哪些物品） / 设置 */
-  const [tab, setTab] = useState<'items' | 'collection' | 'settings'>('items');
+  /** 顶层页签：物品（搜索自己的装备） / 设置 */
+  const [tab, setTab] = useState<'items' | 'settings'>('items');
   const [keyword, setKeyword] = useState('');
   const [data, setData] = useState<ItemsResponse | null>(null);
   const [i18n, setI18n] = useState<I18nMap>({});
@@ -101,13 +100,6 @@ export default function App() {
             </button>
             <button
               type="button"
-              className={tab === 'collection' ? 'is-active' : ''}
-              onClick={() => setTab('collection')}
-            >
-              图鉴
-            </button>
-            <button
-              type="button"
               className={tab === 'settings' ? 'is-active' : ''}
               onClick={() => setTab('settings')}
             >
@@ -138,8 +130,6 @@ export default function App() {
               )}
             </>
           )}
-
-          {tab === 'collection' && <CollectionView />}
 
           {tab === 'settings' && <SettingsView />}
         </main>
