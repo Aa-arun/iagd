@@ -203,9 +203,8 @@ namespace IAGrim.Http {
             // ★ 使用者的要求：重置前**先备份一份「设置」**。
             //   备份的是设置文件（settings.json），**不是物品数据**——两者完全不同。
             //
-            // 重置方式沿用原程序：删掉 settings.json 然后重启
-            //（见 StartupService.ResetSettingsAndRestart 的注释——必须"杀掉"进程重启，
-            //  因为正常退出时会把内存里的设置写回去，等于白删）。
+            // ★ 而且**不重启程序**：只把界面上能改的那几项恢复为初始值。
+            //   热重置即可，浏览器里的界面不会断线，前端拿到新值立刻刷新。
             app.MapPost("/api/settings/reset", () => {
                 var settingsFile = GlobalPaths.SettingsFile;
                 string? backupPath = null;
@@ -218,14 +217,25 @@ namespace IAGrim.Http {
                     Logger.Info($"重置设置前已备份到 {backupPath}");
                 }
 
-                // 先把响应发出去再重启——否则前端只会看到一个断掉的连接，
-                // 以为操作失败了。
-                Task.Run(async () => {
-                    await Task.Delay(600);
-                    StartupService.ResetSettingsAndRestart();
-                });
+                _settings.ResetVisibleSettings();
 
-                return Json(new { success = true, backup = backupPath });
+                // 把重置后的值原样返回，前端据此立即刷新界面——不用再发一次 GET。
+                var local = _settings.GetLocal();
+                var persistent = _settings.GetPersistent();
+
+                return Json(new {
+                    success = true,
+                    backup = backupPath,
+                    settings = new {
+                        hideSkills = persistent.HideSkills,
+                        transferAnyMod = persistent.TransferAnyMod,
+                        preferDelayedSearch = local.PreferDelayedSearch,
+                        backupCustom = local.BackupCustom,
+                        backupCustomLocation = local.BackupCustomLocation,
+                        stashToDepositTo = local.StashToDepositTo,
+                        stashToLootFrom = local.StashToLootFrom,
+                    },
+                });
             });
 
             // GET /api/settings/export —— 导出设置文件（浏览器直接下载）

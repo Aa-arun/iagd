@@ -7,15 +7,23 @@
  */
 .settings-layout {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(230px, 1fr);
-  gap: 24px;
+  /*
+   * 第一栏**给上限**（`minmax(0, 520px)`）：设置项都是短标签＋开关，
+   * 拉到 1000px 宽会很难读，眼睛要在标签和开关之间横跨半个屏幕。
+   * 第二栏也收窄成固定区间，不让它跟着窗口无限变宽。
+   */
+  grid-template-columns: minmax(0, 520px) minmax(200px, 240px);
+  gap: 28px;
   align-items: start;
+  /* 整体同样别铺满超宽屏 */
+  max-width: 820px;
 }
 
 /* 窄屏改为上下排列 */
-@media (max-width: 900px) {
+@media (max-width: 800px) {
   .settings-layout {
     grid-template-columns: minmax(0, 1fr);
+    max-width: none;
   }
 }
 

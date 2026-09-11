@@ -73,20 +73,21 @@ export default function SettingsView() {
 
   const handleReset = async () => {
     const confirmed = window.confirm(
-      '确定要重置所有设置吗？\n\n' +
+      '确定要重置设置吗？\n\n' +
         '· 当前的设置文件会先自动备份一份\n' +
         '· 物品数据不受影响\n' +
-        '· 程序随后会重启',
+        '· 立即生效，不需要重启程序',
     );
     if (!confirmed) return;
 
     setActionMessage('正在重置…');
     try {
       const result = await resetSettings();
+      // 用后端返回的新值直接刷新界面——热重置，程序没重启
+      setSettings(result.settings);
+      flashSaved();
       setActionMessage(
-        result.backup
-          ? `已重置，原设置已备份到：${result.backup}\n程序正在重启…`
-          : '已重置，程序正在重启…',
+        result.backup ? `已重置，原设置已备份到：${result.backup}` : '已重置',
       );
     } catch (err) {
       setActionMessage('重置失败：' + (err as Error).message);

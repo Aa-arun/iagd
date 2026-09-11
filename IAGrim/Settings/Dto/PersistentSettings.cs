@@ -1,4 +1,4 @@
-﻿namespace IAGrim.Settings.Dto {
+namespace IAGrim.Settings.Dto {
     public class PersistentSettings {
         public event EventHandler? OnMutate;
 
@@ -156,6 +156,21 @@
                 _numericFilterBannerDismissed = value;
                 OnMutate?.Invoke(null, EventArgs.Empty);
             }
+        }
+
+        /// <summary>
+        /// 把**界面上能改的**设置恢复为初始值。
+        ///
+        /// 做法是把 backing field 置为 `null`，让各自的 getter 返回它自己的默认值
+        /// ——不能直接赋 `false`，因为 `HideSkills` 的默认是 **true**。
+        ///
+        /// ⚠️ **刻意不碰**云 token、同步状态、更新检查时间这些内部字段：
+        /// "重置界面设置"不该让人重新登录云备份。
+        /// </summary>
+        public void ResetVisibleSettings() {
+            _hideSkills = null;       // 默认 true
+            _transferAnyMod = null;   // 默认 false
+            OnMutate?.Invoke(null, EventArgs.Empty);
         }
     }
 }
