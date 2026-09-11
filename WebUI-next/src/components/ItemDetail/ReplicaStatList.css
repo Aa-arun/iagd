@@ -1,0 +1,286 @@
+/*
+ * 游戏 tooltip 的颜色（`ReplicaStatList.tsx` 渲染的 `replicaStats`）。
+ *
+ * ★ 颜色代码的含义来自游戏的汉化包 `tags_ui.txt` 开头那张表
+ *   （"%s 物理伤害—棕色——{^E}"），也就是说**代码 → 属性类型 → 颜色名**是
+ *   官方给的。但**具体 RGB 值没有公开来源**——它硬编码在游戏的
+ *   `records/game/gameengine.dbr` 里（见 Crate 论坛的 "Text Color Codes?" 帖）。
+ *   所以下面这套是我按那些颜色名 + 游戏内观感定的，目标是"看起来像游戏"，
+ *   不是逐像素一致。
+ *
+ * ℹ️ 一个代码在不同语境下语义可能不同（`^F` 在属性行是活力伤害，在技能行是职业名），
+ *    这类按行区分的逻辑在 tsx 里（`SKILL_ROW_CODES`），不在这里。
+ */
+
+.tt {
+  /* 默认正文色：没被任何 ^X 覆盖的部分 */
+  color: var(--tt-default);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.tt p {
+  margin: 0;
+}
+
+/* 空行是游戏用来分段的，给一点间距 */
+.tt-gap {
+  height: 6px;
+}
+
+/*
+ * 隐藏行。
+ *
+ * 3/4/5/6/7 = 物品名（详情面板自己渲染标题，带稀有度配色）
+ * 35        = "松开 ctrl 键隐藏细节"（我们本来就一直显示）
+ * 13/14/64/77 = 旧版本遗留的同类行
+ */
+.tt-type-3,
+.tt-type-4,
+.tt-type-5,
+.tt-type-6,
+.tt-type-7,
+.tt-type-13,
+.tt-type-14,
+.tt-type-35,
+.tt-type-64,
+.tt-type-77 {
+  display: none;
+}
+
+/* 说明文字（装备的 flavor text） */
+.tt-type-16,
+.tt-type-17,
+.tt-type-30,
+.tt-type-32 {
+  color: var(--tt-flavour);
+  font-style: italic;
+}
+
+/* 品质与槽位："传奇单手剑" */
+.tt-type-66 {
+  color: var(--tt-muted);
+}
+
+/* 需求："需要 玩家等级：94" —— 使用者要求**不**跟人物属性联动，所以用普通色 */
+.tt-type-20 {
+  color: var(--tt-default);
+}
+
+/* 武器基础数值那一行（"116-133 ^E物理伤害^-"） */
+.tt-type-18 {
+  color: var(--tt-default);
+}
+
+/* 普通属性行（物品本身 / 授予技能 / 套装加成都在这里面） */
+.tt-type-19,
+.tt-type-26,
+.tt-type-28,
+.tt-type-33,
+.tt-type-42,
+.tt-type-55,
+.tt-type-69,
+.tt-type-71,
+.tt-type-81,
+.tt-type-82,
+.tt-type-83 {
+  color: var(--tt-default);
+}
+
+/* 组件 / 战宠 / 授予技能下属的属性：缩进一级 */
+.tt-type-26,
+.tt-type-33,
+.tt-type-42,
+.tt-type-55,
+.tt-type-69,
+.tt-type-71,
+.tt-type-83 {
+  margin-left: 14px;
+}
+
+/* 段标题："授予技能"、"所有战宠加成"、"萨拉查的先锋的技能：" */
+.tt-type-24,
+.tt-type-25,
+.tt-type-34,
+.tt-type-36,
+.tt-type-65,
+.tt-type-67,
+.tt-type-68,
+.tt-type-70 {
+  margin-top: 8px;
+  color: var(--tt-header);
+  font-weight: 600;
+}
+
+/* 技能名（"幻境守护(从物品中获得)"） */
+.tt-type-37,
+.tt-type-38,
+.tt-type-53 {
+  color: var(--tt-skill);
+  font-weight: 600;
+}
+
+/* 技能描述 */
+.tt-type-39,
+.tt-type-40,
+.tt-type-84 {
+  color: var(--tt-flavour);
+}
+
+/* 套装名 */
+.tt-type-21 {
+  color: var(--tt-set-name);
+  font-weight: 600;
+}
+
+/* 套装说明 */
+.tt-type-22 {
+  color: var(--tt-flavour);
+}
+
+/* 套装成员、以及 "(2) 套装" 这种层级标题 */
+.tt-type-23 {
+  color: var(--tt-header);
+}
+
+/* 组件名 */
+.tt-type-27,
+.tt-type-29,
+.tt-type-31 {
+  color: var(--tt-muted);
+}
+
+/* "+2 到某技能" */
+.tt-type-79 {
+  color: var(--tt-skill);
+}
+
+/* ── 段内颜色（^X 代码）────────────────────────────────────────────
+ *
+ * 对应 tags_ui.txt 的颜色表。命名用代码字母本身，方便和游戏数据对照。
+ */
+
+/* 物理 / 创伤 —— 棕色 */
+.tt-E {
+  color: var(--tt-physical);
+}
+
+/* 穿刺 —— 黄色 */
+.tt-Y {
+  color: var(--tt-pierce);
+}
+
+/* 流血 —— 栗色 */
+.tt-M {
+  color: var(--tt-bleed);
+}
+
+/* 数值 / 暴击 —— 金色（"^H+2% ^H攻击能力"里的数值就是它） */
+.tt-H {
+  color: var(--tt-value);
+}
+
+/* 元素 —— 橄榄色 */
+.tt-L {
+  color: var(--tt-elemental);
+}
+
+/* 火焰 / 燃烧 —— 红色 */
+.tt-R {
+  color: var(--tt-fire);
+}
+
+/* 冰冷 / 霜燃 —— 蓝色 */
+.tt-B {
+  color: var(--tt-cold);
+}
+
+/* 闪电 / 电击 / 精神 —— 青色 */
+.tt-C {
+  color: var(--tt-lightning);
+}
+
+/* 酸性 / 毒素 —— 绿色 */
+.tt-G {
+  color: var(--tt-acid);
+}
+
+/* 活力 / 生命 —— 桃红 */
+.tt-F {
+  color: var(--tt-vitality);
+}
+
+/* 虚化 / 能量 —— 水鸭色 */
+.tt-T {
+  color: var(--tt-aether);
+}
+
+/* 混乱 / 体格 —— 橙色 */
+.tt-O {
+  color: var(--tt-chaos);
+}
+
+/* 灵巧 —— 蔚蓝色 */
+.tt-Z {
+  color: var(--tt-physique);
+}
+
+/* 攻击 / 施法 / 所有速度 —— 紫色 */
+.tt-P {
+  color: var(--tt-speed);
+}
+
+/* 移动速度 —— 卡其色 */
+.tt-K {
+  color: var(--tt-move-speed);
+}
+
+/* 武器数值（"^W1.91"）与它的标签 */
+.tt-W {
+  color: var(--tt-value);
+}
+
+.tt-S {
+  color: var(--tt-muted);
+}
+
+/* 几率之类的中性提示 */
+.tt-N {
+  color: var(--tt-muted);
+}
+
+/*
+ * ★ 使用者要求的调整之一："需要"不要红色。
+ *
+ * 游戏里 `^r` 是红色的"需要"，用来和人物属性做对比（够不够）。库里没有
+ * "当前人物"这个概念，红色只会误导，所以按普通文字色渲染。
+ * 见 ReplicaStatList.tsx 的说明。
+ */
+.tt-r {
+  color: var(--tt-default);
+}
+
+/*
+ * ★ 使用者要求的调整之二：技能与职业名用**统一颜色**。
+ *
+ * 游戏里非本职的技能会灰掉（图里那些灰色的），但那是按人物职业算的。
+ * 库里同一件装备对不同人物都该长一样，所以统一。
+ * 具体哪些代码归到这一类在 tsx 里判断（同一个代码在属性行另有含义）。
+ */
+.tt-skill {
+  color: var(--tt-skill);
+}
+
+/*
+ * ★ 使用者要求的调整之三：英文技能名不显示。
+ *
+ * 游戏把技能英文名包在 `^s` 里（"黑死病 ^s(Black Death)"），隐藏即可。
+ */
+.tt-s {
+  display: none;
+}
+
+/* 套装说明里的括号注记（"（神话级与普通的混搭不能取得套装效果）"） */
+.tt-o {
+  color: var(--tt-flavour);
+}

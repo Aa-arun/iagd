@@ -6,6 +6,8 @@ import { slotLabel } from '../../model/slot';
 import { playerItemId } from '../../model/item';
 import { useItemDetail } from './ItemDetailContext';
 import StatList from './StatList';
+import ReplicaStatList from './ReplicaStatList';
+import './ReplicaStatList.css';
 import './ItemDetail.css';
 
 const PANEL_WIDTH = 380;
@@ -130,12 +132,26 @@ export default function ItemDetailPanel() {
 
       {/* 滚动发生在这里：面板整体限高，只有属性区滚动 */}
       <div className="item-detail__body">
-        <StatList stats={item.headerStats} />
-        <StatList stats={item.bodyStats} />
-
-        {item.headerStats.length === 0 && item.bodyStats.length === 0 && (
-          <p className="item-detail__empty">这件物品没有可显示的属性。</p>
+        {/*
+          ★ 优先渲染 `replicaStats`——那是**游戏原样导出的完整 tooltip**
+          （含颜色代码、套装、授予技能、转换行），所以它和游戏里看到的最接近。
+          `headerStats`/`bodyStats` 是 IA 自己从 DatabaseItemStat 拼的，覆盖不全
+          （实测这批物品里 headerStats 全是空的），只在没有 replica 时兜底。
+        */}
+        {item.replicaStats.length > 0 ? (
+          <ReplicaStatList rows={item.replicaStats} />
+        ) : (
+          <>
+            <StatList stats={item.headerStats} />
+            <StatList stats={item.bodyStats} />
+          </>
         )}
+
+        {item.replicaStats.length === 0 &&
+          item.headerStats.length === 0 &&
+          item.bodyStats.length === 0 && (
+            <p className="item-detail__empty">这件物品没有可显示的属性。</p>
+          )}
       </div>
 
       {isPinned && (
