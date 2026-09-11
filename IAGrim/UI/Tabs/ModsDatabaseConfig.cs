@@ -99,8 +99,8 @@ namespace IAGrim.UI {
         }
 
         private void ModsDatabaseConfig_Load(object sender, EventArgs e) {
-            Dock = DockStyle.Fill;
-
+            // 这里原本有 `Dock = DockStyle.Fill;`——那是它还被嵌进 modsPanel 时留下的。
+            // 现在它是独立的顶层窗口（见 MainWindow.ShowMaintenanceWindow）。
             var paths = _grimDawnDetector.GetGrimLocations();
 
             // Ensure that we store all known paths.
