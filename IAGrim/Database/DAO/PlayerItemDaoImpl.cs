@@ -1045,10 +1045,14 @@ namespace IAGrim.Database {
                 if (item != null) {
                     totalCount = items.Count;
                 }
-                else if (!wasTruncated) {
-                    // The result fit in a single page (<= MaxSearchResults), so the row count IS the total,
-                    // regardless of computeCount. No separate COUNT pass needed - this is the common case and
+                else if (!wasTruncated && skip == 0) {
+                    // The result fit in a single page (<= MaxSearchResults) **and this is the first page**, so
+                    // the row count IS the total. No separate COUNT pass needed - this is the common case and
                     // avoids a second full scan of the match set on every search.
+                    //
+                    // ⚠️ `skip == 0` is load-bearing: with a non-zero skip the rows are a *slice*, so their
+                    // count says nothing about the total. Without it, "/api/search?offset=50" reported the
+                    // page size as the total (the UI showed "page 2 / 1").
                     totalCount = items.Count;
                 }
                 else if (computeCount) {

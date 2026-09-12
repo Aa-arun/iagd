@@ -97,7 +97,9 @@ namespace IAGrim.UI.Controller {
             int limit,
             out int total,
             out bool truncated) {
-            var page = _playerItemDao.SearchForItems(query, offset, false, false, out total, out truncated);
+            // ⚠️ `offset > 0` 时必须让 DAO 真的去 COUNT：分页取行时"这一页没满"推不出总数
+            // （DAO 里那条零成本的捷径只在 `skip == 0` 成立）。首页仍然不付这次全表扫描。
+            var page = _playerItemDao.SearchForItems(query, offset, false, offset > 0, out total, out truncated);
 
             var playerItems = page.OfType<PlayerItem>().ToList();
             _playerItemDao.PopulateReplicaAndPetInfo(playerItems);
