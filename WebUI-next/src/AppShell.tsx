@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { LiveMaintenance } from './api';
+import type { FiltersOptions, LiveMaintenance } from './api';
 import type IItem from './model/item';
 import { formatRange, formatTotal } from './model/format';
 import { phaseLabel, taskLabel } from './model/maintenance';
@@ -7,10 +7,13 @@ import MaintenanceView from './views/MaintenanceView/MaintenanceView';
 import { ItemDetailPanel, useItemDetail } from './components/ItemDetail';
 import { dockedSide } from './components/ItemDetail/ItemDetailContext';
 import SearchBar from './components/SearchBar/SearchBar';
+import AdvancedSearch from './components/AdvancedSearch/AdvancedSearch';
+import FilterPanel from './components/FilterPanel/FilterPanel';
 import ViewToolbar from './views/ViewToolbar';
 import { findView } from './views/registry';
 import ItemList from './views/ItemList';
 import SettingsView from './views/SettingsView/SettingsView';
+import { hasAnyFilter, type FilterControls } from './views/useFilters';
 import type { PagingState } from './views/usePaging';
 
 /** 一条要显示的提示。 */
@@ -28,6 +31,10 @@ interface Props {
   onTabChange: (tab: AppTab) => void;
   keyword: string;
   onKeywordChange: (value: string) => void;
+  /** 过滤器可选项；`null` = 还没读到 */
+  filterOptions: FiltersOptions | null;
+  /** 过滤面板 + 高级搜索的状态与改法 */
+  filters: FilterControls;
   viewId: string;
   onViewChange: (id: string) => void;
   /** 当前要显示的物品：翻页模式 = 这一页；无限滚动 = 已累积的全部 */
@@ -75,6 +82,8 @@ export default function AppShell({
   onTabChange,
   keyword,
   onKeywordChange,
+  filterOptions,
+  filters,
   viewId,
   onViewChange,
   items,
@@ -88,6 +97,7 @@ export default function AppShell({
   paging,
 }: Props) {
   const searching = keyword.trim().length > 0;
+  const filtered = hasAnyFilter(filters.selected, filters.advanced);
   const shown = items.length;
 
   // 固定栏在哪一侧由详情面板的显示方式决定
@@ -214,11 +224,21 @@ export default function AppShell({
         <>
           {/* 工具条固定在列表外面，所以滚列表时它不动 */}
           <div className="app__toolbar">
-            <SearchBar value={keyword} onChange={onKeywordChange} />
+            {/* 搜索框与高级搜索按钮同一行：两者都是"怎么查"，与下面那排"怎么看"分开 */}
+            <div className="app__search-row">
+              <SearchBar value={keyword} onChange={onKeywordChange} />
+              <AdvancedSearch options={filterOptions} filters={filters} />
+            </div>
             {shown > 0 && (
               <ViewToolbar viewId={viewId} onViewChange={onViewChange} paging={paging} />
             )}
           </div>
+
+          {/*
+            过滤面板**无条件渲染**：过滤太严导致列表为空时，它正是使用者唯一的出路
+            （收起状态下那个"清除"按钮始终可用）。
+          */}
+          <FilterPanel options={filterOptions} filters={filters} />
 
           <div className="app__content" data-dock={side ?? undefined}>
             <div className="app__dock app__dock--left">
@@ -242,7 +262,11 @@ export default function AppShell({
 
                 {!error && !loading && shown === 0 && (
                   <p className="app__loading">
-                    {searching ? `没有匹配「${keyword.trim()}」的物品。` : '数据库里没有物品。'}
+                    {filtered
+                      ? '没有符合当前过滤条件的物品。'
+                      : searching
+                        ? `没有匹配「${keyword.trim()}」的物品。`
+                        : '数据库里没有物品。'}
                   </p>
                 )}
 

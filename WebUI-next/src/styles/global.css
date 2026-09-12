@@ -193,6 +193,14 @@ body {
   flex: none;
 }
 
+/* 搜索框与高级搜索按钮同一行（"怎么查"与下面那排"怎么看"分开） */
+.app__search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
 /*
  * 列表区。三列：左固定栏 / 列表 / 右固定栏。
  * `minmax(0, 1fr)` 而不是 `1fr`：否则列表里的长内容会把中间的列撑宽。

@@ -1,4 +1,4 @@
-using EvilsoftCommons;
+﻿using EvilsoftCommons;
 using IAGrim.Backup.Cloud.Dto;
 using IAGrim.Database.DAO;
 using IAGrim.Database.DAO.Dto;
@@ -845,9 +845,9 @@ namespace IAGrim.Database {
 
             queryFragments.Add(query.IsHardcore ? "PI.IsHardcore" : "NOT PI.IsHardcore");
 
-            // 品质。★ 多选优先——过滤器面板的稀有度是 checklist（"魔法或传奇"要一次查出来），
-            // 单值那个字段留给旧界面路径，行为不变。
-            // ⚠️ 过滤掉空串之后再判断：SQL 的 `IN ( )` 空列表会报错。
+            // 品质。★ 多选优先——过滤器面板的稀有度是 checklist（"魔法或传奇"要一次查出来）。
+            // 单值的 `Rarity` 保留为简写形式，`Rarities` 为空时才生效。
+            // ⚠️ 先滤掉空串再判断：SQL 的 `IN ( )` 空列表会报错。
             var rarities = query.Rarities?.Where(r => !string.IsNullOrWhiteSpace(r)).Distinct().ToArray()
                            ?? Array.Empty<string>();
             if (rarities.Length > 0) {

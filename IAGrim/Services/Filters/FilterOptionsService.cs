@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using IAGrim.Database.Interfaces;
@@ -73,7 +73,7 @@ namespace IAGrim.Services.Filters {
         }
 
         /// <summary>
-        /// 槽位。清单**写死**在 <see cref="SlotTranslator"/>（与旧界面同一份）——
+        /// 槽位。清单**写死**在 <see cref="SlotTranslator"/>——
         /// 不能查数据库：<c>stat='Class'</c> 里还混着容器、怪物、药水等上百个非装备类别。
         /// </summary>
         private static List<object> Slots() {
@@ -93,7 +93,7 @@ namespace IAGrim.Services.Filters {
         /// 职业：来自游戏数据解析出的 <c>class01..classNN</c> 标签。
         ///
         /// 单个职业（class01 = 士兵）与职业组合（class0102 = 士兵+爆破者）都在里面，
-        /// 与旧界面一致。⚠️ 但游戏数据里有一批**没有名字**的占位项
+        /// ⚠️ 游戏数据里有一批**没有名字**的占位项
         /// （实测 55 条里有 12 条是 <c>class0107</c> / <c>?</c> 这种），
         /// 列出来只会干扰选择，这里过滤掉。
         /// </summary>

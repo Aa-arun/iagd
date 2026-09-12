@@ -1,0 +1,249 @@
+/* 高级搜索：工具条上的图标按钮 + 弹出的配置面板。 */
+
+.adv-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.adv-search__button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: var(--bg-panel);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+.adv-search__button:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.adv-search__button[aria-expanded='true'] {
+  /* 打开时压成阴刻，和过滤选项的选中手感一致 */
+  color: var(--focus-accent);
+  border-color: #6b5a35;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.7);
+}
+
+.adv-search__badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 15px;
+  padding: 0 3px;
+  background: var(--focus-accent);
+  color: #241d0d;
+  border-radius: 8px;
+  font-size: 10px;
+  line-height: 15px;
+}
+
+/* 点空白处关闭。透明但铺满，挡在弹层下面。 */
+.adv-search__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+}
+
+.adv-search__popup {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 21;
+  width: 430px;
+  max-width: calc(100vw - 48px);
+  padding: 12px 14px 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+
+.adv-search__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.adv-search__header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.adv-search__close {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.adv-search__close:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.adv-search__row {
+  display: flex;
+  gap: 10px;
+  padding: 5px 0;
+}
+
+.adv-search__row[data-align='top'] {
+  align-items: flex-start;
+}
+
+.adv-search__label {
+  flex: none;
+  width: 64px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 24px;
+}
+
+.adv-search__control {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.adv-search__number,
+.adv-condition__value {
+  width: 68px;
+  padding: 3px 6px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.adv-search__dash {
+  color: var(--text-muted);
+}
+
+.adv-search__radio {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* ── 数值条件 ──────────────────────────────────────────────────────── */
+
+.adv-search__conditions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.adv-condition {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.adv-condition__stat {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 6px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.adv-condition__op {
+  flex: none;
+  width: 52px;
+  padding: 3px 4px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.adv-condition__remove {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.adv-condition__remove:hover {
+  color: #e08a6a;
+  background: var(--bg-hover);
+}
+
+.adv-search__add {
+  align-self: flex-start;
+  padding: 3px 10px;
+  background: var(--bg-panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+.adv-search__add:not(:disabled):hover {
+  background: var(--bg-hover);
+}
+
+.adv-search__add:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.adv-search__hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.adv-search__button:focus-visible,
+.adv-search__close:focus-visible {
+  outline: 2px solid var(--q-blue);
+  outline-offset: 1px;
+}

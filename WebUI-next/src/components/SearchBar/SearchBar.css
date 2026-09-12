@@ -2,7 +2,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 12px;
+  flex: 1;
+  min-width: 0;
 }
 
 .search-bar__input {

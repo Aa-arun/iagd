@@ -1,4 +1,4 @@
-namespace IAGrim.UI
+﻿namespace IAGrim.UI
 {
     partial class AppHost {
         /// <summary>
@@ -20,11 +20,11 @@ namespace IAGrim.UI
         #region Windows Form Designer generated code
 
         /// <summary>
-        /// 只保留**真的还要用**的三样：托盘图标、托盘菜单、状态栏。
+        /// 这个宿主只有三样东西：托盘图标、托盘菜单、状态栏。
         ///
-        /// 曾经的 TabControl + 四个 TabPage + 四个空 Panel（旧的 Items / Online / Settings / Mods 页）
-        /// 随界面搬到网页一起删了。`statusStrip` 留着是因为代码仍往 `statusLabel` 写状态文本
-        /// ——窗口虽然永不显示，但那几处赋值同时也是给日志和错误提示用的。
+        /// 界面已经全部在网页上，所以这里不再有标签页或面板。
+        /// `statusStrip` 留着是因为代码仍往 `statusLabel` 写状态文本——
+        /// 窗口虽然永不显示，但那几处赋值同时也是给日志和错误提示用的。
         /// </summary>
         private void InitializeComponent() {
             components = new System.ComponentModel.Container();

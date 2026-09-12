@@ -528,6 +528,19 @@ namespace StatTranslator {
             return new TranslatedStat();
         }
 
+        /// <summary>
+        /// 取属性的显示模板。
+        ///
+        /// 常规情况是"stat 名就是模板 key"，但有少数属性的模板 key 带了前缀变体——
+        /// 例如 <c>skillManaCostReduction</c> 的模板在 zh.txt 里叫
+        /// <c>customtag_xpac_modif_skillManaCostReduction</c>。只按同名取的话这类属性会被整条丢掉
+        /// （取不到就返回空串，调用方再过滤掉），所以同名失败后再试一次变体。
+        /// </summary>
+        private string GetStatTemplate(string stat) {
+            var text = _language.GetTag(stat);
+            return !string.IsNullOrEmpty(text) ? text : _language.GetTag("customtag_xpac_modif_" + stat);
+        }
+
         private void MapSimpleBodyEntries(ISet<IItemStat> stats, List<TranslatedStat> result) {
             string[] tags = {
                 "defensiveAllMaxResist",
@@ -547,6 +560,7 @@ namespace StatTranslator {
                 "characterIncreasedExperience",
                 "characterIntelligenceModifier",
                 "skillCooldownReduction",
+                "skillManaCostReduction",
                 "retaliationTotalDamageModifier",
                 "characterAttackSpeedModifier",
                 "defensiveFreeze",
@@ -594,18 +608,19 @@ namespace StatTranslator {
             var translationTable = new Dictionary<string, string>();
 
             foreach (var tag in tags) {
-                translationTable[tag] = _language.GetTag(tag);
+                translationTable[tag] = GetStatTemplate(tag);
             }
 
             var damageTypes = BodyDamageTypes;
 
             foreach (var damageType in damageTypes) {
-                translationTable[$"defensive{damageType}"] = _language.GetTag($"defensive{damageType}");
-                translationTable[$"defensive{damageType}Resistance"] = _language.GetTag($"defensive{damageType}Resistance");
-                translationTable[$"defensive{damageType}MaxResist"] = _language.GetTag($"defensive{damageType}MaxResist");
+                translationTable[$"defensive{damageType}"] = GetStatTemplate($"defensive{damageType}");
+                translationTable[$"defensive{damageType}Resistance"] = GetStatTemplate($"defensive{damageType}Resistance");
+                translationTable[$"defensive{damageType}MaxResist"] = GetStatTemplate($"defensive{damageType}MaxResist");
             }
 
-            foreach (var elem in stats.Where(m => translationTable.Keys.Contains(m.Stat))) {
+            foreach (var elem in stats.Where(m => translationTable.Keys.Contains(m.Stat)
+                                                  && !string.IsNullOrEmpty(translationTable[m.Stat]))) {
                 result.Add(new TranslatedStat {
                     Text = translationTable[elem.Stat],
                     Param0 = (float)Math.Round(elem.Value, 1, MidpointRounding.AwayFromZero),
@@ -828,7 +843,7 @@ namespace StatTranslator {
                     Param0 = offensiveTotalDamageReductionPercentMin.Value,
                     Param1 = offensiveTotalDamageReductionPercentDurationMin.Value,
                     Param3 = skill,
-                    Text = _language.GetTag("customtag_xpac_modif_offensiveTotalResistanceReductionAbsoluteMin"),
+                    Text = _language.GetTag("customtag_xpac_modif_offensiveTotalDamageReductionPercentDurationMin"),
                     Type = TranslatedStatType.FOOTER
                 });
             }
@@ -843,7 +858,7 @@ namespace StatTranslator {
                     Param0 = offensiveTotalResistanceReductionAbsoluteMin.Value,
                     Param1 = offensiveTotalResistanceReductionAbsoluteDurationMin.Value,
                     Param3 = skill,
-                    Text = _language.GetTag("customtag_xpac_modif_offensiveTotalDamageReductionPercentDurationMin"),
+                    Text = _language.GetTag("customtag_xpac_modif_offensiveTotalResistanceReductionAbsoluteMin"),
                     Type = TranslatedStatType.FOOTER
                 });
             }
