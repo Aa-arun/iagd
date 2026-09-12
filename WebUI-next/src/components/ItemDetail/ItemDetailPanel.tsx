@@ -47,23 +47,7 @@ const PINNED_STYLE: CSSProperties = {
   maxHeight: 'calc(100vh - 48px)',
 };
 
-/**
- * 「右侧固定框」模式（使用者 2026-09-12 要求）。
- *
- * 与 hover 模式的唯一区别是**定位**：贴着窗口右边、占满高度，不跟鼠标跑。
- * 选中与 hover 的语义完全复用——所以这里不复制任何逻辑。
- */
-const DOCKED_STYLE: CSSProperties = {
-  position: 'fixed',
-  right: 0,
-  top: 0,
-  width: PANEL_WIDTH,
-  height: '100vh',
-  borderRadius: 0,
-  borderTop: 'none',
-  borderRight: 'none',
-  borderBottom: 'none',
-};
+
 
 interface Feedback {
   ok: boolean;
@@ -112,12 +96,15 @@ export default function ItemDetailPanel() {
     }
   };
 
-  const docked = displayMode === 'docked';
-  const style = docked
-    ? DOCKED_STYLE
-    : isPinned || !anchor
-      ? PINNED_STYLE
-      : floatingStyle(anchor);
+  /**
+   * 固定栏模式（左或右）。
+   *
+   * 这两种模式下**不设 inline 定位**：面板由 AppShell 渲染在 grid 的栏里，
+   * 是普通文档流元素——所以它天然位于工具条下方（不顶头），且"始终留栏、
+   * 与是否选中无关"由栏的宽度保证。样式见 ItemDetail.css 的 [data-docked]。
+   */
+  const docked = displayMode !== 'hover';
+  const style = docked ? undefined : isPinned || !anchor ? PINNED_STYLE : floatingStyle(anchor);
 
   return (
     <aside

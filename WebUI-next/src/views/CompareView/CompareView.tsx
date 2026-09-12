@@ -4,6 +4,7 @@ import { qualityClass } from '../../components/ItemCard/quality';
 import TransferButton from '../../components/TransferButton/TransferButton';
 import ReplicaStatList, { parseRow } from '../../components/ItemDetail/ReplicaStatList';
 import { slotLabel } from '../../model/slot';
+import { itemTypeLabel } from '../../model/item';
 import { useTranslation } from '../../i18n';
 import './CompareView.css';
 
@@ -57,7 +58,7 @@ export default function CompareView({
                   {parseRow(item.name)}
                 </h2>
                 <p className="compare-card__meta">
-                  <span className={qualityClass(item.quality)}>{item.quality}</span>
+                  <span className="item-type">{itemTypeLabel(item) ?? item.quality}</span>
                   <span>等级 {item.level}</span>
                   {item.slot && <span>{slotLabel(item.slot, t)}</span>}
                 </p>

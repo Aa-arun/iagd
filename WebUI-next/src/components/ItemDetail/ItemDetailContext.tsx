@@ -28,22 +28,35 @@ interface PreviewState {
 }
 
 /**
- * 详情面板的显示方式（使用者 2026-09-12 要求增加第二种）。
+ * 详情面板的显示方式（使用者 2026-09-12 要求）。
  *
  * - `hover`：跟随鼠标浮动（原行为）
- * - `docked`：在视图**右侧固定一个框**。选中了就显示选中的，没选中就跟着
- *   hover 走——这正是使用者描述的期望。
+ * - `docked-left` / `docked-right`：在视图的**左/右侧固定一栏**。选中了就显示
+ *   选中的，没选中就跟着 hover 走。
  *
- * 两者只在**定位**上不同，选中/hover 的语义完全一样，所以实现上只切一个
- * CSS 类，不复制逻辑。
+ * 三种方式在**选中/hover 的语义上完全一样**，只是定位不同，所以实现上只切
+ * 布局，不复制逻辑。
  */
-export type DetailDisplayMode = 'hover' | 'docked';
+export type DetailDisplayMode = 'hover' | 'docked-left' | 'docked-right';
+
+/** 固定栏在哪一侧（`hover` 模式为 null）。 */
+export function dockedSide(mode: DetailDisplayMode): 'left' | 'right' | null {
+  if (mode === 'docked-left') return 'left';
+  if (mode === 'docked-right') return 'right';
+  return null;
+}
 
 const MODE_STORAGE_KEY = 'iagd.detailDisplayMode';
 
 function readStoredMode(): DetailDisplayMode {
   try {
-    return localStorage.getItem(MODE_STORAGE_KEY) === 'docked' ? 'docked' : 'hover';
+    const stored = localStorage.getItem(MODE_STORAGE_KEY);
+    // 兼容早期只区分"是否固定"的那一版
+    if (stored === 'docked') return 'docked-right';
+    if (stored === 'docked-left' || stored === 'docked-right' || stored === 'hover') {
+      return stored;
+    }
+    return 'hover';
   } catch {
     return 'hover';
   }
@@ -102,11 +115,11 @@ export function ItemDetailProvider({
       if (pinned) return;
 
       if (!item || !element) {
-        // ★ docked 模式（右侧固定框）下**不清空**。
-        //   面板在右边，鼠标要从卡片移过去才能滚动，中途必然经过空白 →
+        // ★ 固定栏模式下**不清空**。
+        //   面板在侧边栏里，鼠标要从卡片移过去才能滚动，中途必然经过空白 →
         //   清空的话，使用者刚想看长属性、鼠标一动内容就没了。
         //   所以这里保留最后指过的那件；移到别的卡片上会正常换。
-        if (displayMode === 'docked') return;
+        if (displayMode !== 'hover') return;
 
         setPreview(null);
         return;
@@ -157,8 +170,8 @@ export function ItemDetailProvider({
     () => ({
       item: pinned ?? preview?.item ?? null,
       isPinned: pinned !== null,
-      // docked 模式下锚点无意义（面板固定在右侧），传 null 让面板忽略它
-      anchor: pinned || displayMode === 'docked' ? null : (preview?.rect ?? null),
+      // 固定栏模式下锚点无意义（面板在栏里，不跟鼠标），传 null 让面板忽略它
+      anchor: pinned || displayMode !== 'hover' ? null : (preview?.rect ?? null),
       pinnedId: pinned?.uniqueIdentifier ?? null,
       displayMode,
       setDisplayMode,

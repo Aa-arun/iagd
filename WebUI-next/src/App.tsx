@@ -9,13 +9,10 @@ import {
   type ItemsResponse,
   type LiveMaintenance,
 } from './api';
-import { phaseLabel, taskLabel } from './model/maintenance';
-import MaintenanceView from './views/MaintenanceView/MaintenanceView';
 import { I18nProvider } from './i18n';
-import { ItemDetailPanel, ItemDetailProvider } from './components/ItemDetail';
-import SearchBar from './components/SearchBar/SearchBar';
-import ViewSwitcher from './views/ViewSwitcher';
-import SettingsView from './views/SettingsView/SettingsView';
+import { ItemDetailProvider } from './components/ItemDetail';
+import { useItemView } from './views/useItemView';
+import AppShell, { type Toast } from './AppShell';
 
 /** 一次取多少件。后端有上限（开发数据服务是 500）。 */
 const PAGE_SIZE = 50;
@@ -42,14 +39,6 @@ const POLL_INTERVAL_MS = 4000;
  */
 const TOAST_AUTO_DISMISS_MS = 6000;
 
-/** 一条要显示的提示。 */
-interface Toast {
-  id: number;
-  message: string;
-  level: string;
-  helpUrl?: string;
-}
-
 /**
  * 根组件。
  *
@@ -62,6 +51,8 @@ interface Toast {
 export default function App() {
   /** 顶层页签：物品（搜索自己的装备） / 数据库（维护） / 设置 */
   const [tab, setTab] = useState<'items' | 'database' | 'settings'>('items');
+  /** 当前视图。工具条与列表是两个组件了，所以状态提到这里 */
+  const { viewId, setViewId } = useItemView();
   const [keyword, setKeyword] = useState('');
   const [data, setData] = useState<ItemsResponse | null>(null);
   const [i18n, setI18n] = useState<I18nMap>({});
@@ -219,143 +210,23 @@ export default function App() {
     };
   }, [live, maintenance, reload]);
 
-  const searching = keyword.trim().length > 0;
-
   return (
     <ItemDetailProvider onTransferred={reload}>
       <I18nProvider map={i18n}>
-        <main className="app">
-          <header className="app__header">
-            <h1 className="app__title">Item Assistant</h1>
-            {tab === 'items' && (
-              <div className="app__header-actions">
-                {data && (
-                  <p className="app__summary">
-                    {searching ? '匹配' : '显示'} {data.items.length} / {data.total} 件
-                  </p>
-                )}
-                <button
-                  type="button"
-                  className="app__refresh"
-                  onClick={reload}
-                  title="重新读取数据库"
-                >
-                  刷新
-                </button>
-              </div>
-            )}
-          </header>
-
-          <nav className="app__tabs">
-            <button
-              type="button"
-              className={tab === 'items' ? 'is-active' : ''}
-              onClick={() => setTab('items')}
-            >
-              物品
-            </button>
-            <button
-              type="button"
-              className={tab === 'settings' ? 'is-active' : ''}
-              onClick={() => setTab('settings')}
-            >
-              设置
-            </button>
-            <button
-              type="button"
-              className={tab === 'database' ? 'is-active' : ''}
-              onClick={() => setTab('database')}
-            >
-              数据库
-            </button>
-          </nav>
-
-          {tab === 'items' && (
-            <>
-              <SearchBar value={keyword} onChange={setKeyword} />
-
-              {error && (
-                <div className="app__error">
-                  <strong>读取数据失败</strong>
-                  <p>{error}</p>
-                  <p>请确认 IAGrim 正在运行——它提供 127.0.0.1:3031 的服务。</p>
-                </div>
-              )}
-
-              {!error && !data && <p className="app__loading">加载中…</p>}
-
-              {data && data.items.length > 0 && <ViewSwitcher items={data.items} />}
-
-              {data && data.items.length === 0 && (
-                <p className="app__loading">
-                  {searching ? `没有匹配「${keyword.trim()}」的物品。` : '数据库里没有物品。'}
-                </p>
-              )}
-            </>
-          )}
-
-          {tab === 'database' && <MaintenanceView live={maintenance} />}
-
-          {tab === 'settings' && <SettingsView />}
-        </main>
-
-        {/* ★ 详情面板全应用只有一个实例，挂在顶层 */}
-        <ItemDetailPanel />
-
-        {/*
-          后端推来的提示。堆在右下角，与详情面板互不遮挡（面板固定在右侧中部）。
-        */}
-        {toasts.length > 0 && (
-          <div className="app__toasts" aria-live="polite">
-            {toasts.map((toast) => (
-              <div key={toast.id} className={`toast toast--${toast.level}`}>
-                <span className="toast__message">{toast.message}</span>
-                {toast.helpUrl && (
-                  <a className="toast__link" href={toast.helpUrl} target="_blank" rel="noreferrer">
-                    帮助
-                  </a>
-                )}
-                <button
-                  type="button"
-                  className="toast__close"
-                  onClick={() => dismissToast(toast.id)}
-                  title="关闭"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/*
-          维护遮罩：后端正在重建游戏数据库（清库 + 解析几分钟）。
-          这期间它会把查询全部拒掉，与其让页面显示"读取失败"或一个空列表，
-          不如直接说清楚在干什么、要等多久。
-        */}
-        {maintenance && (
-          <div className="app__maintenance" role="alertdialog" aria-live="polite">
-            <div className="app__maintenance-card">
-              <h2>{taskLabel(maintenance.task)}</h2>
-              <p>这期间界面无法查询物品，完成后会自动恢复，不需要刷新页面。</p>
-
-              <div className="app__maintenance-bar">
-                <div
-                  className="app__maintenance-bar-fill"
-                  style={{ width: `${maintenance.percent ?? 0}%` }}
-                />
-              </div>
-
-              <p className="app__maintenance-phase">
-                {phaseLabel(maintenance.phase) || maintenance.message}
-                {maintenance.phaseCount && maintenance.phaseCount > 1
-                  ? ` · 第 ${maintenance.phaseNumber} / ${maintenance.phaseCount} 步`
-                  : ''}
-                {` · ${maintenance.percent ?? 0}%`}
-              </p>
-            </div>
-          </div>
-        )}
+        <AppShell
+          tab={tab}
+          onTabChange={setTab}
+          keyword={keyword}
+          onKeywordChange={setKeyword}
+          viewId={viewId}
+          onViewChange={setViewId}
+          data={data}
+          error={error}
+          onReload={reload}
+          toasts={toasts}
+          onDismissToast={dismissToast}
+          maintenance={maintenance}
+        />
       </I18nProvider>
     </ItemDetailProvider>
   );

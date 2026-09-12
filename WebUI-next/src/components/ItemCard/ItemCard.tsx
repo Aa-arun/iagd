@@ -1,4 +1,5 @@
 import type IItem from '../../model/item';
+import { itemTypeLabel } from '../../model/item';
 import { IItemType } from '../../model/enums';
 import { formatNumber } from '../../model/format';
 import { iconUrl } from '../../api';
@@ -37,7 +38,7 @@ export default function ItemCard({ item }: { item: IItem }) {
         <dl className="item-card__meta">
           <div>
             <dt>品质</dt>
-            <dd className={qualityClass(item.quality)}>{item.quality}</dd>
+            <dd className="item-type">{itemTypeLabel(item) ?? item.quality}</dd>
           </div>
           <div>
             <dt>等级</dt>

@@ -16,14 +16,20 @@
   --text: #ddd8cd;
   --text-muted: #a39b8c;
 
-  /* 物品品质色（Grim Dawn 的约定） */
-  --q-legendary: #a638ff; /* 传奇 · 紫 */
-  --q-epic: #338cce; /* 史诗 · 蓝（原来与传奇同为紫色，是错的） */
+  /* 物品品质色。取值由使用者 2026-09-12 指定：
+   * 普通 #fff / 魔法 #f2e61a / 稀有 #3eea4a / 史诗 #338cce / 传奇 #a638ff */
+  --q-common: #ffffff; /* 普通 */
+  --q-magical: #f2e61a; /* 魔法 · 黄 */
+  --q-rare: #3eea4a; /* 稀有 · 绿 */
+  --q-epic: #338cce; /* 史诗 · 蓝 */
   --q-blue: #338cce; /* "蓝装"就是史诗，同一个色 */
-  --q-rare: #08b908; /* 稀有 · 绿 */
-  --q-magical: #f1e51b; /* 魔法 · 黄 */
-  --q-common: #9a9384; /* 普通 · 灰白 */
+  --q-legendary: #a638ff; /* 传奇 · 紫 */
   --q-broken: #81551a;
+
+  /* 词缀品质色：汉化包用 ^y 标普通词缀、^g 标稀有词缀，
+   * 所以它们直接复用上面两个品质色（使用者要求"词缀颜色和品质一致"）。*/
+  --q-affix-magic: var(--q-magical);
+  --q-affix-rare: var(--q-rare);
 
   /* ── 焦点强调（hover / 选中的装备）
    *
@@ -42,6 +48,8 @@
    */
   --tt-default: #ddd8cd;
   --tt-muted: #a39b8c;
+  /* 物品类型行（"传奇双手锤"）。用暖金色，与正文区分开 */
+  --tt-type: #e3ba6b;
   --tt-value: #e8c86a; /* 数值 / 暴击 —— 金 */
   --tt-header: #c8a860; /* 段标题 */
   --tt-skill: #6ab0e8; /* 技能与职业名（统一色，见 ReplicaStatList.tsx） */
@@ -77,8 +85,74 @@ body {
   font-size: 12px;
 }
 
+/*
+ * 布局骨架（使用者 2026-09-12 要求）。
+ *
+ * ★ 目标是"滚动只发生在物品列表那个框里，表头与工具条不动"，
+ *   所以整页不再是一个长滚动文档，而是一个**固定高度的 flex 列**：
+ *   header / tabs / 工具条都是 flex:none（不滚动），
+ *   只有 .app__list 自己 overflow-y。
+ */
 #root {
+  height: 100vh;
   padding: 24px;
+}
+
+.app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  /* 没有它，子元素撑高后 flex 不会收缩，内部滚动就失效 */
+  min-height: 0;
+}
+
+/* 搜索框 + 视图工具条：固定在列表外面，所以不随列表滚动 */
+.app__toolbar {
+  flex: none;
+}
+
+/*
+ * 列表区。三列：左固定栏 / 列表 / 右固定栏。
+ * `minmax(0, 1fr)` 而不是 `1fr`：否则列表里的长内容会把中间的列撑宽。
+ */
+.app__content {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+}
+
+/* 物品列表：单独成一个框，滚动只发生在这里 */
+.app__list {
+  min-width: 0;
+  overflow-y: auto;
+  padding: 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/*
+ * 详情固定栏。
+ *
+ * ★ "无论是否选中装备都要留空" —— 所以宽度由**模式**决定，与有没有选中无关。
+ *   宽度写死成与面板一致（380），否则面板会把它撑开、或留出空隙。
+ */
+.app__dock {
+  min-width: 0;
+}
+
+.app__content[data-dock='left'] .app__dock--left,
+.app__content[data-dock='right'] .app__dock--right {
+  width: 380px;
+}
+
+/* 数据库 / 设置页：自己也滚，但工具条仍在上方不动 */
+.app__page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* 顶部标题区：标题与统计信息并排 */
@@ -322,12 +396,25 @@ body {
  * ℹ️ `^y` = 普通词缀（黄），`^g` = 稀有词缀（绿）——Grim Dawn 的惯例。
  *    `☆` 是汉化包给"推荐词缀"加的标记，它是普通字符，直接显示。
  */
-.item-detail__name .tt-y,
-.item-card__name .tt-y {
-  color: #d8c840;
+.tt-y,
+.item-card__name .tt-y,
+.compare-card__name .tt-y {
+  color: var(--q-affix-magic);
 }
 
-.item-detail__name .tt-g,
-.item-card__name .tt-g {
-  color: #4ac04a;
+.tt-g,
+.item-card__name .tt-g,
+.compare-card__name .tt-g {
+  color: var(--q-affix-rare);
+}
+
+/*
+ * 物品「类型」文本（"传奇双手锤"、"已附魔稀有勋章"）。
+ *
+ * 替代原来显示的品质枚举名（Epic / Blue / Green）——那些是数据库内部值，
+ * 对使用者没有意义；游戏原版的类型文本既说清品质也说清部位
+ * （使用者 2026-09-12 要求）。颜色与详情里那一行一致。
+ */
+.item-type {
+  color: var(--tt-type);
 }
