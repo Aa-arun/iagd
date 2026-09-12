@@ -22,5 +22,12 @@ namespace IAGrim.Database.Interfaces {
 
         /// <summary>Wipes the entire computed-stat table (used by "Clear cache").</summary>
         void DeleteAll();
+
+        /// <summary>
+        /// 已被预计算、因而**数值过滤真的能生效**的属性名（去重，哨兵行除外）。
+        /// 供过滤器面板的属性下拉使用（<c>GET /api/filters/options</c>）——
+        /// 没算过的属性放进去，使用者会选到一个永远查不到东西的条件。
+        /// </summary>
+        IList<string> ListStatNames();
     }
 }

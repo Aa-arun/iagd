@@ -4,6 +4,7 @@ using IAGrim.Database.Interfaces;
 using IAGrim.Database.Model;
 using log4net;
 using NHibernate;
+using NHibernate.Type;
 
 namespace IAGrim.Database.DAO {
     /// <summary>
@@ -77,6 +78,19 @@ namespace IAGrim.Database.DAO {
                     session.CreateSQLQuery("DELETE FROM ComputedItemStat").ExecuteUpdate();
                     transaction.Commit();
                 }
+            }
+        }
+
+        public IList<string> ListStatNames() {
+            using (ISession session = SessionCreator.OpenSession()) {
+                // (stat, value) 复合索引让 DISTINCT stat 变成一次索引扫描。
+                // 哨兵行只表示"这件物品算过了"，不是真属性。
+                return session.CreateSQLQuery(
+                        "SELECT DISTINCT stat AS StatName FROM ComputedItemStat "
+                        + "WHERE stat IS NOT NULL AND stat <> :sentinel")
+                    .AddScalar("StatName", (IType)NHibernateUtil.String)
+                    .SetParameter("sentinel", ComputedItemStat.SentinelStat)
+                    .List<string>();
             }
         }
     }
