@@ -90,7 +90,7 @@ iagd/
 │   ├── src/model/           ← 领域模型（对应 C# 的 JsonItem）
 │   ├── src/components/      ← 通用组件（ItemCard、ItemDetail、SearchBar…）
 │   ├── src/views/           ← 页面与视图（TableView / CompactCardView /
-│   │                          SettingsView / MaintenanceView）
+│   │                          CompareView / SettingsView / MaintenanceView）
 │   ├── src/i18n/            ← 翻译（React Context）
 │   └── src/styles/          ← 主题变量
 │
@@ -242,7 +242,7 @@ cd /mnt/c && cmd.exe /c 'pushd \\wsl.localhost\Ubuntu-24.04\home\jyl\iagd && dot
 |---|---|---|
 | A | 新前端增量开发（步 0–6） | ✅ **全部完成**（列表 / 视图切换 / 搜索 / 详情 / 转移） |
 | B | 后端服务化 | ✅ **全部完成**：B1 HTTP、B2 WebSocket、B3 前端切 REST、B4 开浏览器、B5/B6 删掉 WebView2 与 WinForms 界面 |
-| C | 界面迁移 | ✅ C1 搜索框、C3 设置页、C3 数据库 / Mods 维护页 —— ▶ 剩 **C2 过滤面板**（工作量最大）与物品页显示细节 |
+| C | 界面迁移 | ✅ C1 搜索框、C3 设置页、C3 数据库 / Mods 维护页、装备显示打磨 —— ▶ 剩 **C2 过滤面板**（工作量最大） |
 
 **动手前必读**：`.docs/03-目标架构.md` + `.docs/05-实施计划.md`；
 环境与命令见 `.docs/04-开发环境.md`；**进度看 [`.docs/00-当前状态.md`](./.docs/00-当前状态.md)**。
