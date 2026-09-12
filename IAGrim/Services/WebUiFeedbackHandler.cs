@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using IAGrim.Http;
 using IAGrim.Settings;
 using IAGrim.UI.Misc;
@@ -23,7 +23,7 @@ namespace IAGrim.Services {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(WebUiFeedbackHandler));
 
         /// <summary>
-        /// 用工厂而不是直接注入：HTTP 服务在 `MainWindow_Load` 的末尾才创建，
+        /// 用工厂而不是直接注入：HTTP 服务在 `AppHost` 装配的末尾才创建，
         /// 比这个处理器晚。
         /// </summary>
         private readonly Func<WebServer?> _webServer;

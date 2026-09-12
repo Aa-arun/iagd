@@ -1,4 +1,4 @@
-using DllInjector;
+﻿using DllInjector;
 using EvilsoftCommons;
 using EvilsoftCommons.Cloud;
 using EvilsoftCommons.DllInjector;
@@ -31,8 +31,8 @@ using System.Collections.Generic;
 using System.ComponentModel;
 
 namespace IAGrim.UI {
-    public partial class MainWindow : Form {
-        private static readonly ILog Logger = LogManager.GetLogger(typeof(MainWindow));
+    public partial class AppHost : Form {
+        private static readonly ILog Logger = LogManager.GetLogger(typeof(AppHost));
 
         /// <summary>Users with fewer items than this are still getting set up, and don't need the numeric filter introduction.</summary>
         private const int NumericFilterBannerMinItems = 450;
@@ -203,20 +203,20 @@ namespace IAGrim.UI {
 
         #endregion Stash Status
 
-        public MainWindow(
+        public AppHost(
             ServiceProvider serviceProvider,
             ParsingService parsingService
         ) {
             this._serviceProvider = serviceProvider;
             var settingsService = _serviceProvider.Get<SettingsService>();
             InitializeComponent();
-            FormClosing += MainWindow_FormClosing;
+            FormClosing += AppHost_FormClosing;
 
             _minimizeToTrayHandler = new MinimizeToTrayHandler(this, notifyIcon1, serviceProvider.Get<SettingsService>());
 
             _automaticUpdateChecker = new AutomaticUpdateChecker(settingsService);
             _parsingService = parsingService;
-            // 用闭包延迟取 `_webServer`：HTTP 服务要到 MainWindow_Load 末尾才创建。
+            // 用闭包延迟取 `_webServer`：HTTP 服务要到 AppHost_Load 末尾才创建。
             _webUiFeedbackHandler = new WebUiFeedbackHandler(() => _webServer, settingsService);
             _userFeedbackService = new UserFeedbackService(_webUiFeedbackHandler);
 
@@ -226,7 +226,7 @@ namespace IAGrim.UI {
             //   （HTTP 服务、注入器、CSV 解析全都不会启动）。
             //
             //   放在构造函数末尾而不是更早：装配过程要读 Designer 已创建好的控件。
-            MainWindow_Load(this, EventArgs.Empty);
+            AppHost_Load(this, EventArgs.Empty);
         }
 
         public void UpdateLanguage() {
@@ -245,9 +245,9 @@ namespace IAGrim.UI {
             }
         }
 
-        private void MainWindow_FormClosing(object? sender, FormClosingEventArgs e) {
+        private void AppHost_FormClosing(object? sender, FormClosingEventArgs e) {
             // No idea which of these are triggering on rare occasions, perhaps Deactivate, sizechanged or filterWindow.
-            FormClosing -= MainWindow_FormClosing;
+            FormClosing -= AppHost_FormClosing;
             SizeChanged -= OnMinimizeWindow;
 
             _authService?.Dispose();
@@ -450,7 +450,7 @@ namespace IAGrim.UI {
             }
         }
 
-        private void MainWindow_Load(object sender, EventArgs e) {
+        private void AppHost_Load(object sender, EventArgs e) {
             if (Thread.CurrentThread.Name == null) {
                 Thread.CurrentThread.Name = "UI";
             }
@@ -469,9 +469,7 @@ namespace IAGrim.UI {
             SizeChanged += OnMinimizeWindow;
 
 
-            // Chicken and the egg.. search controller needs browser, browser needs search controllers var.
             var databaseItemDao = _serviceProvider.Get<IDatabaseItemDao>();
-            var searchController = _serviceProvider.Get<SearchController>();
             var playerItemDao = _serviceProvider.Get<IPlayerItemDao>();
             var cacher = _serviceProvider.Get<TransferStashServiceCache>();
             _parsingService.OnParseComplete += (o, args) => cacher.Refresh();
@@ -522,7 +520,6 @@ namespace IAGrim.UI {
             _webSocketSyncService = new WebSocketSyncService(new AuthenticationProvider(settingsService), settingsService, playerItemDao);
             _webSocketSyncService.Start();
 
-            searchController.OnSearch += (o, args) => backupService.OnSearch();
 
             
             _itemReplicaService = _serviceProvider.Get<ItemReplicaRequesterService>();

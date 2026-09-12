@@ -60,7 +60,6 @@ namespace IAGrim.Services {
             IBuddyItemDao buddyItemDao;
             IBuddySubscriptionDao buddySubscriptionDao;
             IItemSkillDao itemSkillDao;
-            IItemCollectionDao itemCollectionRepo;
             IReplicaItemDao replicaItemDao;
             IComputedItemStatDao computedItemStatDao;
 
@@ -71,7 +70,6 @@ namespace IAGrim.Services {
             buddyItemDao = new BuddyItemDaoImpl(factory, databaseItemStatDao);
             buddySubscriptionDao = new BuddySubscriptionDaoImpl(factory);
             itemSkillDao = new ItemSkillDaoImpl(factory);
-            itemCollectionRepo = new ItemCollectionDaoImpl(factory);
             replicaItemDao = new ReplicaItemDaoImpl(factory);
             computedItemStatDao = new ComputedItemStatDaoImpl(factory);
             Timed("Construct DAOs");
@@ -80,12 +78,7 @@ namespace IAGrim.Services {
 
             // Chicken and the egg..
             var itemStatService = new ItemStatService(databaseItemStatDao, itemSkillDao, settingsService);
-            SearchController searchController = new SearchController(
-                playerItemDao,
-                itemStatService,
-                buddyItemDao,
-                itemCollectionRepo
-            );
+            SearchController searchController = new SearchController(playerItemDao, itemStatService);
 
             List<object> services = [
                 itemTagDao,
@@ -97,7 +90,6 @@ namespace IAGrim.Services {
                 itemSkillDao,
                 settingsService,
                 grimDawnDetector,
-                itemCollectionRepo,
                 searchController,
                 new ItemReplicaRequesterService(playerItemDao, buddyItemDao, settingsService),
                 replicaItemDao,

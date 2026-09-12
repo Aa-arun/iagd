@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -123,7 +123,7 @@ namespace IAGrim.Http {
         private readonly SettingsService _settings;
         private readonly string _storageFolder;
         /// <summary>
-        /// 转移控制器。用**工厂**而不是直接注入：它是在 `MainWindow` 稍后才创建的，
+        /// 转移控制器。用**工厂**而不是直接注入：它是在 `AppHost` 稍后才创建的，
         /// 而 HTTP 服务启动得更早，直接注入只会拿到 null。
         /// </summary>
         private readonly Func<ItemTransferController?> _transferController;
@@ -329,7 +329,7 @@ namespace IAGrim.Http {
             //      由注入游戏的 hook 读取后放进共享仓库；
             //   ② 把 StackCount 置 0，随后 `Update` 会删掉该记录。
             //
-            // ⚠️ 控制器在 MainWindow 里稍后才创建，所以用工厂延迟取（见字段注释）。
+            // ⚠️ 控制器在 AppHost 里稍后才创建，所以用工厂延迟取（见字段注释）。
             app.MapPost("/api/items/transfer", (TransferRequestDto dto) => {
                 // 维护期间游戏数据库正在重建，物品记录也在被重写，不能转移。
                 if (MaintenanceGuard() is IResult guard) {
