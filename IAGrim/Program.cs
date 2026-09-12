@@ -312,6 +312,10 @@ namespace IAGrim
             }
 
 
+            // 原版 IA 会覆盖同一个 storage 目录（它自带旧前端），所以每次启动
+            // 都检查一遍自带的前端是否被换掉了。见 FrontendDeployer 的说明。
+            FrontendDeployer.EnsureDeployed();
+
             _mw = new MainWindow(
                 serviceProvider,
                 parsingService

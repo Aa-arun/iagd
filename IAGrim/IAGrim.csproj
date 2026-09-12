@@ -60,7 +60,22 @@
     </PropertyGroup>
 
 
-   <ItemGroup>
+   <!--
+    自带前端产物：拷进输出目录的 webui/，由 FrontendDeployer 在启动时同步到
+    storage。★ 之所以需要：原版 IA（C:\Program Files\IAGD）与我们共用同一个
+    用户数据目录，它启动时会把自己带的旧前端解压覆盖进去，导致浏览器界面变回
+    旧样式（2026-09-12 实测）。带上这一份才能在被覆盖后自愈。
+
+    条件判断：前端没构建过时（没有 build/index.html）不报错，只是不自带。
+  -->
+  <ItemGroup Condition="Exists('$(MSBuildProjectDirectory)\..\WebUI-next\build\index.html')">
+    <Content Include="..\WebUI-next\build\**\*.*">
+      <Link>webui\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
      <None Remove="Database\Model\BuddyItem.hbm.xml" />
      <None Remove="Database\Model\BuddyItemRecord.hbm.xml" />
      <None Remove="Database\Model\BuddySubscription.hbm.xml" />
