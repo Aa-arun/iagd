@@ -506,9 +506,9 @@ namespace IAGrim.Database {
 
             queryFragments.Add(query.IsHardcore ? "BI.IsHardcore" : "NOT BI.IsHardcore");
 
-            if (query.RecentOnly) {
-                queryFragments.Add($"BI.{BuddyItemsTable.CreatedAt} > :filter_recentOnly");
-                queryParams.Add("filter_recentOnly", DateTime.UtcNow.AddHours(-12).ToTimestamp());
+            if (query.RecentHours > 0) {
+                queryFragments.Add($"BI.{BuddyItemsTable.CreatedAt} > :filter_recent");
+                queryParams.Add("filter_recent", DateTime.UtcNow.AddHours(-query.RecentHours).ToTimestamp());
             }
 
             // Add the MINIMUM level requirement (if any)

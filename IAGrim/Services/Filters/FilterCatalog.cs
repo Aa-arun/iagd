@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -40,6 +40,14 @@ namespace IAGrim.Services.Filters {
         public required string LabelTag { get; init; }
         public required string FallbackLabel { get; init; }
         public required FilterItemDefinition[] Items { get; init; }
+    }
+
+    /// <summary>槽位的一个分组（护甲 / 武器 / 首饰 / 物品）。</summary>
+    internal sealed class SlotGroupDefinition {
+        public required string Id { get; init; }
+        public required string Label { get; init; }
+        /// <summary>（槽位 key，显示名）。显示名不走 i18n——它由使用者逐项定过。</summary>
+        public required (string Value, string Label)[] Slots { get; init; }
     }
 
     /// <summary>
@@ -164,16 +172,98 @@ namespace IAGrim.Services.Filters {
                     Stat("cbReflect", "iatag_ui_reflect", "Reflect", ["defensiveReflect"]),
                     Stat("shieldStuff", "iatag_ui_block", "Block", ["blockAbsorption", "defensiveBlock", "defensiveBlockChance", "defensiveBlockModifier", "defensiveBlockAmountModifier"]),
                     Stat("setbonus", "iatag_ui_setbonus", "Set Bonus", ["setName", "itemSetName"]),
-                    Flag("cbPetBonuses", "iatag_ui_petbonuses", "Pet Bonuses", "petBonuses"),
-                    Flag("cbHasPetBonus", "iatag_ui_haspetbonus", "Has Pet Bonus", "hasPetBonus"),
-                    Flag("cbSocketed", "iatag_ui_socketedonly", "With components", "socketedOnly"),
-                    Flag("cbDuplicates", "iatag_ui_duplicatesonly", "Duplicates Only", "duplicatesOnly"),
-                    Flag("cbRecentOnly", "iatag_ui_recentonly", "Recent Only", "recentOnly"),
+                    Flag("cbHasPetBonus", "iatag_ui_haspetbonus", "战宠", "hasPetBonus"),
+                    Flag("cbSocketed", "iatag_ui_socketedonly", "已镶嵌", "socketedOnly"),
+                    Flag("cbEnchanted", "iatag_ui_enchanted", "已附魔", "enchantedOnly"),
+                    Flag("cbDuplicates", "iatag_ui_duplicatesonly", "多件同款", "duplicatesOnly"),
                     Flag("cbGrantsSkill", "iatag_ui_grants_skill", "Grants Skill", "withGrantSkillsOnly"),
                     Flag("cbSummonerSkill", "iatag_ui_grants_summon_skill", "Grants Summon Skill", "withSummonerSkillOnly"),
                 ],
             },
         };
+
+        /// <summary>
+        /// 槽位，按部位分成四组。**顺序与命名由使用者 2026-09-13 逐项确定**——
+        /// 不是照搬游戏数据的顺序，也不是 i18n 表的措辞。
+        ///
+        /// ⚠️ 游戏数据里还有"镶嵌物"（`ItemRelic`）与"通缉令"（`ItemFactionWarrant`）两个槽位，
+        /// 但数据库里各 0 件（IA 不收录），所以不列。
+        /// </summary>
+        public static readonly IReadOnlyList<SlotGroupDefinition> SlotGroups = new SlotGroupDefinition[] {
+            new() {
+                Id = "armor", Label = "护甲",
+                Slots = [
+                    ("ArmorProtective_Head", "头盔"),
+                    ("ArmorProtective_Shoulders", "护肩"),
+                    ("ArmorProtective_Chest", "胸甲"),
+                    ("ArmorProtective_Hands", "护手"),
+                    ("ArmorProtective_Waist", "腰带"),
+                    ("ArmorProtective_Legs", "护腿"),
+                    ("ArmorProtective_Feet", "靴子"),
+                ],
+            },
+            new() {
+                Id = "weapon", Label = "武器",
+                Slots = [
+                    ("WeaponMelee_Sword", "单手剑"),
+                    ("WeaponMelee_Axe", "单手斧"),
+                    ("WeaponMelee_Mace", "单手锤"),
+                    ("WeaponMelee_Dagger", "匕首"),
+                    ("WeaponMelee_Scepter", "权杖"),
+                    ("WeaponHunting_Ranged1h", "单手远程"),
+                    ("WeaponArmor_Shield", "盾牌"),
+                    ("WeaponArmor_Offhand", "副手"),
+                    ("WeaponMelee_Sword2h", "双手剑"),
+                    ("WeaponMelee_Axe2h", "双手斧"),
+                    ("WeaponMelee_Mace2h", "双手锤"),
+                    ("WeaponMelee_Spear2h", "双手矛"),
+                    ("WeaponHunting_Ranged2h", "双手远程"),
+                ],
+            },
+            new() {
+                Id = "jewelry", Label = "首饰",
+                Slots = [
+                    ("ArmorJewelry_Ring", "戒指"),
+                    ("ArmorJewelry_Amulet", "项链"),
+                    ("ArmorJewelry_Medal", "勋章"),
+                ],
+            },
+            new() {
+                Id = "item", Label = "物品",
+                Slots = [
+                    ("ItemArtifact", "圣物"),
+                    ("ItemEnchantment", "附魔"),
+                    ("ItemFactionBooster", "卷轴"),
+                ],
+            },
+        };
+
+        /// <summary>
+        /// "所有物品"用的哨兵值：它不是某个槽位，而是**排除全部装备槽位**（`slotInverse`）。
+        /// 使用者要它兜住分类的遗漏——万一还有没列到的物品类型，这一项能全捞出来。
+        /// ⚠️ 它与其它槽位互斥：选中它就等于放弃逐项选择。
+        /// </summary>
+        public const string AllItemsSlotValue = "__all_items__";
+
+        /// <summary>
+        /// 十个基础职业，顺序由使用者 2026-09-13 确定。
+        ///
+        /// 只列基础职业：游戏数据里还有"士兵+爆破"这类**组合**职业（`class0102`），
+        /// 但装备上的职业加成只针对单个职业，组合对筛选没有意义。
+        /// 名称也不取自游戏数据——那里 class07/08/09 是 `?`（缺翻译）。
+        /// </summary>
+        public static readonly IReadOnlyList<(string Value, string Label)> BaseClasses = [
+            ("class01", "士兵"),
+            ("class02", "爆破"),
+            ("class03", "神秘学者"),
+            ("class04", "夜刃"),
+            ("class05", "奥术"),
+            ("class06", "萨满"),
+            ("class07", "审判"),
+            ("class08", "死灵法师"),
+            ("class09", "守誓"),
+            ("class10", "狂战士"),
+        ];
 
         /// <summary>取 i18n tag 对应的中文；语言表还没准备好或没有该 tag 时回退到英文。</summary>
         public static string ResolveLabel(string tag, string fallback) {

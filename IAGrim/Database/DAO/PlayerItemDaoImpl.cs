@@ -750,14 +750,23 @@ namespace IAGrim.Database {
 
             // TODO: Seems we only have LIST parameters here.. won't work for this, since we'd get OR not AND on classes.
             // No way to get a non-list param?
-            foreach (var desiredClass in query.Classes) {
-                var classStats = new[] {
+            if (query.Classes.Count > 0) {
+                var classStats = string.Join(",", new[] {
                     "augmentSkill1Extras", "augmentSkill2Extras", "augmentSkill3Extras", "augmentSkill4Extras",
                     "augmentMastery1", "augmentMastery2", "augmentMastery3", "augmentMastery4"
-                }.Select(s => $"'{petPrefix}{s}'");
-                queryFragments.Add(
-                    $"dbs.stat IN ({string.Join(",", classStats)}) "
-                    + $" AND dbs.TextValue = '{desiredClass}'"); // Not ideal
+                }.Select(s => $"'{petPrefix}{s}'"));
+
+                if (query.ClassesAny) {
+                    // 或：命中任意一个职业即可 —— 一条子查询 + IN
+                    queryFragments.Add($"dbs.stat IN ({classStats}) AND dbs.TextValue IN ( :classAny )");
+                    queryParamsList.Add("classAny", query.Classes.ToArray());
+                }
+                else {
+                    // 与：每个职业各一条子查询，组间 AND
+                    foreach (var desiredClass in query.Classes) {
+                        queryFragments.Add($"dbs.stat IN ({classStats}) AND dbs.TextValue = '{desiredClass}'");
+                    }
+                }
             }
 
             List<string> sql = new List<string>();
@@ -845,12 +854,31 @@ namespace IAGrim.Database {
 
             queryFragments.Add(query.IsHardcore ? "PI.IsHardcore" : "NOT PI.IsHardcore");
 
-            // 品质。★ 多选优先——过滤器面板的稀有度是 checklist（"魔法或传奇"要一次查出来）。
-            // 单值的 `Rarity` 保留为简写形式，`Rarities` 为空时才生效。
-            // ⚠️ 先滤掉空串再判断：SQL 的 `IN ( )` 空列表会报错。
+            // 品质。三条路，优先级从高到低：
+            //   ① RarityConditions —— 带词缀数的组合（"双稀有"），组内是**或**
+            //   ② Rarities —— 单纯的品质多选，也是或（SQL 的 IN）
+            //   ③ Rarity —— 单值简写
+            // ⚠️ 列表先滤掉空串：SQL 的 `IN ( )` 空列表会报错。
+            var rarityConditions = query.RarityConditions?
+                .Where(c => !string.IsNullOrWhiteSpace(c.Rarity)).ToList() ?? new List<RarityCondition>();
             var rarities = query.Rarities?.Where(r => !string.IsNullOrWhiteSpace(r)).Distinct().ToArray()
                            ?? Array.Empty<string>();
-            if (rarities.Length > 0) {
+
+            if (rarityConditions.Count > 0) {
+                var parts = new List<string>();
+                for (var i = 0; i < rarityConditions.Count; i++) {
+                    var condition = rarityConditions[i];
+                    var conditionSql = $"PI.Rarity = :rarity{i}";
+                    queryParams.Add($"rarity{i}", condition.Rarity);
+                    if (condition.PrefixRarity > 0) {
+                        conditionSql += $" AND PI.PrefixRarity >= :prefixRarity{i}";
+                        queryParams.Add($"prefixRarity{i}", condition.PrefixRarity);
+                    }
+                    parts.Add($"({conditionSql})");
+                }
+                queryFragments.Add("(" + string.Join(" OR ", parts) + ")");
+            }
+            else if (rarities.Length > 0) {
                 queryFragments.Add("PI.Rarity IN ( :rarities )");
                 statFilterListParams.Add("rarities", rarities);
             }
@@ -866,6 +894,10 @@ namespace IAGrim.Database {
 
             if (query.SocketedOnly) {
                 queryFragments.Add("PI.MateriaRecord is not null and PI.MateriaRecord != ''");
+            }
+
+            if (query.EnchantedOnly) {
+                queryFragments.Add("PI.EnchantmentRecord is not null and PI.EnchantmentRecord != ''");
             }
 
             if (query.DuplicatesOnly) {
@@ -904,10 +936,10 @@ namespace IAGrim.Database {
                 queryParams.Add("maxlevel", query.MaximumLevel);
             }
 
-            // Show only items from the past 12 hours
-            if (query.RecentOnly) {
-                queryFragments.Add("created_at > :filter_recentOnly");
-                queryParams.Add("filter_recentOnly", DateTime.UtcNow.AddHours(-12).ToTimestamp());
+            // 只看最近 N 小时内入库的（界面给"五小时内 / 一天内 / 一周内 / 一月内"四档）
+            if (query.RecentHours > 0) {
+                queryFragments.Add("created_at > :filter_recent");
+                queryParams.Add("filter_recent", DateTime.UtcNow.AddHours(-query.RecentHours).ToTimestamp());
             }
 
             // Only items which grants new skills

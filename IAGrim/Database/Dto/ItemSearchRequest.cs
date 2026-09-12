@@ -37,6 +37,8 @@ namespace IAGrim.Database.Dto {
         ///
         /// ★ 非空时**优先于** <see cref="Rarity"/>（后者是单值简写形式）。
         ///
+        /// 表达不了"双稀有"这类"品质 + 词缀数"的组合——那种用 <see cref="RarityConditions"/>。
+        ///
         /// ⚠️ 值是**数据库里的值**，不是游戏里的说法：游戏的"传奇"在库里是 `Epic`、
         /// 游戏的"史诗"是 `Blue`。可选项与中文标签见 `GET /api/filters/options` 的 `qualities`。
         /// </summary>
@@ -49,6 +51,12 @@ namespace IAGrim.Database.Dto {
         /// ⚠️ 分页期间换排序会让切片对不上——那是调用方要自己避免的事。
         /// </summary>
         public bool OrderByLevel { get; set; }
+
+        /// <summary>
+        /// 品质条件，**组内是或**（满足任意一条即可）。用于"双稀有"这种需要带上词缀数的组合。
+        /// 非空时优先于 <see cref="Rarities"/> 与 <see cref="Rarity"/>。
+        /// </summary>
+        public List<RarityCondition> RarityConditions { get; set; } = new List<RarityCondition>();
 
         public string[]? Slot { get; set; }
 
@@ -80,9 +88,27 @@ namespace IAGrim.Database.Dto {
 
         public List<string> Classes { get; set; } = new List<string>();
 
+        /// <summary>
+        /// 职业过滤用**或**还是**与**：false（默认）= 与（装备要同时加成这些职业），
+        /// true = 或（加成其中任意一个即可）。
+        ///
+        /// ★ 后端天然是"与"（每个职业各一条子查询）；"或"要合并成一条 `IN`。
+        /// 界面上这个开关挂在「职业」这个**组名**上，点一下切换——与物品属性组同一套交互。
+        /// </summary>
+        public bool ClassesAny { get; set; }
+
         public bool SocketedOnly { get; set; }
 
-        public bool RecentOnly { get; set; }
+        /// <summary>只看装过附魔的装备（<c>PlayerItem.EnchantmentRecord</c> 非空）。</summary>
+        public bool EnchantedOnly { get; set; }
+
+        /// <summary>
+        /// 只看最近 <b>N 小时</b>内入库的物品；0 = 不限。
+        ///
+        /// ★ 用小时数而不是布尔：界面上给的是"五小时内 / 一天内 / 一周内 / 一月内"的单选，
+        /// 布尔只能表达"最近"一个档。
+        /// </summary>
+        public int RecentHours { get; set; }
 
         /// <summary>
         /// Items which grants a skill that can be placed on the hotbar and triggered.
@@ -99,9 +125,10 @@ namespace IAGrim.Database.Dto {
                     return false;
                 if (MinimumLevel >= 1 || MaximumLevel <= 84)
                     return false;
-                if (!String.IsNullOrEmpty(Rarity) || Rarities.Count > 0 || Slot != null)
+                if (!String.IsNullOrEmpty(Rarity) || Rarities.Count > 0 || RarityConditions.Count > 0 || Slot != null)
                     return false;
-                if (PetBonuses || HasPetBonus || IsRetaliation || Classes.Count > 0 || SocketedOnly || RecentOnly)
+                if (PetBonuses || HasPetBonus || IsRetaliation || Classes.Count > 0
+                    || SocketedOnly || EnchantedOnly || RecentHours > 0)
                     return false;
                 if (WithGrantSkillsOnly || WithSummonerSkillOnly || DuplicatesOnly || PrefixRarity > 0)
                     return false;
