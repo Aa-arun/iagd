@@ -69,7 +69,7 @@ iagd/
 │   ├── Http/                ← ★ Kestrel：WebServer.cs（REST + 静态文件）
 │   │                          与 WebSocketHub.cs（/ws 推送）
 │   ├── Services/            ← ★ MaintenanceService（维护操作）、属性翻译、
-│   │                          WebUiFeedbackHandler（提示走 WS）等
+│   │                          Filters/（过滤器定义与可选项）、WebUiFeedbackHandler（提示走 WS）等
 │   ├── UI/                  ← 只剩**不可见宿主**与按需弹出的对话框
 │   │   ├── MainWindow.cs                宿主：永不显示，提供消息循环与 Invoke
 │   │   └── Popups/, Misc/, Controller/
@@ -222,6 +222,9 @@ cd /mnt/c && cmd.exe /c 'pushd \\wsl.localhost\Ubuntu-24.04\home\jyl\iagd && dot
 **现在的状态**：**程序已经能日常使用**——
 启动 → **主窗口不显示**（只有托盘图标）→ 自动开系统浏览器 → 界面跑在 C# 后端上
 （`127.0.0.1:3031`）。三个页面：物品 / 设置 / 数据库。
+搜索已支持**按属性名找物品**（搜"火焰抗性"能找出带该属性的物品）与
+**属性数值过滤**（"火焰抗性 ≥ 20"），但过滤**面板 UI** 还没做
+（后端已就绪，见 [`.docs/09-高级搜索.md`](./.docs/09-高级搜索.md)）。
 线的进度见 [`.docs/00-当前状态.md`](./.docs/00-当前状态.md)。
 
 ### 数据从哪来
@@ -242,7 +245,7 @@ cd /mnt/c && cmd.exe /c 'pushd \\wsl.localhost\Ubuntu-24.04\home\jyl\iagd && dot
 |---|---|---|
 | A | 新前端增量开发（步 0–6） | ✅ **全部完成**（列表 / 视图切换 / 搜索 / 详情 / 转移） |
 | B | 后端服务化 | ✅ **全部完成**：B1 HTTP、B2 WebSocket、B3 前端切 REST、B4 开浏览器、B5/B6 删掉 WebView2 与 WinForms 界面 |
-| C | 界面迁移 | ✅ C1 搜索框、C3 设置页、C3 数据库 / Mods 维护页、装备显示打磨 —— ▶ 剩 **C2 过滤面板**（工作量最大） |
+| C | 界面迁移 | ✅ C1 搜索框、C3 设置页、C3 数据库 / Mods 维护页、装备显示打磨 —— ▶ C2 过滤面板：**后端已完成**（2026-09-12：按属性名搜索、数值过滤、`GET /api/filters/options`），只剩面板 UI |
 
 **动手前必读**：`.docs/03-目标架构.md` + `.docs/05-实施计划.md`；
 环境与命令见 `.docs/04-开发环境.md`；**进度看 [`.docs/00-当前状态.md`](./.docs/00-当前状态.md)**。
