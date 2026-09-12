@@ -6,6 +6,24 @@
  */
 
 :root {
+  /* ── 职业印象色（使用者 2026-09-12 要求，取自游戏内 10 个职业的主图）────
+   *
+   * 做法：把每张主图按色相分 12 桶统计（滤掉低饱和、过暗的像素），取主导色的
+   * 色相；再**提亮到深色背景上可读的区间**——主图整体是压暗的，原始主导色
+   * 亮度只有 20–35%，直接拿来当文字色根本看不清；同时把相邻职业的色相拉开，
+   * 免得三个职业挤在同一个蓝上。注释里写的是主图给的印象。
+   */
+  --cls-soldier: #d9a03c; /* 士兵 —— 火把与铁甲的金棕 */
+  --cls-demolitionist: #e8703a; /* 爆破 —— 烈焰橙 */
+  --cls-occultist: #c964d8; /* 神秘 —— 邪火紫 */
+  --cls-nightblade: #8a6fe8; /* 夜刃 —— 暗影蓝紫 */
+  --cls-arcanist: #3fe0b8; /* 奥术 —— 魔法阵的翠绿 */
+  --cls-shaman: #48b0f0; /* 萨满 —— 雷电天蓝 */
+  --cls-inquisitor: #6f96e8; /* 审判 —— 符能蓝 */
+  --cls-necromancer: #6fc9c0; /* 死灵 —— 魂火青 */
+  --cls-oathkeeper: #f5c542; /* 守誓 —— 圣火金 */
+  --cls-berserker: #e8557a; /* 狂战 —— 血爪玫红 */
+
   /* 页面与面板 */
   --bg: #1c1a17;
   --bg-panel: #26231f;
@@ -17,19 +35,31 @@
   --text-muted: #a39b8c;
 
   /* 物品品质色。取值由使用者 2026-09-12 指定：
-   * 普通 #fff / 魔法 #f2e61a / 稀有 #3eea4a / 史诗 #338cce / 传奇 #a638ff */
+   * 普通 #fff / 魔法 #f2e61a / 稀有 #3eea4a / 史诗 #338cce / 传奇见下 */
   --q-common: #ffffff; /* 普通 */
   --q-magical: #f2e61a; /* 魔法 · 黄 */
   --q-rare: #3eea4a; /* 稀有 · 绿 */
   --q-epic: #338cce; /* 史诗 · 蓝 */
   --q-blue: #338cce; /* "蓝装"就是史诗，同一个色 */
-  --q-legendary: #a638ff; /* 传奇 · 紫 */
+  /*
+   * 传奇 · 紫。
+   *
+   * ⚠️ 2026-09-12 使用者反馈原先的 `#a638ff`「太浓、影响查看」，故减淡：
+   *   它当时的 HSL 是 (276°, 100%, 61%)——**饱和度拉满**，在深黑背景上会"发光"，
+   *   长名字读起来刺眼。这里把饱和度降到 ~70%、明度提到 ~67%，得到 #b570e6：
+   *   仍是明确的紫，但不再抢视线。
+   */
+  --q-legendary: #b570e6;
   --q-broken: #81551a;
 
-  /* 词缀品质色：汉化包用 ^y 标普通词缀、^g 标稀有词缀，
-   * 所以它们直接复用上面两个品质色（使用者要求"词缀颜色和品质一致"）。*/
+  /* 词缀品质色：汉化包用 ^y 标普通词缀、^g 标稀有词缀。
+   *
+   * ⚠️ 2026-09-12 起**照游戏的实际色值**，不再"复用品质色"：
+   *   游戏的词缀绿 `#10ea5d` 与"稀有"品质绿 `--q-rare`（#3eea4a）
+   *   并不相同——前者偏青、后者偏亮草绿，肉眼能分辨。
+   *   色值由使用者对照游戏内 tooltip 提供。 */
   --q-affix-magic: var(--q-magical);
-  --q-affix-rare: var(--q-rare);
+  --q-affix-rare: #10ea5d;
 
   /* ── 焦点强调（hover / 选中的装备）
    *
@@ -58,18 +88,66 @@
 
   --tt-physical: #b88a52; /* ^E 物理 / 创伤 —— 棕 */
   --tt-pierce: #e0d24a; /* ^Y 穿刺 —— 黄 */
-  --tt-bleed: #b04040; /* ^M 流血 —— 栗 */
-  --tt-elemental: #a8b04a; /* ^L 元素 —— 橄榄 */
+  --tt-bleed: #7f0000; /* ^M 流血 —— 栗 */
+  --tt-elemental: #91cb00; /* ^L 元素 —— 橄榄 */
   --tt-fire: #e05a4a; /* ^R 火焰 / 燃烧 —— 红 */
   --tt-cold: #5a8fd8; /* ^B 冰冷 / 霜燃 —— 蓝 */
   --tt-lightning: #5ad0d0; /* ^C 闪电 / 精神 —— 青 */
   --tt-acid: #6cc04a; /* ^G 酸性 / 毒素 —— 绿 */
-  --tt-vitality: #e89090; /* ^F 活力 / 生命 —— 桃红 */
-  --tt-aether: #4ab0b0; /* ^T 虚化 / 能量 —— 水鸭 */
-  --tt-chaos: #e09a4a; /* ^O 混乱 / 体格 —— 橙 */
+  --tt-vitality: #ff68b3; /* ^F 活力 / 生命 —— 桃红 */
+  --tt-aether: #00e1b8; /* ^T 虚化 / 能量 —— 水鸭 */
+  --tt-chaos: #ff68b3; /* ^O 混乱 / 体格 —— 橙 */
   --tt-physique: #6aa0e8; /* ^Z 灵巧 —— 蔚蓝 */
-  --tt-speed: #b878e0; /* ^P 攻击 / 施法 / 所有速度 —— 紫 */
+  --tt-speed: #bc93c5; /* ^P 攻击 / 施法 / 所有速度 —— 紫 */
   --tt-move-speed: #c8b878; /* ^K 移动速度 —— 卡其 */
+}
+
+/* ── 滚动条（照抄 grimtools.com，2026-09-12 使用者指定）────────────────
+ *
+ * 来源是 grimtools 的 `db/itemdb/itemdb.css`，它那段是**全局**生效的
+ * （没有作用域限定），参考元素是它的左侧导航面板 `.navigation-panel-inner`。
+ *
+ * ★ 观感的关键在 thumb 那三条：
+ *     border: 3px solid transparent + background-clip: content-box
+ *   12px 的轨道里**只有中间 6px 是实心**，加上轨道透明，
+ *   看起来就是一根细灰条浮在内容上，而不是一条通到底的槽。
+ *
+ * ℹ️ 轨道没有单独设背景 = 透明。我们自己的背景（`--bg-panel`）会透出来，
+ *    这一点在深色主题下和 grimtools 的观感一致。
+ */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track * {
+  background-color: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #404040;
+  border: 3px solid transparent;
+  border-radius: 2px;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: rgba(0, 0, 0, 0);
+}
+
+/*
+ * Firefox 不支持 `::-webkit-scrollbar`，得用这两个**标准属性**。
+ *
+ * ⚠️ 它们只在下面这三个容器上设、**不写成全局**，是故意的：
+ *    Chrome 121+ 也实现了 `scrollbar-width`，一旦元素上有它，
+ *    Chrome 就会**忽略**我们上面的 `::-webkit-scrollbar` 规则。
+ *    grimtools 正是这么分的（全局 webkit + 容器上标准属性），照抄即可。
+ */
+.app__list,
+.app__page,
+.item-detail__body {
+  scrollbar-width: thin;
+  scrollbar-color: #404040 transparent;
 }
 
 * {
@@ -95,7 +173,11 @@ body {
  */
 #root {
   height: 100vh;
-  padding: 24px;
+  /*
+   * 左右留边减半（使用者 2026-09-12：列表那个框的留边有点大，往两边扩一点）。
+   * 上下保持不变——顶上还压着标题和页签，不需要更紧。
+   */
+  padding: 24px 12px;
 }
 
 .app {
@@ -119,18 +201,118 @@ body {
   flex: 1;
   min-height: 0;
   display: grid;
+  /*
+   * ★ 行也要显式约束住（2026-09-12 修 hover 抖动）。
+   *
+   * 原先只写了 `grid-template-columns`，行是隐式的 `auto` —— 高度由**内容**决定。
+   * 于是详情面板一长（属性多到一屏放不下），它就把这行顶高，溢出的部分冒到
+   * `.app__content` 外面、再冒到 `#root`（`height: 100vh`）外面，
+   * 让**整个文档**出现纵向滚动条：
+   *
+   *   悬停长属性装备 → 面板变长 → 整页滚动条出现 → 视口窄 15px → 物品框被挤
+   *   → 鼠标脱靶 → 面板消失 → 滚动条收回 → 物品框弹回 → 鼠标又hover上 … 死循环
+   *
+   * `minmax(0, 1fr)` 让这一行**严格等于**容器高度、且允许收缩到 0，
+   * 面板超出的部分由它自己的 `overflow-y` 消化（那本来就是设计意图）。
+   */
+  grid-template-rows: minmax(0, 1fr);
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 12px;
+  /* 兜底：万一还有别的溢出，就在这一层裁掉，绝不让它冒到文档上去 */
+  overflow: hidden;
+}
+
+/*
+ * 中间那一列。它把 grid 的中间格再拆成上下两半：
+ *   上半 = 物品列表（自己滚）
+ *   下半 = 翻页控件（可选，不滚）
+ *
+ * ★ 为什么翻页控件不直接放在 grid 外面：那样它会横跨左右固定栏的宽度，
+ *   看起来像"整页的页脚"；放在中间列里，它就只属于列表，位置关系更清楚。
+ */
+.app__list-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
 }
 
 /* 物品列表：单独成一个框，滚动只发生在这里 */
 .app__list {
+  /* 撑满中间列剩下的高度（翻页控件占了 flex:none 的那部分） */
+  flex: 1;
   min-width: 0;
+  min-height: 0;
   overflow-y: auto;
   padding: 10px;
   background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: 6px;
+}
+
+/*
+ * 无限滚动的哨兵：列表末尾的一个空块。
+ *
+ * 它进入视口就代表"快滚到底了"，由 AppShell 里的 IntersectionObserver 观察。
+ * 它有 padding，所以即使在列表很短时也占得到位置、能被观察到。
+ */
+.app__sentinel {
+  padding: 12px 0 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ── 翻页控件（仅翻页模式）────────────────────────────────────────────
+ *
+ * 它固定在列表**下方**，不在滚动容器里——跟工具条一个道理，滚列表时它不动。
+ */
+.app__pager {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.app__pager-btn {
+  padding: 4px 12px;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.app__pager-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+
+.app__pager-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* 页码用等宽数字：从"第 9 页"翻到"第 10 页"时宽度不变，按钮不会横跳 */
+.app__pager-info {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* "本页 N 件"顶到最右边，与居中的页码分开 */
+.app__pager-count {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 /*
@@ -141,6 +323,16 @@ body {
  */
 .app__dock {
   min-width: 0;
+  /*
+   * ★ 缺了它就会 hover 抖动（2026-09-12 修）。
+   *
+   * grid item 的 `min-height` 默认是 `auto`，含义是"不许压到内容高度以下"。
+   * 详情面板装上长属性后比容器还高，这一栏就顶着 grid 行一起长高
+   * （实测：文档高度 820 → 3194px），把整页撑出纵向滚动条，
+   * 滚动条又挤窄物品框 → 鼠标脱靶 → 面板消失 → 布局弹回 → 鼠标再次压上 …
+   * 置 0 之后栏高完全由 grid 行决定，长属性交给面板内部的 `overflow-y` 滚动。
+   */
+  min-height: 0;
 }
 
 .app__content[data-dock='left'] .app__dock--left,

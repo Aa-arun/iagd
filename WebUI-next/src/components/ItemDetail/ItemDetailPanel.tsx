@@ -1,9 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { useTranslation } from '../../i18n';
 import { iconUrl, transferItems } from '../../api';
 import { qualityClass } from '../ItemCard/quality';
-import { slotLabel } from '../../model/slot';
-import { playerItemId } from '../../model/item';
+import { itemTypeLabel, playerItemId } from '../../model/item';
 import { useItemDetail } from './ItemDetailContext';
 import StatList from './StatList';
 import ReplicaStatList from './ReplicaStatList';
@@ -63,7 +61,6 @@ interface Feedback {
  */
 export default function ItemDetailPanel() {
   const { item, isPinned, anchor, displayMode, onItemActivate, onTransferred } = useItemDetail();
-  const t = useTranslation();
 
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -131,9 +128,16 @@ export default function ItemDetailPanel() {
             <ItemName item={item} />
           </h2>
           <p className="item-detail__meta">
-            <span className={qualityClass(item.quality)}>{item.quality}</span>
+            {/*
+              用**类型文本**（"传奇护肩"）而不是 `item.quality` —— 后者是
+              `Epic` / `Blue` 这种数据库内部值，对使用者没有意义。
+              TableView / CompareView 早就是这样了，只有这里漏了
+              （使用者 2026-09-12 指出抬头问题时一并发现）。
+
+              槽位也不再单列：类型文本里已经含部位。
+            */}
+            <span className="item-type">{itemTypeLabel(item) ?? item.quality}</span>
             <span>等级 {item.level}</span>
-            {item.slot && <span>{slotLabel(item.slot, t)}</span>}
           </p>
         </div>
 

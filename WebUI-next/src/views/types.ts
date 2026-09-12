@@ -33,4 +33,15 @@ export interface ItemViewDefinition {
   /** 一句话说明，作为悬停提示 */
   description: string;
   component: ComponentType<ItemViewProps>;
+
+  /**
+   * 这种视图是不是**自己就把完整属性摊开了**。
+   *
+   * ★ 是的话，"详情"面板就没有意义了——它展示的东西视图里本来就有。
+   *   工具栏会把"详情"下拉禁用，布局也不再为它留侧栏。
+   *
+   * 用注册表里的标志而不是在工具栏里硬编码 `viewId === 'compare'`：
+   * 将来再加同类视图（比如"全屏对照"），只要打这个标志就自动生效。
+   */
+  showsFullStats?: boolean;
 }
