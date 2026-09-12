@@ -1,6 +1,7 @@
 import type { ItemViewProps } from '../types';
 import { iconUrl } from '../../api';
 import { qualityClass } from '../../components/ItemCard/quality';
+import { itemTypeLabel } from '../../model/item';
 import { parseRow } from '../../components/ItemDetail/ReplicaStatList';
 import TransferButton from '../../components/TransferButton/TransferButton';
 import { slotLabel } from '../../model/slot';
@@ -31,7 +32,7 @@ export default function TableView({
         <tr>
           <th scope="col" aria-label="图标" />
           <th scope="col">名称</th>
-          <th scope="col">品质</th>
+          <th scope="col">类型</th>
           <th scope="col">等级</th>
           <th scope="col">槽位</th>
           <th scope="col" aria-label="取出" />
@@ -62,7 +63,9 @@ export default function TableView({
             <td className={`item-table__name ${qualityClass(item.quality)}`}>
               {parseRow(item.name)}
             </td>
-            <td className={qualityClass(item.quality)}>{item.quality}</td>
+            <td className="item-type">
+              {itemTypeLabel(item) ?? item.quality}
+            </td>
             <td className="item-table__num">{formatNumber(item.level)}</td>
             <td>{slotLabel(item.slot, t)}</td>
             <td className="item-table__action">

@@ -1,0 +1,27 @@
+/* 列表上方的工具条。位于滚动容器**外面**，所以滚动列表时它不会动。 */
+.view-toolbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0 12px;
+}
+
+.view-toolbar__label {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.view-toolbar__select {
+  padding: 4px 8px;
+  background: var(--bg-panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.view-toolbar__select--narrow {
+  min-width: 116px;
+}

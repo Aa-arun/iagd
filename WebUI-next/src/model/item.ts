@@ -58,3 +58,20 @@ export function playerItemId(item: IItem): number | null {
   const match = /^PI\/(\d+)\//.exec(item.uniqueIdentifier);
   return match ? Number(match[1]) : null;
 }
+
+/**
+ * 物品的「类型」文本，如 `传奇双手锤`、`已附魔稀有勋章`。
+ *
+ * 来源是游戏 tooltip 里 `type = 66` 的那一行（`replicaStats`），
+ * 也就是游戏自己渲染的"品质 + 槽位"组合。
+ *
+ * ★ 为什么用它替代"品质"（Epic / Blue / Green）：
+ *   那些是数据库里的内部枚举名，对使用者没有意义；而游戏原版的
+ *   "传奇双手锤"既说清了品质也说清了部位（使用者 2026-09-12 要求）。
+ *   既然游戏已经把它给了我们，没必要自己拼。
+ */
+export function itemTypeLabel(item: IItem): string | null {
+  const row = item.replicaStats?.find((r) => r.type === 66);
+  const text = row?.text?.trim();
+  return text ? text : null;
+}

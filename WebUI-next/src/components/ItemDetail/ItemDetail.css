@@ -170,20 +170,30 @@
 }
 
 /*
- * 「右侧固定框」模式（使用者 2026-09-12 要求）。
+ * 固定栏模式（左 / 右，使用者 2026-09-12 要求）。
  *
- * 与浮动模式的区别只有两点：
- * 1. 定位交给 inline style（贴右边、占满高度）
- * 2. **始终接收鼠标事件** —— 固定框要能滚动。
- *    浮动模式必须 pointer-events: none，否则面板会挡住指针、
- *    立刻触发 mouseleave 导致闪烁；固定框不跟随鼠标，没这个问题。
+ * ★ 它**不是** `position: fixed`——面板由 AppShell 渲染在 grid 的栏里，
+ *   是普通文档流元素。这样：
+ *   - 天然位于工具条下方（"不顶头"）
+ *   - 栏的宽度由模式决定，与是否选中无关（"始终留空"）
+ *   - 高度由 grid 的行撑满，内部属性区自己滚动（"长属性"）
+ *
+ * 唯一需要 inline 定位的是浮动模式，见 ItemDetailPanel 的 floatingStyle。
  */
 .item-detail[data-docked] {
+  width: 100%;
+  height: 100%;
+  /* 固定栏不跟随鼠标，所以可以接收事件——它要能滚动。
+     浮动模式必须 pointer-events: none，否则面板会挡住指针、
+     立刻触发 mouseleave 导致闪烁。 */
   pointer-events: auto;
-  box-shadow: -4px 0 18px rgba(0, 0, 0, 0.5);
 }
 
-/* 固定框的关闭按钮始终可用（浮动模式下只有 pinned 才显示） */
-.item-detail[data-docked] .item-detail__close {
-  display: block;
+/* 落影朝栏的内侧（左侧栏投向右，右侧栏投向左） */
+.item-detail[data-docked][data-mode='docked-left'] {
+  box-shadow: 4px 0 18px rgba(0, 0, 0, 0.35);
+}
+
+.item-detail[data-docked][data-mode='docked-right'] {
+  box-shadow: -4px 0 18px rgba(0, 0, 0, 0.35);
 }
