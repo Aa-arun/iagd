@@ -654,7 +654,9 @@ namespace IAGrim.UI {
                     GlobalPaths.StorageFolder,
                     // 延迟取：工厂在每次转移请求时才求值，那时控制器一定已经建好了。
                     () => _transferController,
-                    _serviceProvider.Get<MaintenanceService>()
+                    _serviceProvider.Get<MaintenanceService>(),
+                    // 线 C（C2）：过滤器面板的可选项 + 搜索框"按属性名找物品"的解析
+                    _serviceProvider.Get<Services.Filters.FilterOptionsService>()
                 );
                 _webServer.Start();
 

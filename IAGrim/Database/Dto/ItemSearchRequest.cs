@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,6 +9,16 @@ namespace IAGrim.Database.Dto {
 
     public class ItemSearchRequest {
         public string? Wildcard { get; set; }
+
+        /// <summary>
+        /// 由搜索框关键词解析出来的属性名（stat 名）：命中的物品**即使名字里没有关键词**也会返回。
+        ///
+        /// ⚠️ 这是**后端内部字段**，由 HTTP 层在调用 DAO 之前填充
+        /// （见 <c>FilterOptionsService.ResolveKeyword</c>），前端不需要也不应该自己设置它。
+        /// 旧界面走的 <c>SearchController.Search()</c> 不填它，所以旧界面的搜索行为完全不变。
+        /// </summary>
+        public List<string> WildcardStats { get; set; } = new List<string>();
+
         public List<string[]> Filters { get; set; } = new List<string[]>();
 
         /// <summary>

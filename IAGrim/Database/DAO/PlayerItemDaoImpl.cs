@@ -1,4 +1,4 @@
-﻿using EvilsoftCommons;
+using EvilsoftCommons;
 using IAGrim.Backup.Cloud.Dto;
 using IAGrim.Database.DAO;
 using IAGrim.Database.DAO.Dto;
@@ -819,9 +819,20 @@ namespace IAGrim.Database {
 
             if (!string.IsNullOrEmpty(query.Wildcard)) {
                 // queryFragments.Add("(PI.namelowercase LIKE :name OR R.text LIKE :wildcard)");
-                queryFragments.Add("(PI.namelowercase LIKE :name OR R.id IN (SELECT replicaitemid FROM replicaitemrow WHERE IFNULL(textlowercase, text) LIKE :wildcard))");
+                var nameCondition = "(PI.namelowercase LIKE :name OR R.id IN (SELECT replicaitemid FROM replicaitemrow WHERE IFNULL(textlowercase, text) LIKE :wildcard))";
                 queryParams.Add("wildcard", $"%{query.Wildcard.ToLowerInvariant()}%");
                 queryParams.Add("name", $"%{query.Wildcard.Replace(' ', '%').ToLowerInvariant()}%");
+
+                if (query.WildcardStats != null && query.WildcardStats.Count > 0) {
+                    // 关键词也当成**属性名**：搜"火焰抗性"要找出带该属性的物品，而不只是名字里含这几个字的。
+                    // 命中任意一个 stat 即可（OR），所以整体是一条 (名字 OR 属性) 的条件。
+                    var statSub = RecordStatSubquery("dbs.stat IN ( :wildcardStats )");
+                    queryFragments.Add($"({nameCondition} OR PI.Id IN ({statSub}))");
+                    statFilterListParams.Add("wildcardStats", query.WildcardStats.Distinct().ToArray());
+                }
+                else {
+                    queryFragments.Add(nameCondition);
+                }
             }
 
             // Filter by mod/hc

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net.WebSockets;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using log4net;
@@ -11,11 +12,13 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using IAGrim.Database;
 using IAGrim.Database.Dto;
 using IAGrim.Database.Interfaces;
 using IAGrim.Services;
+using IAGrim.Services.Filters;
 using IAGrim.Settings;
 using IAGrim.Settings.Dto;
 using IAGrim.UI.Controller;
@@ -128,6 +131,9 @@ namespace IAGrim.Http {
         /// <summary>线 B：数据库 / Mods 维护操作的门面。</summary>
         private readonly MaintenanceService _maintenance;
 
+        /// <summary>线 C（C2）：过滤器面板的可选项，以及"关键词→属性名"的解析。</summary>
+        private readonly FilterOptionsService _filters;
+
         /// <summary>线 B（B2）：向已连接的浏览器广播"发生了什么"。</summary>
         private readonly WebSocketHub _hub = new WebSocketHub();
 
@@ -167,13 +173,15 @@ namespace IAGrim.Http {
             SettingsService settings,
             string storageFolder,
             Func<ItemTransferController?> transferController,
-            MaintenanceService maintenance) {
+            MaintenanceService maintenance,
+            FilterOptionsService filters) {
             _search = search;
             _itemTagDao = itemTagDao;
             _settings = settings;
             _storageFolder = storageFolder;
             _transferController = transferController;
             _maintenance = maintenance;
+            _filters = filters;
 
             // 维护任务的状态 → 推给网页 + 驱动"维护模式"（维护期间查询会被拒，
             // 见 MaintenanceGuard）。
@@ -196,6 +204,15 @@ namespace IAGrim.Http {
             // 让 log4net 管日志；Kestrel 自己的控制台输出会把日志搅乱。
             builder.Logging.ClearProviders();
             builder.WebHost.UseUrls($"http://127.0.0.1:{Port}");
+
+            // ⚠️ Minimal API 的请求体默认用 **System.Text.Json**，而它**默认不接受字符串枚举**：
+            //    {"operator":"GreaterOrEqual"} 会直接 400（实测踩到，响应体还是空的，很难查）。
+            //    数值过滤的操作符让前端传数字 0..4 太易错，所以打开枚举名支持。
+            //
+            //    影响面只有**请求绑定**——所有响应都是 `Json()` 里用 Newtonsoft 手工序列化的。
+            builder.Services.ConfigureHttpJsonOptions(options => {
+                options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            });
 
             _app = builder.Build();
 
@@ -284,8 +301,25 @@ namespace IAGrim.Http {
                     return guard;
                 }
 
+                // ★ 关键词也当成属性名："火焰抗性"要能找出**带该属性的物品**，而不只是名字里含这几个字的。
+                //   解析成 stat 名交给 DAO 做 OR 匹配。纯内存查表，没有额外查询开销；
+                //   解析不出任何属性（用户只是找人名/物品名）时结果为空，行为与从前完全一致。
+                dto.WildcardStats = _filters.ResolveKeyword(dto.Wildcard).ToList();
+
                 var items = _search.QueryItems(dto, dto.Offset, dto.Limit, out int total, out bool truncated);
                 return Json(new { total, offset = dto.Offset, limit = dto.Limit, truncated, items });
+            });
+
+            // GET /api/filters/options —— 过滤器面板的可选项（线 C 的 C2 用）
+            //
+            // 一次给全：品质 / 槽位 / 职业 / 数值比较符 / 分组复选框 / 属性下拉。
+            // "勾了什么对应哪些 stat 字段"由后端说了算（FilterCatalog），前端不再抄一份映射。
+            app.MapGet("/api/filters/options", () => {
+                if (MaintenanceGuard() is IResult guard) {
+                    return guard;
+                }
+
+                return Json(_filters.GetOptions());
             });
 
             // POST /api/items/transfer —— 把物品转移回游戏（**写操作**）
