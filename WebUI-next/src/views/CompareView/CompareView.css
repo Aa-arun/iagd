@@ -15,7 +15,17 @@
    *   撞上"图标加载完高度才变"的时序问题。
    * 显式写出来是为了表明这是有意为之，不是碰巧。
    */
-  align-items: stretch;
+  /*
+   * ★ 行高由该行**最高**的那张卡决定（flex 换行的默认行为），
+   *   但每张卡自己的边框**只包住自己的条目**——所以这里用 flex-start，
+   *   而不是 stretch。
+   *
+   *   使用者 2026-09-12 给了参考图并说明："这一行的高度是和这一行最高的
+   *   条目匹配，但是行里面每一个装备，它外面的框框是跟自己的条目数匹配的。"
+   *
+   *   （早先用 stretch 会把矮卡片拉到行高，边框底下空出一大片。）
+   */
+  align-items: flex-start;
   gap: 12px;
 }
 
@@ -30,19 +40,15 @@
   background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: 6px;
-  cursor: pointer;
-  transition: border-color 0.12s ease, background 0.12s ease;
-}
-
-.compare-card:hover {
-  border-color: color-mix(in srgb, var(--focus-accent) 55%, var(--border));
-  background: var(--focus-hover-bg);
-}
-
-.compare-card.is-pinned {
-  border-color: var(--focus-accent);
-  background: var(--focus-pinned-bg);
-  box-shadow: 0 0 0 1px var(--focus-accent);
+  /*
+   * ★ 刻意**不给** hover / 选中效果（使用者 2026-09-12 要求）。
+   *
+   *   这个视图下"详情"面板已经禁用（见 views/types.ts 的 showsFullStats），
+   *   hover 和点击都不产生任何可见结果——再让边框变色、背景亮起来，只会
+   *   让人以为点了有反应。状态本身照旧记录（pinnedId 仍在更新，切回别的
+   *   视图时能接着用），只是这里不表现。
+   */
+  cursor: default;
 }
 
 .compare-card__head {

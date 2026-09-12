@@ -29,6 +29,8 @@ export const ITEM_VIEWS: ItemViewDefinition[] = [
     label: '详细对照',
     description: '把完整属性并排摊开，适合筛选后比较几件装备',
     component: CompareView,
+    // 这个视图本身就把 tooltip 全摊开了，"详情"面板没有意义
+    showsFullStats: true,
   },
 ];
 

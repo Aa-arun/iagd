@@ -3,6 +3,8 @@
   flex: none;
   display: flex;
   align-items: center;
+  /* 窗口窄时逐个换行，而不是把下拉挤扁（现在有 4 组控件了） */
+  flex-wrap: wrap;
   gap: 8px;
   padding: 0 0 12px;
 }
@@ -24,4 +26,18 @@
 
 .view-toolbar__select--narrow {
   min-width: 116px;
+}
+
+/*
+ * 「详细对照」视图下"详情"下拉会被禁用（见 views/types.ts 的 showsFullStats）。
+ * 让它在视觉上明确"不可用"，而不是看起来还能点。
+ */
+.view-toolbar__select:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* 下拉禁用时，它前面那个标签也一起变淡（:has 关联前后兄弟） */
+.view-toolbar__label:has(+ select:disabled) {
+  opacity: 0.45;
 }

@@ -61,7 +61,12 @@ export default function CompareView({
                 <p className="compare-card__meta">
                   <span className="item-type">{itemTypeLabel(item) ?? item.quality}</span>
                   <span>等级 {item.level}</span>
-                  {item.slot && <span>{slotLabel(item.slot, t)}</span>}
+                  {/*
+                    不再单列槽位：类型文本里已经说了部位（"传奇护肩"的"护肩"），
+                    再跟一个"肩甲"是重复的（使用者 2026-09-12 指出）。
+                    只有拿不到类型文本时才用槽位兜底。
+                  */}
+                  {!itemTypeLabel(item) && item.slot && <span>{slotLabel(item.slot, t)}</span>}
                 </p>
               </div>
 

@@ -4,60 +4,184 @@ import type { IReplicaRow } from '../../model/item';
 /**
  * 渲染**游戏原样导出的** tooltip 行（`replicaStats`）。
  *
- * ★ 为什么用它而不是 `headerStats`/`bodyStats`：
- *   游戏已经把这件装备的完整 tooltip 原样给了我们（`ItemReplica` 导出、IA 存进库），
- *   带 `^X` 颜色代码、顺序与文案都与游戏内一致。从 `DatabaseItemStat` 重新拼一套
- *   既费劲又不可能对齐（转换行、套装、授予技能那一大堆）。
- *   所以「详情接近游戏效果」这条路上，它是最短的路径。
+ * 为什么用它而不是 `headerStats` / `bodyStats`：游戏已经把完整 tooltip 给了我们
+ * （`ItemReplica` 导出、IA 存进库），带 `^X` 颜色码、顺序与文案都与游戏内一致。
+ * 自己从 `DatabaseItemStat` 重拼一套既费劲，也不可能对齐（转换行、套装、
+ * 授予技能那一大堆）。
  *
- * 渲染规则（2026-09-12 按使用者要求调整）：
- * - `^X` → CSS 类 `tt-X`，颜色在 `ReplicaStatList.css` 里按**伤害/抗性类型**分色
- * - `^s` 段（英文技能名，如 `(Black Death)`）→ **隐藏**，使用者不要英文
- * - 职业标记（`^g<^F神秘^g>`）→ 统一颜色，**不按人物职业变色**
- *   （游戏里会灰掉非本职业的技能，但库里每个人物不同，那样没意义）
- * - `^r`（"需要 玩家等级/灵巧/精神/体格"）→ 普通色，**不跟人物属性联动**
- * - 行的 `type` → CSS 类 `tt-type-N`，决定这一行是标题、套装、授予技能还是普通属性
+ * 四条约定：
+ * 1. `^X` → CSS 类 `tt-X`；每行另外带 `tt-type-N`（行种）与 `tt-indent-N`
+ *    （缩进级别）。颜色全在 `ReplicaStatList.css` 里。
+ * 2. `^s` 段是英文技能名 → **隐藏**（不需要英文）。
+ * 3. 职业名按职业分色（`--cls-*`，见 `styles/global.css`）。**不按人物职业**：
+ *    库里的 tooltip 是不同角色、不同时期导出的，照搬游戏会让同一件装备在
+ *    不同人眼里长得不一样。
+ * 4. `^r`（"需要 玩家等级/灵巧/精神/体格"）用普通色，不跟人物属性联动。
+ *
+ * 下面按三段组织：文本规范化 → 职业识别 → 着色与缩进。
  */
+
+// ── 文本规范化 ───────────────────────────────────────────────────────
+//
+// 游戏导出的行有几种"缺东西"的形态，渲染前先补成一种：完全没有颜色码、
+// 职业名外面没有尖括号、英文名没被 `^s` 包起来。
 
 /** 行首的英文技能名：`阿玛拉斯塔的爆裂之刃 (Amarasta's Blade Burst) 技能等级 +2`。 */
 const ENGLISH_SKILL_NAME = / \(([A-Za-z][A-Za-z'’\- ]{3,})\)/g;
 
 /**
- * 有些行是**旧格式**：没有 `^X` 代码，英文名也没被 `^s` 包起来（实测 `type=81`）。
- * 只在这种"技能等级"行上删英文括号——普通属性里的 `(OA)` `(DA)` `(CDR)`
- * 是缩写，必须留着，所以不能无差别删括号。
+ * 删掉英文技能名。
+ *
+ * 只对**没有颜色码、且含"技能等级"的行**动手——普通属性里的 `(OA)` `(DA)`
+ * `(CDR)` 是缩写，必须留着，所以不能无差别删括号。
  */
 function stripEnglishSkillName(text: string): string {
   if (text.includes('^') || !text.includes('技能等级')) {
     return text;
   }
-
   return text.replace(ENGLISH_SKILL_NAME, '');
 }
 
 /**
- * 技能行里会被复用的颜色代码。
+ * 完全没有颜色码的两种行，按固定形状补上颜色码。
  *
- * ⚠️ 同一个代码在不同语境下**语义不同**：`^F` 在属性行是"活力伤害"（桃红），
- * 在技能行却是职业名（`^g<^F神秘^g>^c黑死病` 里的"神秘"）。而使用者要求
- * 技能与职业名**统一颜色**（游戏里会按人物职业灰掉非本职技能，但库里没有
- * "当前人物"这个概念）。所以这几行要按行判断，不能光靠 CSS。
+ * ★ 为什么会有"没有颜色码"的行：游戏导出 tooltip 时会**按角色当时的职业**
+ *   突出相关条目——与本职业相符的带颜色码，其余不带。库里的 tooltip 出自
+ *   不同角色，所以同一件装备上两种都会出现；补齐后显示就与角色无关了。
+ *
+ * ⚠️ 两种条目的形状不同，别混：
+ *   · 技能等级：`<萨满>野性 技能等级 +3` ——`<职业>` 是**汉化包**给"技能"加的
+ *     职业补丁，**紧贴**技能名（不留空格）。
+ *   · 所有技能：`审判官 所有技能 +1` —— 游戏原版写法，**不带尖括号**，
+ *     职业名后面**有**空格。
  */
-const SKILL_ROW_CODES = new Set(['g', 'c', 'F', 'L']);
+const PLAIN_SKILL_ROW = /^<([^>]+)>(.+?)\s*\(([^)]*)\)\s*技能等级\s*\+(\d+)\s*$/;
+const PLAIN_ALL_SKILLS = /^(\S+)\s+所有技能\s+\+(\d+)\s*$/;
+
+function colorizePlainSkillRow(text: string): string {
+  const skill = text.match(PLAIN_SKILL_ROW);
+  if (skill) {
+    const [, cls, name, english, level] = skill;
+    return `^g<^F${cls}^g>^c${name} ^s(${english}) ^E技能等级 ^H+${level}`;
+  }
+
+  const all = text.match(PLAIN_ALL_SKILLS);
+  if (all) {
+    const [, cls, level] = all;
+    return `^F${cls} ^c所有技能 ^H+${level}`;
+  }
+
+  return text;
+}
+
+/**
+ * 给**没有尖括号**的职业名补上，统一写法。
+ *
+ * 只处理"技能等级"那类；"所有技能"条目本来就不带尖括号，直接跳过。
+ * 认不出（或已经带尖括号）就原样返回——宁可不着色，也不改坏文本。
+ */
+function normalizeBareClassMark(text: string): string {
+  if (text.includes('<') || text.includes('所有技能')) return text;
+
+  for (const name of Object.keys(CLASS_CLASS)) {
+    // 只认"紧跟颜色码、后面是空白或行尾"的职业名，不会误伤正文里的同名词
+    const pattern = new RegExp(`\\^[A-Za-z]${name}(?=\\s|$)`);
+    if (pattern.test(text)) {
+      return text.replace(pattern, `^g<^F${name}^g>`);
+    }
+  }
+  return text;
+}
+
+// ── 职业识别 ─────────────────────────────────────────────────────────
+
+/**
+ * 十个职业，以及它们在 tooltip 里出现过的**所有写法**。
+ *
+ * ★ 一个职业会有两个名字，取决于条目类型：
+ *   尖括号里（`<守誓>`）用**短名**，不带尖括号时（`^L神秘学者`）有的用**全名**。
+ *   （短名来自库数据的实测，全名来自游戏内的职业列表。）
+ */
+const CLASS_NAMES: { cls: string; names: string[] }[] = [
+  { cls: 'tt-cls-soldier', names: ['士兵'] }, // 短名 = 全名
+  { cls: 'tt-cls-demolitionist', names: ['爆破', '爆破者'] },
+  { cls: 'tt-cls-occultist', names: ['神秘', '神秘学者'] },
+  { cls: 'tt-cls-nightblade', names: ['夜刃'] }, // 短名 = 全名
+  { cls: 'tt-cls-arcanist', names: ['奥术'] }, // 短名 = 全名
+  { cls: 'tt-cls-shaman', names: ['萨满'] }, // 短名 = 全名
+  { cls: 'tt-cls-inquisitor', names: ['审判', '审判官'] },
+  { cls: 'tt-cls-necromancer', names: ['死灵', '死灵法师'] },
+  { cls: 'tt-cls-oathkeeper', names: ['守誓', '守誓者'] },
+  { cls: 'tt-cls-berserker', names: ['狂战', '狂战士'] },
+];
+
+/** 名字 → 类名。 */
+const CLASS_CLASS: Record<string, string> = Object.fromEntries(
+  CLASS_NAMES.flatMap(({ cls, names }) => names.map((name) => [name, cls])),
+);
+
+/**
+ * 按名字找职业：精确优先，其次"包含"（认得 `死灵法师` 这种全名）。
+ *
+ * ⚠️ 长度上限 6 个字：否则传进一整行文本时，行里随便出现一个职业名就会被
+ *    误判成"这行是那个职业的"。
+ */
+function matchClassName(text: string): string | undefined {
+  if (CLASS_CLASS[text]) return CLASS_CLASS[text];
+  if (text.length > 6) return undefined;
+
+  for (const name of Object.keys(CLASS_CLASS)) {
+    if (text.includes(name)) return CLASS_CLASS[name];
+  }
+  return undefined;
+}
+
+/**
+ * 这一行提到的是哪个职业（没有就是 undefined）。
+ *
+ * 两种写法都认：`^g<^F神秘^g>…`（职业名在尖括号里）和 `^L萨满 ^E所有技能…`
+ * （没有尖括号，职业名直接跟在颜色码后面）。匹配前先剥掉颜色码。
+ */
+function findLineClass(text: string): string | undefined {
+  const plain = text.replace(/\^[a-zA-Z-]/g, '');
+
+  const inBracket = plain.match(/<([^>]+)>/)?.[1];
+  if (inBracket) {
+    const byBracket = matchClassName(inBracket);
+    if (byBracket) return byBracket;
+  }
+
+  for (const name of Object.keys(CLASS_CLASS)) {
+    if (plain.includes(name)) return CLASS_CLASS[name];
+  }
+  return undefined;
+}
+
+// ── 着色 ─────────────────────────────────────────────────────────────
+
+/**
+ * 技能行里会被"统一色"接管的颜色代码。
+ *
+ * ⚠️ 同一个代码在不同语境下语义不同：`^F` 在属性行是"活力伤害"（桃红），
+ *    在技能行却是职业名。所以只能按行判断，不能光靠 CSS。
+ *
+ * ⚠️ 技能名 `^c` **不在**这里——它按使用者要求用 `--tt-value`（属性数值那种黄），
+ *    由 `.tt-c` 定义。
+ */
+const SKILL_ROW_CODES = new Set(['g', 'F', 'L']);
 
 /** 这一行是不是"技能"相关（+N 技能等级 / 职业技能标记）。 */
 function isSkillRow(text: string, type: number): boolean {
   if (text.includes('技能等级') || text.includes('^g<')) {
     return true;
   }
-
   return type === 12 || type === 13 || type === 14 || type === 16 || type === 49 || type === 51 || type === 52;
 }
 
 /**
  * 把一行带 `^X` 代码的文本切成若干 `<span>`。
  *
- * ⚠️ 刻意**不用** `dangerouslySetInnerHTML`（旧前端是那么干的）：拼 HTML 字符串
+ * ⚠️ 刻意**不用** `dangerouslySetInnerHTML`（旧前端那么干过）：拼 HTML 字符串
  * 再插进 DOM，等于把数据库里的文本当代码执行。这里切成 React 元素，文本永远
  * 只是文本。
  */
@@ -67,15 +191,33 @@ export function parseRow(text: string, skillRow = false): ReactNode[] {
   let buffer = '';
   let key = 0;
 
+  // 整行的职业。得先算：尖括号 `<` 在职业名**前头**，轮到它时还不知道属于谁
+  const lineClass = findLineClass(text);
+
   const flush = () => {
-    if (buffer) {
-      parts.push(
-        <span key={key++} className={className || undefined}>
-          {buffer}
-        </span>,
-      );
-      buffer = '';
-    }
+    if (!buffer) return;
+    const bare = buffer.trim();
+
+    /*
+     * 着色优先级：
+     *   1. 职业名本身（`神秘` / `神秘学者`）→ 按职业分色
+     *   2. 尖括号（`<` / `>`）→ 跟着整行的职业色，与职业名连成一体
+     *   3. "所有技能" → 固定 `tt-c`（`--tt-value`），与技能名同色。
+     *      不论原文写 `^c` 还是 `^E`，都归到这一档
+     *   4. 其余 → 用它自己那段的颜色码（技能名 `^c`、`技能等级` `^E` …）
+     */
+    let cls = className;
+    const byName = matchClassName(bare);
+    if (byName) cls = byName;
+    else if ((bare === '<' || bare === '>') && lineClass) cls = lineClass;
+    else if (bare === '所有技能') cls = 'tt-c';
+
+    parts.push(
+      <span key={key++} className={cls || undefined}>
+        {buffer}
+      </span>,
+    );
+    buffer = '';
   };
 
   for (let i = 0; i < text.length; i++) {
@@ -101,10 +243,85 @@ export function parseRow(text: string, skillRow = false): ReactNode[] {
   return parts;
 }
 
+// ── 缩进 ─────────────────────────────────────────────────────────────
+
+/*
+ * 三级缩进，层级由使用者对着游戏定过（以「复仇粉碎者」为样例）：
+ *   0 级  物品类型、武器基础数值、每秒攻击、需求行、套装名、段标题
+ *   1 级  普通属性行、技能名、套装成员与说明、授予技能的抬头
+ *   2 级  技能下辖的属性、套装加成、授予技能的参数
+ */
+
+/** 0 级：与物品主体齐平。 */
+const LEVEL0 = new Set([
+  17, // 背景说明（"邪术领域天神的号角。"）
+  18, // 武器 / 护甲的基础数值
+  20, // 每秒攻击，以及"需要 玩家等级/体格"这类需求行
+  21, // 套装名
+  24, 25, 34, 36, 65, 67, 68, 70, // 各种段标题（授予技能 / 所有战宠加成 / …）
+  66, // 物品类型（"传奇双手锤"）
+]);
+
+/** 2 级：技能下辖的属性、套装加成、授予技能的参数。 */
+const LEVEL2 = new Set([
+  26, // 技能下辖的属性
+  28, // 套装加成
+  33, 42, 55, 69, 71, // 组件 / 战宠下属的属性
+  83, // 授予技能的参数
+]);
+
+/**
+ * 算出每一行该缩进几级。
+ *
+ * ★ 为什么不逐行只看 type：`type 82` 里混着两种东西，层级差一级——
+ *     `+70 度攻击范围`          → 技能**参数**（2 级）
+ *     `自然复仇者(受到攻击时…)`  → **技能名**（1 级）
+ *   只能看上下文：紧跟在一个"授予技能抬头"（`type 81`）后面的 82 才是参数。
+ *   空行、段标题、类型行都会重置这个状态。
+ */
+function indentLevels(rows: IReplicaRow[]): (0 | 1 | 2)[] {
+  const levels: (0 | 1 | 2)[] = [];
+  /** 上一行是不是"授予技能抬头"，是的话接下来的 82 就是它的参数 */
+  let afterSkillHeader = false;
+
+  for (const row of rows) {
+    if (row.text.trim().length === 0) {
+      afterSkillHeader = false;
+      levels.push(0);
+      continue;
+    }
+
+    let level: 0 | 1 | 2;
+
+    if (LEVEL0.has(row.type)) {
+      afterSkillHeader = false;
+      level = 0;
+    } else if (row.type === 81) {
+      afterSkillHeader = true;
+      level = 1;
+    } else if (row.type === 82) {
+      level = afterSkillHeader ? 2 : 1;
+    } else if (LEVEL2.has(row.type)) {
+      level = 2;
+    } else {
+      // 其余都是 1 级：普通属性 19、技能名 37/38、技能描述 39/40、
+      // 套装说明 22 与成员 23、"+N 到某技能" 79…
+      afterSkillHeader = false;
+      level = 1;
+    }
+
+    levels.push(level);
+  }
+
+  return levels;
+}
+
 /** 空行大多是游戏用来分段的分隔符，渲染成一点空白即可。 */
 function isSeparator(row: IReplicaRow): boolean {
   return row.text.trim().length === 0;
 }
+
+// ── 组件 ─────────────────────────────────────────────────────────────
 
 interface Props {
   rows: IReplicaRow[];
@@ -113,6 +330,9 @@ interface Props {
 export default function ReplicaStatList({ rows }: Props) {
   if (!rows || rows.length === 0) return null;
 
+  // 缩进要看上下文（见 indentLevels），所以整表先算一遍再渲染
+  const levels = indentLevels(rows);
+
   return (
     <div className="tt">
       {rows.map((row, index) => {
@@ -120,11 +340,15 @@ export default function ReplicaStatList({ rows }: Props) {
           return <p key={index} className="tt-gap" />;
         }
 
-        const text = stripEnglishSkillName(row.text);
+        // 顺序不能乱：先补颜色码、再补尖括号，最后才轮到"删英文名"
+        // （它只处理"没有 ^ 的行"，走到这里已经自动跳过）
+        const text = stripEnglishSkillName(
+          normalizeBareClassMark(colorizePlainSkillRow(row.text)),
+        );
         const skillRow = isSkillRow(text, row.type);
 
         return (
-          <p key={index} className={`tt-type-${row.type}`}>
+          <p key={index} className={`tt-type-${row.type} tt-indent-${levels[index]}`}>
             {parseRow(text, skillRow)}
           </p>
         );

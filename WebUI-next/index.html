@@ -4,6 +4,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Item Assistant</title>
+    <!--
+      标签页图标。
+      用 `IAGrim/gd.png`（**带红棕底色**的那版）缩出来的两档，而不是 `gd.ico`——
+      后者背景是**透明的**（只有 GD 两个字母），在 Edge 的浅色标签栏上会透出
+      浅灰白，看着像个白底方块。两个文件都由 gd.png 缩成，放 `public/` 里
+      （Vite 原样拷贝、不加哈希，favicon 的路径必须稳定）。
+    -->
+    <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png" />
   </head>
   <body>
     <div id="root"></div>

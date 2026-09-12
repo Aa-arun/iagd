@@ -1,5 +1,8 @@
 .maintenance {
   max-width: 720px;
+  /* 水平居中（使用者 2026-09-12 要求）：限宽之后要自己顶到中间，
+     否则整块内容会贴在左上角。 */
+  margin-inline: auto;
 }
 
 .maintenance__intro {
