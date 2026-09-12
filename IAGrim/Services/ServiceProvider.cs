@@ -1,4 +1,4 @@
-using IAGrim.Database;
+﻿using IAGrim.Database;
 using IAGrim.Database.DAO;
 using IAGrim.Database.Interfaces;
 using IAGrim.Parsers.TransferStash;
@@ -96,7 +96,7 @@ namespace IAGrim.Services {
                 computedItemStatDao,
                 new ItemStatPrecomputeService(computedItemStatDao, databaseItemStatDao),
                 itemStatService,
-                new FilterOptionsService(computedItemStatDao, itemTagDao)
+                new FilterOptionsService(computedItemStatDao)
             ];
 
             var cacher = new TransferStashServiceCache(databaseItemDao);

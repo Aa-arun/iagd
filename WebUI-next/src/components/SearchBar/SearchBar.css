@@ -2,7 +2,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  flex: 1;
+  /* 固定基准宽度、可收缩：这样高级搜索按钮紧跟在搜索框右边，不会被推到最右 */
+  flex: 0 1 460px;
   min-width: 0;
 }
 

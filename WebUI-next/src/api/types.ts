@@ -29,8 +29,11 @@ export type ItemsResponse = Paged<IItem>;
 export interface FiltersOptions {
   /** 品质。⚠️ `value` 不是枚举名而是**数据库里的值**：Yellow/Green/Blue/Epic */
   qualities: (LabeledOption & { prefixRarity: number })[];
-  /** 槽位（头盔、单手剑…）。清单写死在 C# 的 `SlotTranslator` 里 */
-  slots: LabeledOption[];
+  /**
+   * 槽位，按护甲 / 武器 / 首饰 / 物品分成四组。
+   * 清单、顺序与显示名都写死在 C# 的 `FilterCatalog.SlotGroups` 里。
+   */
+  slotGroups: SlotGroup[];
   /** 职业（class01=士兵…）。已滤掉游戏数据里没有名字的占位项 */
   classes: LabeledOption[];
   /** 数值比较符，`value` 直接对应 C# 的 `StatValueFilter.Op` 枚举名 */
@@ -53,6 +56,28 @@ export interface LabeledOption {
 /** 带 i18n tag 的选项：`label` 是后端已翻好的，`labelTag` 可配合 `/api/i18n` 复查。 */
 export interface OptionItem extends LabeledOption {
   labelTag?: string;
+}
+
+/** 一组槽位（护甲 / 武器 / 首饰 / 物品）。 */
+export interface SlotGroup {
+  id: string;
+  label: string;
+  items: SlotOption[];
+}
+
+export interface SlotOption {
+  value: string;
+  label: string;
+  /** true = "所有物品"哨兵：选中它表示**排除全部装备**，与逐项选择互斥 */
+  inverse: boolean;
+}
+
+/** 一条品质条件（对应 C# 的 `RarityCondition`）。用于"双稀有"这种带词缀数的组合。 */
+export interface RarityCondition {
+  /** 数据库里的品质值：`Yellow` / `Green` / `Blue` / `Epic` */
+  rarity: string;
+  /** 最少词缀数；0 = 只看品质 */
+  prefixRarity: number;
 }
 
 /** 数值过滤的比较符。对应 C# `StatValueFilter.Op`。 */
@@ -168,6 +193,11 @@ export interface ItemSearchRequest {
    * ★ 非空时**优先于** `rarity`。可选项见 `FiltersOptions.qualities`。
    */
   rarities?: string[];
+  /**
+   * 品质条件（**组内是或**）。用于"双稀有"这类需要带上词缀数的组合，
+   * 非空时优先于 `rarities` 与 `rarity`。
+   */
+  rarityConditions?: RarityCondition[];
   /** 绿色物品的词缀数量门槛（配合 `rarity: 'Green'`） */
   prefixRarity?: number;
   /**
@@ -189,6 +219,8 @@ export interface ItemSearchRequest {
   socketedOnly?: boolean;
   /** 职业（`class01` …）。来自 `FiltersOptions.classes` */
   classes?: string[];
+  /** 职业过滤用**或**：加成一个即可（缺省 = 与：要同时加成所选职业） */
+  classesAny?: boolean;
   /** 只看重复物品 */
   duplicatesOnly?: boolean;
   hasPetBonus?: boolean;
@@ -196,8 +228,10 @@ export interface ItemSearchRequest {
   petBonuses?: boolean;
   /** 只看反击类物品（对应过滤面板"伤害"组里的"反击"） */
   isRetaliation?: boolean;
-  /** 只看到手 12 小时以内的物品 */
-  recentOnly?: boolean;
+  /** 只看最近 N 小时内入库的物品；0 = 不限。界面给的是"五小时内 / 一天内 / 一周内 / 一月内" */
+  recentHours?: number;
+  /** 只看装过附魔的装备（`PlayerItem.EnchantmentRecord` 非空） */
+  enchantedOnly?: boolean;
   /** 只看能授予技能、可放上技能栏触发的物品 */
   withGrantSkillsOnly?: boolean;
   /** 只看能授予召唤技能的物品 */

@@ -225,7 +225,11 @@ body {
    */
   grid-template-rows: minmax(0, 1fr);
   grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 12px;
+  /*
+   * ⚠️ 没有固定栏时**不留 gap**：左右两列宽度本来就是 0，但 gap 仍会各占 12px，
+   * 于是列表比工具条和过滤面板窄 24px（左右边缘对不齐）。有固定栏时才需要间距。
+   */
+  gap: 0;
   /* 兜底：万一还有别的溢出，就在这一层裁掉，绝不让它冒到文档上去 */
   overflow: hidden;
 }
@@ -341,6 +345,11 @@ body {
    * 置 0 之后栏高完全由 grid 行决定，长属性交给面板内部的 `overflow-y` 滚动。
    */
   min-height: 0;
+}
+
+/* 有固定栏时才需要列间距（见上面 gap: 0 的说明） */
+.app__content[data-dock] {
+  gap: 12px;
 }
 
 .app__content[data-dock='left'] .app__dock--left,
