@@ -122,6 +122,9 @@ namespace IAGrim.Utilities {
                 URL = transferUrl,
                 Icon = item.Bitmap ?? string.Empty,
                 Name = PureItemName(item.Name ?? string.Empty) ?? string.Empty,
+                NameCore = CoreName(item) ?? string.Empty,
+                PrefixTag = AffixTag(item, item.PrefixRecord),
+                SuffixTag = AffixTag(item, item.SuffixRecord),
                 Quality = item.Rarity ?? string.Empty,
                 Level = item.MinimumLevel,
                 Socket = GetSocketFromItem(item.Name ?? string.Empty) ?? string.Empty,
@@ -230,6 +233,70 @@ namespace IAGrim.Utilities {
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
+        /// <summary>
+        /// 前缀/后缀的 tag 名（如 `tagPrefixB001_Sh_A`）。
+        ///
+        /// 词缀的**显示文本**不从这里取——那是前端用我们自己的词缀表查的
+        /// （见 .docs/12-装备显示与交互.md）。这里只给出"是哪条词缀"。
+        /// </summary>
+        private static string? AffixTag(PlayerHeldItem item, string? record) {
+            if (string.IsNullOrEmpty(record) || item.Tags == null) {
+                return null;
+            }
+
+            return item.Tags
+                .FirstOrDefault(t => t.Record == record && t.Stat == "lootRandomizerName")
+                ?.TextValue;
+        }
+
+        /// <summary>
+        /// **纯基础名**（不含前后缀），如 "保护者 胸铠"。
+        ///
+        /// 取自游戏数据里基础物品自己的 `itemNameTag`（少数物品如药水用
+        /// `description`，与 GetItemName 的取值顺序一致），再用当前语言翻译。
+        /// 这样前端可以自己拼"前缀 + 基础名 + 后缀"，而不必去减 item.Name
+        /// ——那个减法在两套汉化包的词缀文本不同时会失效。
+        /// </summary>
+        private static string? CoreName(PlayerHeldItem item) {
+            if (item.Tags == null) {
+                return null;
+            }
+
+            string? TagOf(string stat) =>
+                item.Tags.FirstOrDefault(t => t.Record == item.BaseRecord && t.Stat == stat)?.TextValue;
+
+            string Translate(string? tag) {
+                if (string.IsNullOrEmpty(tag)) {
+                    return string.Empty;
+                }
+
+                var translated = RuntimeSettings.Language?.GetTag(tag);
+                return string.IsNullOrEmpty(translated) ? tag : translated;
+            }
+
+            // ⚠️ 基础名**不只是** itemNameTag：游戏的名字是
+            //    prefix + quality + style + name + suffix
+            //    （见汉化包 tags_items.txt 第一行的 {%_s0}…{%_s4} 模板）。
+            //    例如"保护者 马裤"里"保护者"来自 itemQualityTag、"马裤"才是 itemNameTag。
+            //    少拼 quality 就会变成光秃秃的"马裤"（实测踩到）。
+            var quality = Translate(TagOf("itemQualityTag"));
+            var style = Translate(TagOf("itemStyleTag"));
+            var name = Translate(TagOf("itemNameTag"));
+
+            if (string.IsNullOrEmpty(name)) {
+                // 少数物品（药水之类）没有 itemNameTag，用 description
+                name = Translate(TagOf("description"));
+            }
+
+            if (string.IsNullOrEmpty(quality) && string.IsNullOrEmpty(style) && string.IsNullOrEmpty(name)) {
+                return null;
+            }
+
+            // 用与 GetItemName 相同的模板组装，只是不带前缀后缀
+            var localized = RuntimeSettings.Language?.TranslateName(string.Empty, quality, style, name, string.Empty);
+            return string.IsNullOrEmpty(localized) ? name : localized;
+        }
+
         private static string PureItemName(string name) {
             if (!string.IsNullOrEmpty(name) && name.Contains("[")) {
                 string[] tmp = name.Split('[');

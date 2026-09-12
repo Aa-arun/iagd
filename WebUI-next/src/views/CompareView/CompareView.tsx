@@ -2,7 +2,8 @@ import type { ItemViewProps } from '../types';
 import { iconUrl } from '../../api';
 import { qualityClass } from '../../components/ItemCard/quality';
 import TransferButton from '../../components/TransferButton/TransferButton';
-import ReplicaStatList, { parseRow } from '../../components/ItemDetail/ReplicaStatList';
+import ReplicaStatList from '../../components/ItemDetail/ReplicaStatList';
+import ItemName from '../../components/ItemName';
 import { slotLabel } from '../../model/slot';
 import { itemTypeLabel } from '../../model/item';
 import { useTranslation } from '../../i18n';
@@ -55,7 +56,7 @@ export default function CompareView({
 
               <div className="compare-card__title">
                 <h2 className={`compare-card__name ${qualityClass(item.quality)}`}>
-                  {parseRow(item.name)}
+                  <ItemName item={item} />
                 </h2>
                 <p className="compare-card__meta">
                   <span className="item-type">{itemTypeLabel(item) ?? item.quality}</span>

@@ -6,7 +6,8 @@ import { slotLabel } from '../../model/slot';
 import { playerItemId } from '../../model/item';
 import { useItemDetail } from './ItemDetailContext';
 import StatList from './StatList';
-import ReplicaStatList, { parseRow } from './ReplicaStatList';
+import ReplicaStatList from './ReplicaStatList';
+import ItemName from '../ItemName';
 import './ReplicaStatList.css';
 import './ItemDetail.css';
 
@@ -125,15 +126,9 @@ export default function ItemDetailPanel() {
           />
         )}
         <div className="item-detail__title">
-          {/*
-            物品名里可能带**词缀的颜色代码**：汉化包把前缀/后缀定义成
-            `^y磐石☆·` / `^y·野猪☆`（`☆` 是"推荐词缀"标记），而
-            `ItemOperationsUtility.GetItemName` 是**直接取 tag 文本**拼名字的，
-            所以这些代码会原样出现在 item.name 里。
-            解析后未被代码覆盖的部分继承父元素的颜色 —— 也就是下面的稀有度色。
-          */}
+          {/* 名字由 ItemName 用我们自己的词缀表组装，见 model/affixes.ts */}
           <h2 className={`item-detail__name ${qualityClass(item.quality)}`}>
-            {parseRow(item.name)}
+            <ItemName item={item} />
           </h2>
           <p className="item-detail__meta">
             <span className={qualityClass(item.quality)}>{item.quality}</span>

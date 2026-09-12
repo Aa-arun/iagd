@@ -28,6 +28,11 @@ export default interface IItem {
   /** 品质，如 `Legendary` / `Epic` / `Blue` */
   quality: string;
   name: string;
+  /** 纯基础名（不含前后缀），由 C# 提供。见 model/affixes.ts */
+  nameCore?: string;
+  /** 前缀/后缀的 tag 名（如 tagPrefixB001_Sh_A），由 C# 提供 */
+  prefixTag?: string;
+  suffixTag?: string;
   socket: string;
   level: number;
   /** 转移物品时回传给后端的标识数组（不是 URL，是历史命名） */
