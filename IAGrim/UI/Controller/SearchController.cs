@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using IAGrim.Database;
 using IAGrim.Database.DAO.Util;
@@ -14,8 +14,7 @@ namespace IAGrim.UI.Controller {
     /// 物品检索。
     ///
     /// ★ 只有一条通路：<see cref="QueryItems"/> 把一次查询的结果**作为数据**返回（供 HTTP 层用）。
-    /// 曾经还有第二条"推给 WebView2"的通路（`Browser` 回调 + 两个 `Search()` 重载 + 跨批分页状态），
-    /// 随旧界面一起删除了——新前端自己知道在看什么（搜索词、分页），不需要后端替它维护。
+    /// 分页由调用方用 `offset` 表达——前端自己知道在看什么，不需要后端替它维护跨批游标。
     /// </summary>
     public class SearchController {
         private readonly IPlayerItemDao _playerItemDao;

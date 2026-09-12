@@ -194,6 +194,14 @@ export interface ItemSearchRequest {
   hasPetBonus?: boolean;
   /** 把其它属性过滤限制在**战宠**记录上（"战宠的攻击速度"） */
   petBonuses?: boolean;
+  /** 只看反击类物品（对应过滤面板"伤害"组里的"反击"） */
+  isRetaliation?: boolean;
+  /** 只看到手 12 小时以内的物品 */
+  recentOnly?: boolean;
+  /** 只看能授予技能、可放上技能栏触发的物品 */
+  withGrantSkillsOnly?: boolean;
+  /** 只看能授予召唤技能的物品 */
+  withSummonerSkillOnly?: boolean;
   /** 存在性过滤：每个元素是一组 stat 字段，**命中组内任意一个**即可（组间是 AND） */
   filters?: string[][];
   /** 数值过滤：`fields` 的值求和后与 `threshold` 比较 */

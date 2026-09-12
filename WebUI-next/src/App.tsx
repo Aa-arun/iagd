@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   connectLive,
+  fetchFilterOptions,
   fetchHealth,
   fetchI18n,
   fetchItems,
   searchItems,
+  type FiltersOptions,
   type I18nMap,
   type ItemsResponse,
   type LiveMaintenance,
@@ -15,6 +17,7 @@ import { I18nProvider } from './i18n';
 import { ItemDetailProvider } from './components/ItemDetail';
 import { useItemView } from './views/useItemView';
 import { usePaging } from './views/usePaging';
+import { buildSearchRequest, hasAnyFilter, useFilters } from './views/useFilters';
 import AppShell, { type Toast } from './AppShell';
 
 /** 输入停顿多久才发请求。太短会让每敲一个字母都打一次后端。 */
@@ -127,6 +130,15 @@ export default function App() {
   /** 加载方式（无限滚动 / 翻页）+ 每页条数 + 当前页，偏好存 localStorage */
   const { loadMode, setLoadMode, pageSize, setPageSize, page, setPage } = usePaging();
   const [keyword, setKeyword] = useState('');
+  /** 过滤面板 + 高级搜索的全部条件（含 localStorage 持久化） */
+  const filters = useFilters();
+  /**
+   * 过滤器可选项（品质/槽位/职业/分组/属性）。
+   *
+   * 只在页面加载时取一次：它反映的是"游戏数据 + 已预计算的属性"，运行期变化很小。
+   * 后端在维护期间会返回 503，那时保持 `null`，面板会显示"正在读取可选项…"。
+   */
+  const [filterOptions, setFilterOptions] = useState<FiltersOptions | null>(null);
 
   /**
    * 当前要显示的物品。
@@ -220,13 +232,34 @@ export default function App() {
     };
   }, []);
 
-  /** 按当前关键词取一段。关键词为空就是"浏览全部" */
+  // 过滤器的可选项。取不到也不致命：面板会停在上面的 `null` 状态，
+  // 搜索框与列表照常工作（过滤条件本来就只在用户勾选后才进入请求）。
+  useEffect(() => {
+    let cancelled = false;
+    fetchFilterOptions()
+      .then((options) => {
+        if (!cancelled) setFilterOptions(options);
+      })
+      .catch(() => {
+        /* 忽略：维护期间后端会拒掉查询，等下次刷新页面即可 */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** 按当前关键词 + 过滤条件取一段 */
   const runQuery = useCallback<PageFetcher>(
     (offset, limit) => {
-      const q = keyword.trim();
-      return q ? searchItems({ wildcard: q, offset, limit }) : fetchItems(offset, limit);
+      // 没有任何条件时走更轻的 `/api/items`（等价于空条件的搜索）
+      if (!keyword.trim() && !hasAnyFilter(filters.selected, filters.advanced)) {
+        return fetchItems(offset, limit);
+      }
+      return searchItems(
+        buildSearchRequest(filterOptions, filters.selected, filters.advanced, keyword, offset, limit),
+      );
     },
-    [keyword],
+    [keyword, filterOptions, filters.selected, filters.advanced],
   );
 
   /**
@@ -416,6 +449,8 @@ export default function App() {
           onTabChange={setTab}
           keyword={keyword}
           onKeywordChange={setKeyword}
+          filterOptions={filterOptions}
+          filters={filters}
           viewId={viewId}
           onViewChange={setViewId}
           items={items}
