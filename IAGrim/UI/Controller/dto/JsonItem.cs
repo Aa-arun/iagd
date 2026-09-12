@@ -15,6 +15,21 @@ namespace IAGrim.UI.Controller.dto {
         public string? Quality { get; set; }
 
         public string? Name { get; set; }
+
+        /// <summary>
+        /// **纯基础名**（不含前缀/后缀），如 "保护者 胸铠"。
+        ///
+        /// 前端用它 + <see cref="PrefixTag"/> / <see cref="SuffixTag"/> 自己组装
+        /// 完整名字——因为词缀的显示文本由**我们自己的词缀表**决定
+        /// （见 .docs/12-装备显示与交互.md），不能用游戏当前汉化包拼好的 Name。
+        /// </summary>
+        public string? NameCore { get; set; }
+
+        /// <summary>前缀的 tag 名，如 `tagPrefixB001_Sh_A`；没有前缀时为 null。</summary>
+        public string? PrefixTag { get; set; }
+
+        /// <summary>后缀的 tag 名，如 `tagSuffixA007`。</summary>
+        public string? SuffixTag { get; set; }
         public string? Socket { get; set; }
         public string? Slot { get; set; }
         public float Level { get; set; }

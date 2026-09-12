@@ -4,7 +4,7 @@ import { IItemType } from '../../model/enums';
 import { formatNumber } from '../../model/format';
 import { iconUrl } from '../../api';
 import { qualityClass } from './quality';
-import { parseRow } from '../ItemDetail/ReplicaStatList';
+import ItemName from '../ItemName';
 import TransferButton from '../TransferButton/TransferButton';
 import './ItemCard.css';
 
@@ -30,7 +30,7 @@ export default function ItemCard({ item }: { item: IItem }) {
       <div className="item-card__body">
         <div className="item-card__name-row">
           <h2 className={`item-card__name ${qualityClass(item.quality)}`}>
-            {parseRow(item.name)}
+            <ItemName item={item} />
           </h2>
           <TransferButton item={item} />
         </div>

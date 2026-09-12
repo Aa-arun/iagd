@@ -2,7 +2,7 @@ import type { ItemViewProps } from '../types';
 import { iconUrl } from '../../api';
 import { qualityClass } from '../../components/ItemCard/quality';
 import { itemTypeLabel } from '../../model/item';
-import { parseRow } from '../../components/ItemDetail/ReplicaStatList';
+import ItemName from '../../components/ItemName';
 import TransferButton from '../../components/TransferButton/TransferButton';
 import { slotLabel } from '../../model/slot';
 import { formatNumber } from '../../model/format';
@@ -61,7 +61,7 @@ export default function TableView({
               ) : null}
             </td>
             <td className={`item-table__name ${qualityClass(item.quality)}`}>
-              {parseRow(item.name)}
+              <ItemName item={item} />
             </td>
             <td className="item-type">
               {itemTypeLabel(item) ?? item.quality}
