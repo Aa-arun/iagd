@@ -1,4 +1,4 @@
-using EvilsoftCommons.Exceptions;
+﻿using EvilsoftCommons.Exceptions;
 using EvilsoftCommons.SingleInstance;
 using IAGrim.Backup.Cloud;
 using IAGrim.Database;
@@ -21,7 +21,7 @@ namespace IAGrim
 {
     internal static class Program {
         private static readonly ILog Logger = LogManager.GetLogger(typeof(Program));
-        private static MainWindow? _mw;
+        private static AppHost? _mw;
         private static readonly StartupService StartupService = new StartupService();
 
         private static void LoadUuid(SettingsService settings) {
@@ -36,7 +36,7 @@ namespace IAGrim
             ExceptionReporter.Uuid = uuid;
         }
 
-        public static MainWindow? MainWindow => _mw;
+        public static AppHost? AppHost => _mw;
 
         /// <summary>
         /// Builds the session factory ahead of the first caller that needs it.
@@ -316,7 +316,7 @@ namespace IAGrim
             // 都检查一遍自带的前端是否被换掉了。见 FrontendDeployer 的说明。
             FrontendDeployer.EnsureDeployed();
 
-            _mw = new MainWindow(
+            _mw = new AppHost(
                 serviceProvider,
                 parsingService
             );
@@ -336,7 +336,7 @@ namespace IAGrim
             // 这里原本有一句 `_mw.Visible = false;`——**它是无效的**：
             // 下面的 `Application.Run(_mw)` 会把窗口重新设为可见，于是启动时旧界面
             // 会在屏幕上停留几秒（原来是等 WebView2 初始化完成才 Hide）。使用者
-            // 明确反馈过这一点。主窗口现在由 `MainWindow.SetVisibleCore` 永久拦住。
+            // 明确反馈过这一点。主窗口现在由 `AppHost.SetVisibleCore` 永久拦住。
             if (new DonateNagScreen(settingsService).CanNag)
                 Application.Run(new DonateNagScreen(settingsService));
 

@@ -121,7 +121,7 @@ namespace IAGrim.UI {
         }
 
         private void LanguagePackPicker_FormClosing(object sender, FormClosingEventArgs e) {
-            Program.MainWindow?.UpdateLanguage();
+            Program.AppHost?.UpdateLanguage();
         }
     }
 }
