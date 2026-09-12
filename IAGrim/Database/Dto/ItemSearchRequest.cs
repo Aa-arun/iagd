@@ -31,6 +31,27 @@ namespace IAGrim.Database.Dto {
         public float MinimumLevel { get; set; }
         public float MaximumLevel { get; set; }
         public string? Rarity { get; set; }
+
+        /// <summary>
+        /// 品质**多选**（`Yellow` / `Green` / `Blue` / `Epic`），对应过滤器面板里的稀有度 checklist
+        /// （见 .docs/09-高级搜索.md §3）。
+        ///
+        /// ★ 非空时**优先于** <see cref="Rarity"/>；单值那个字段是旧界面路径用的，
+        /// 留着它旧界面的搜索行为就完全不变。
+        ///
+        /// ⚠️ 值是**数据库里的值**，不是游戏里的说法：游戏的"传奇"在库里是 `Epic`、
+        /// 游戏的"史诗"是 `Blue`。可选项与中文标签见 `GET /api/filters/options` 的 `qualities`。
+        /// </summary>
+        public List<string> Rarities { get; set; } = new List<string>();
+
+        /// <summary>
+        /// 按**等级需求**升序排列（与旧界面的「按等级排序」复选框一致）；false = 按物品名排序。
+        ///
+        /// 它只是排序、不是过滤条件，所以不影响 <see cref="IsEmpty"/>。
+        /// ⚠️ 分页期间换排序会让切片对不上——那是调用方要自己避免的事。
+        /// </summary>
+        public bool OrderByLevel { get; set; }
+
         public string[]? Slot { get; set; }
 
         /// <summary>
@@ -80,7 +101,7 @@ namespace IAGrim.Database.Dto {
                     return false;
                 if (MinimumLevel >= 1 || MaximumLevel <= 84)
                     return false;
-                if (!String.IsNullOrEmpty(Rarity) || Slot != null)
+                if (!String.IsNullOrEmpty(Rarity) || Rarities.Count > 0 || Slot != null)
                     return false;
                 if (PetBonuses || HasPetBonus || IsRetaliation || Classes.Count > 0 || SocketedOnly || RecentOnly)
                     return false;

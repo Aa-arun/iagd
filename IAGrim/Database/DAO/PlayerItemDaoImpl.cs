@@ -845,7 +845,16 @@ namespace IAGrim.Database {
 
             queryFragments.Add(query.IsHardcore ? "PI.IsHardcore" : "NOT PI.IsHardcore");
 
-            if (!string.IsNullOrEmpty(query.Rarity)) {
+            // 品质。★ 多选优先——过滤器面板的稀有度是 checklist（"魔法或传奇"要一次查出来），
+            // 单值那个字段留给旧界面路径，行为不变。
+            // ⚠️ 过滤掉空串之后再判断：SQL 的 `IN ( )` 空列表会报错。
+            var rarities = query.Rarities?.Where(r => !string.IsNullOrWhiteSpace(r)).Distinct().ToArray()
+                           ?? Array.Empty<string>();
+            if (rarities.Length > 0) {
+                queryFragments.Add("PI.Rarity IN ( :rarities )");
+                statFilterListParams.Add("rarities", rarities);
+            }
+            else if (!string.IsNullOrEmpty(query.Rarity)) {
                 queryFragments.Add("PI.Rarity = :rarity");
                 queryParams.Add("rarity", query.Rarity);
             }

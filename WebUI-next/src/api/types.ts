@@ -161,14 +161,29 @@ export interface ItemSearchRequest {
   wildcard?: string;
   minimumLevel?: number;
   maximumLevel?: number;
-  /** 品质。⚠️ 用数据库里的值 `Yellow` / `Green` / `Blue` / `Epic`，不是 `Legendary` */
+  /** 品质**单值**。⚠️ 用数据库里的值 `Yellow` / `Green` / `Blue` / `Epic`，不是 `Legendary` */
   rarity?: string | null;
+  /**
+   * 品质**多选**（过滤器面板的稀有度是 checklist）。
+   * ★ 非空时**优先于** `rarity`。可选项见 `FiltersOptions.qualities`。
+   */
+  rarities?: string[];
   /** 绿色物品的词缀数量门槛（配合 `rarity: 'Green'`） */
   prefixRarity?: number;
+  /**
+   * 排序：`true` = 按等级需求升序（旧界面的「按等级排序」），缺省 = 按物品名。
+   * ⚠️ 只是排序、不是过滤条件；分页期间别改它，否则切片会对不上。
+   */
+  orderByLevel?: boolean;
   /** 槽位（`ArmorProtective_Head` …） */
   slot?: string[] | null;
   /** true = **排除** `slot` 里的槽位 */
   slotInverse?: boolean;
+  /**
+   * 仓库前提，**不是**可选过滤：空 = 只看非 Mod 物品。
+   * ⏸ 目前前端**没有**选择器（2026-09-12 决定暂不做）→ 见 `.docs/13-后端待办与计划.md` §3。
+   */
+  mod?: string | null;
   /** 查普通仓库还是硬核仓库——二选一，不是"可选过滤" */
   isHardcore?: boolean;
   socketedOnly?: boolean;
