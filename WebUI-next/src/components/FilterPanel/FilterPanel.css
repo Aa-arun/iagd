@@ -46,16 +46,31 @@
   transform: rotate(90deg);
 }
 
-/* "已选 N 项" —— 收起状态下也必须看得见，否则不知道有过滤在生效 */
+/*
+ * "已选 N 项" —— 收起状态下也必须看得见，否则不知道有过滤在生效。
+ *
+ * ★ 使用者 2026-09-13 要求：这块**必须预留两位数字的宽度并固定住**。
+ *   原先它是"有内容才渲染"，勾上第一项时徽章凭空出现，把右边的「清除」
+ *   和图例整体推开——页面一直在动。现在：
+ *   - 高度/宽度固定成两位数字（`tabular-nums` 让 1 和 11 等宽）
+ *   - 为 0 时由 `.is-empty` 隐藏但**仍然占位**
+ */
 .filter-panel__count {
-  min-width: 18px;
-  padding: 1px 5px;
+  display: inline-block;
+  width: 26px;
+  padding: 1px 0;
   background: var(--focus-accent);
   color: #241d0d;
   border-radius: 9px;
   font-size: 11px;
   line-height: 15px;
   text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 计数为 0：占位但不显示数字（"0" 没有信息量） */
+.filter-panel__count.is-empty {
+  visibility: hidden;
 }
 
 /* 一键清除：**直角**矩形，与圆角选项区分开 */

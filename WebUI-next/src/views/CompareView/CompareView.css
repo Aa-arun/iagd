@@ -93,6 +93,17 @@
 .compare-card__body {
   flex: 1;
   padding: 8px 12px 12px;
+
+  /*
+   * 字体与字号倍率可在设置里改（见 prefs/UiPrefs.tsx）。
+   * ⚠️ `.tt` 自带 13px，所以倍率要显式作用到它身上，不能只写在这一层。
+   */
+  font-family: var(--compare-font-family, inherit);
+  font-size: calc(12px * var(--compare-font-scale, 1));
+}
+
+.compare-card__body .tt {
+  font-size: calc(13px * var(--compare-font-scale, 1));
 }
 
 .compare-card__empty {

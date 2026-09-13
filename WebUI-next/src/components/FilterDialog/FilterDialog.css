@@ -1,0 +1,16 @@
+/*
+ * 专注模式下的「过滤器与视图」弹窗。
+ *
+ * 外壳（遮罩 / 对话框 / 分区 / 页脚按钮）全部复用 `AdvancedSearch.css` 的
+ * `adv-search__*` 与 `adv-section*`，这里只放它自己的两点差异。
+ */
+
+/* 比高级搜索窄一些：它没有属性数值那种长下拉行 */
+.filter-dialog__dialog {
+  width: min(880px, 100%);
+}
+
+/* 工具条在弹窗里是"一块设置"，不需要它原来那个下边距 */
+.filter-dialog__dialog .view-toolbar {
+  padding-bottom: 0;
+}

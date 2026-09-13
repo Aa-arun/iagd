@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FiltersOptions, LiveMaintenance } from './api';
 import type IItem from './model/item';
 import { formatRange, formatTotal } from './model/format';
@@ -7,14 +7,17 @@ import MaintenanceView from './views/MaintenanceView/MaintenanceView';
 import { ItemDetailPanel, useItemDetail } from './components/ItemDetail';
 import { dockedSide } from './components/ItemDetail/ItemDetailContext';
 import SearchBar from './components/SearchBar/SearchBar';
-import AdvancedSearch from './components/AdvancedSearch/AdvancedSearch';
+import { AdvancedSearchButton, AdvancedSearchDialog } from './components/AdvancedSearch/AdvancedSearch';
 import FilterPanel from './components/FilterPanel/FilterPanel';
+import FilterDialog from './components/FilterDialog/FilterDialog';
 import ViewToolbar from './views/ViewToolbar';
 import { findView } from './views/registry';
 import ItemList from './views/ItemList';
 import SettingsView from './views/SettingsView/SettingsView';
-import { hasAnyFilter, type FilterControls } from './views/useFilters';
+import { countFilters, hasAnyFilter, type FilterControls } from './views/useFilters';
 import type { PagingState } from './views/usePaging';
+import type { SortState } from './views/useSort';
+import { isTypingTarget, useUiPrefs } from './prefs/UiPrefs';
 
 /** 一条要显示的提示。 */
 export interface Toast {
@@ -33,10 +36,14 @@ interface Props {
   onKeywordChange: (value: string) => void;
   /** 过滤器可选项；`null` = 还没读到 */
   filterOptions: FiltersOptions | null;
-  /** 过滤面板 + 高级搜索的状态与改法 */
+  /** **过滤器**（过滤面板）的条件：作用在搜索结果之上 */
   filters: FilterControls;
+  /** **搜索条件**（高级搜索里的那些选项 + 关键词）：决定搜出来什么，与过滤器无关 */
+  search: FilterControls;
   viewId: string;
   onViewChange: (id: string) => void;
+  /** 排序偏好（工具条上的下拉） */
+  sort: SortState;
   /** 当前要显示的物品：翻页模式 = 这一页；无限滚动 = 已累积的全部 */
   items: IItem[];
   /** 匹配总数；`null` = 还没查到。可能是 `-1`（超过后端单次上限，精确数未知） */
@@ -74,8 +81,13 @@ interface Props {
  *   固定栏用 grid 的列实现，**面板是普通文档流元素**（不是 position:fixed），
  *   所以它天然在工具条下方（不顶头），宽度也与是否选中无关（始终留栏）。
  *
- * ★ 2026-09-12 新增分页：中间那一列变成了一个 flex 纵向容器
- *   （`.app__list-col`）——上半是列表（自己滚），下半是翻页控件（不动）。
+ * ★ 2026-09-13 新增三件事（使用者要求）：
+ *   1. **快捷键**：/ 聚焦搜索框、f 过滤、s 高级搜索、i 专注模式。
+ *      键位可在设置里改（见 prefs/UiPrefs.tsx）。
+ *   2. **专注模式**：整页只剩列表，右上角一个退出按钮；s 仍弹高级搜索，
+ *      f 弹出"过滤器 + 视图工具条"的对话框（见 components/FilterDialog）。
+ *   3. **浮动详情修好了**：以前 `hover` 模式下两个 `app__dock` 都是空判断，
+ *      面板根本没挂载——所以"浮动"没有任何 hover 会出现（使用者报的 bug）。
  */
 export default function AppShell({
   tab,
@@ -84,8 +96,10 @@ export default function AppShell({
   onKeywordChange,
   filterOptions,
   filters,
+  search,
   viewId,
   onViewChange,
+  sort,
   items,
   total,
   loading,
@@ -96,19 +110,177 @@ export default function AppShell({
   maintenance,
   paging,
 }: Props) {
-  const searching = keyword.trim().length > 0;
+  /*
+   * 三种"有没有在筛"要分开算，因为它们的去处不同：
+   *   - `hasKeyword`：搜索框里有没有词
+   *   - `searched`：搜索侧总共有没有在筛（关键词或高级搜索条件）→ 决定要不要显示「退出搜索」
+   *   - `filtered`：过滤面板有没有在筛 → 决定折叠头上的角标与空列表的文案
+   */
+  const hasKeyword = keyword.trim().length > 0;
   const filtered = hasAnyFilter(filters.selected, filters.advanced);
+  const searched = hasKeyword || hasAnyFilter(search.selected, search.advanced);
+  /** 高级搜索按钮上的角标：它自己加了几条条件（关键词不算，那是搜索框的事） */
+  const searchBadge = countFilters(search.selected, search.advanced);
   const shown = items.length;
 
   // 固定栏在哪一侧由详情面板的显示方式决定
   const { displayMode } = useItemDetail();
+  const view = findView(viewId);
 
   /*
    * 有些视图（如「详细对照」）本身就把完整属性摊开了，"详情"面板没有意义。
    * 那种视图下**不留侧栏、也不挂面板**——只是不显示，`displayMode` 原样保留，
    * 切回别的视图时会自然恢复。
    */
-  const side = findView(viewId).showsFullStats ? null : dockedSide(displayMode);
+  const side = view.showsFullStats ? null : dockedSide(displayMode);
+  /** 浮动模式：面板不占栏位，但必须**挂载**，否则 hover 什么也不会出现 */
+  const floatingPanel = !view.showsFullStats && displayMode === 'hover';
+
+  /** 过滤面板是否展开（f 键也要能开合，所以状态提到这里） */
+  const [filterOpen, setFilterOpen] = useState(false);
+  /** 高级搜索弹窗 */
+  const [advOpen, setAdvOpen] = useState(false);
+  /** 专注模式 */
+  const [focusMode, setFocusMode] = useState(false);
+  /** 专注模式下的「过滤器 + 视图」弹窗 */
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false);
+
+  /** 搜索框引用：`/` 要能直接聚焦它 */
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const { prefs } = useUiPrefs();
+  const { shortcuts } = prefs;
+
+  /** 换页签就退出专注模式：那个模式是"看物品"专用的（其它页没有列表） */
+  const changeTab = useCallback(
+    (next: AppTab) => {
+      setFocusMode(false);
+      setFilterDialogOpen(false);
+      onTabChange(next);
+    },
+    [onTabChange],
+  );
+
+  const leaveFocus = useCallback(() => {
+    setFocusMode(false);
+    setFilterDialogOpen(false);
+    setAdvOpen(false);
+  }, []);
+
+  /**
+   * 「退出搜索」：清掉关键词 + 高级搜索条件，回到没搜索过的列表。
+   *
+   * ★ 刻意**不动过滤器**：搜索与过滤是两套东西（使用者 2026-09-13 澄清），
+   *   过滤器有自己的「清除」。要是这里连过滤器一起清，就等于替人做了决定。
+   */
+  const clearSearchConditions = search.clear;
+  const exitSearch = useCallback(() => {
+    onKeywordChange('');
+    clearSearchConditions();
+  }, [onKeywordChange, clearSearchConditions]);
+
+  /*
+   * 全局快捷键（使用者 2026-09-13 要求，键位可在设置里改）。
+   *
+   * ⚠️ 三个"不要抢"的规则：
+   *   1. 焦点在输入框 / 下拉里时直接放行 —— 否则搜索框里打不出 s、f、i、c。
+   *   2. 弹窗开着时，**关闭类**的键（s 关高级搜索、f 关过滤器）仍然生效，
+   *      其余（Enter / Esc / c）交给弹窗自己处理。
+   *   3. `c`（清除过滤条件）放在**所有自定义快捷键之后**：万一有人把某个功能
+   *      设成 c，那个功能优先，不会和清除动作打架。
+   */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (isTypingTarget(e.target)) return;
+
+      const key = e.key.toLowerCase();
+
+      // ── 弹窗开着：放行"关掉它 / 切到另一个弹窗 / 退出专注模式" ──
+      if (advOpen) {
+        if (key === shortcuts.advanced) {
+          e.preventDefault();
+          setAdvOpen(false);
+        } else if (key === shortcuts.filter) {
+          // s 与 f 之间可以直接来回切，不用先关一个再开另一个
+          e.preventDefault();
+          setAdvOpen(false);
+          if (focusMode) setFilterDialogOpen(true);
+          else setFilterOpen((v) => !v);
+        } else if (focusMode && key === shortcuts.focus) {
+          e.preventDefault();
+          leaveFocus();
+        }
+        return;
+      }
+      if (filterDialogOpen) {
+        if (key === shortcuts.filter) {
+          e.preventDefault();
+          setFilterDialogOpen(false);
+        } else if (key === shortcuts.advanced) {
+          e.preventDefault();
+          setFilterDialogOpen(false);
+          setAdvOpen(true);
+        } else if (focusMode && key === shortcuts.focus) {
+          e.preventDefault();
+          leaveFocus();
+        }
+        return;
+      }
+
+      if (key === 'escape') {
+        if (focusMode) {
+          e.preventDefault();
+          leaveFocus();
+        }
+        return;
+      }
+
+      if (key === shortcuts.search) {
+        // 专注模式下没有搜索框：退而打开高级搜索（它顶部就是搜索框）
+        e.preventDefault();
+        if (searchRef.current) searchRef.current.focus();
+        else setAdvOpen(true);
+        return;
+      }
+
+      if (key === shortcuts.filter) {
+        e.preventDefault();
+        if (focusMode) setFilterDialogOpen((v) => !v);
+        else setFilterOpen((v) => !v);
+        return;
+      }
+
+      if (key === shortcuts.advanced) {
+        e.preventDefault();
+        // 专注模式与非专注模式都要能开——弹窗本身由 AppShell 渲染，
+        // 不再挂在工具条里（挂在里面的话专注模式下工具条不渲染，按 s 会毫无反应）
+        setAdvOpen((v) => !v);
+        return;
+      }
+
+      if (key === shortcuts.focus) {
+        e.preventDefault();
+        if (focusMode) leaveFocus();
+        else setFocusMode(true);
+        return;
+      }
+
+      /*
+       * c = 清除**过滤器**的全部条件（使用者 2026-09-13 要求）。
+       *
+       * ⚠️ 弹窗开着时的 c 是另一回事：高级搜索里清的是"搜索条件草稿"、
+       *    过滤器弹窗里清的是过滤器——那两处由弹窗自己处理，上面已经 return 了。
+       */
+      if (key === 'c') {
+        e.preventDefault();
+        filters.clear();
+      }
+    };
+
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [advOpen, filterDialogOpen, focusMode, leaveFocus, shortcuts, filters]);
 
   const { loadMode, loadMore, hasMore, loadingMore } = paging;
 
@@ -169,7 +341,7 @@ export default function AppShell({
         pageCount !== null ? `${paging.page + 1} / ${pageCount}` : `${paging.page + 1}`;
       const range = formatRange(paging.page * paging.pageSize + 1, shown);
       summary = `第 ${pageLabel} 页 · ${range ? `显示 ${range} / ` : ''}共 ${totalLabel} 件`;
-    } else if (searching) {
+    } else if (searched) {
       // 搜索时"共多少"才是重点，已加载多少是次要信息
       summary = `匹配 ${totalLabel} 件 · 已加载 ${shown} 件`;
     } else {
@@ -177,68 +349,136 @@ export default function AppShell({
     }
   }
 
+  /** 工具条：非专注模式在搜索行下面，专注模式下搬进 FilterDialog */
+  const viewToolbar = <ViewToolbar viewId={viewId} onViewChange={onViewChange} paging={paging} sort={sort} />;
+
   return (
-    <main className="app">
-      <header className="app__header">
-        <h1 className="app__title">Item Assistant</h1>
-        {tab === 'items' && (
-          <div className="app__header-actions">
-            {summary && <p className="app__summary">{summary}</p>}
+    <main className={`app${focusMode ? ' app--focus' : ''}`}>
+      {!focusMode && (
+        <header className="app__header">
+          <h1 className="app__title">Item Assistant</h1>
+          {tab === 'items' && (
+            <div className="app__header-actions">
+              {summary && <p className="app__summary">{summary}</p>}
+              <button
+                type="button"
+                className="app__refresh"
+                onClick={() => setFocusMode(true)}
+                title={`专注模式：整页只留物品列表（快捷键 ${shortcuts.focus}）`}
+              >
+                专注模式
+              </button>
+              <button
+                type="button"
+                className="app__refresh"
+                onClick={onReload}
+                title="重新读取数据库"
+              >
+                刷新
+              </button>
+            </div>
+          )}
+        </header>
+      )}
+
+      {focusMode && (
+        <div className="app__focus-actions">
+          {/*
+            专注模式下没有搜索行，"退出搜索"就挪到右上角。
+            没在搜索时不显示——右上角常驻两个按钮会挡住列表。
+          */}
+          {searched && (
             <button
               type="button"
-              className="app__refresh"
-              onClick={onReload}
-              title="重新读取数据库"
+              className="app__focus-exit"
+              onClick={exitSearch}
+              title="退出搜索：清空关键词与高级搜索的条件，回到全部装备（过滤器不受影响）"
             >
-              刷新
+              退出搜索
             </button>
-          </div>
-        )}
-      </header>
+          )}
+          <button
+            type="button"
+            className="app__focus-exit"
+            onClick={leaveFocus}
+            title={`退出专注模式（Esc 或 ${shortcuts.focus}）`}
+          >
+            退出专注模式
+          </button>
+        </div>
+      )}
 
-      <nav className="app__tabs">
-        <button
-          type="button"
-          className={tab === 'items' ? 'is-active' : ''}
-          onClick={() => onTabChange('items')}
-        >
-          物品
-        </button>
-        <button
-          type="button"
-          className={tab === 'settings' ? 'is-active' : ''}
-          onClick={() => onTabChange('settings')}
-        >
-          设置
-        </button>
-        <button
-          type="button"
-          className={tab === 'database' ? 'is-active' : ''}
-          onClick={() => onTabChange('database')}
-        >
-          数据库
-        </button>
-      </nav>
+      {!focusMode && (
+        <nav className="app__tabs">
+          <button
+            type="button"
+            className={tab === 'items' ? 'is-active' : ''}
+            onClick={() => changeTab('items')}
+          >
+            物品
+          </button>
+          <button
+            type="button"
+            className={tab === 'settings' ? 'is-active' : ''}
+            onClick={() => changeTab('settings')}
+          >
+            设置
+          </button>
+          <button
+            type="button"
+            className={tab === 'database' ? 'is-active' : ''}
+            onClick={() => changeTab('database')}
+          >
+            数据库
+          </button>
+        </nav>
+      )}
 
       {tab === 'items' && (
         <>
           {/* 工具条固定在列表外面，所以滚列表时它不动 */}
-          <div className="app__toolbar">
-            {/* 搜索框与高级搜索按钮同一行：两者都是"怎么查"，与下面那排"怎么看"分开 */}
-            <div className="app__search-row">
-              <SearchBar value={keyword} onChange={onKeywordChange} />
-              <AdvancedSearch options={filterOptions} filters={filters} />
+          {!focusMode && (
+            <div className="app__toolbar">
+              {/* 搜索框与高级搜索按钮同一行：两者都是"怎么查"，与下面那排"怎么看"分开 */}
+              <div className="app__search-row">
+                <SearchBar value={keyword} onChange={onKeywordChange} inputRef={searchRef} />
+                <AdvancedSearchButton badge={searchBadge} onClick={() => setAdvOpen(true)} />
+                {/*
+                  只有"正在搜索"时才出现：它清的是**搜索**（关键词 + 高级搜索条件），
+                  与过滤器的「清除」是两回事。
+                */}
+                {searched && (
+                  <button
+                    type="button"
+                    className="app__exit-search"
+                    onClick={exitSearch}
+                    title="退出搜索：清空关键词与高级搜索的条件，回到全部装备（过滤器不受影响）"
+                  >
+                    退出搜索
+                  </button>
+                )}
+              </div>
+              {/*
+                ★ 2026-09-13：工具条**不再**随列表为空而消失。
+                  过滤太严时它一消失，整页布局就跳一次（使用者报的"一直在变在动"），
+                  而且此时恰恰最需要它——要改视图/排序才能看出问题。
+              */}
+              {viewToolbar}
             </div>
-            {shown > 0 && (
-              <ViewToolbar viewId={viewId} onViewChange={onViewChange} paging={paging} />
-            )}
-          </div>
+          )}
 
           {/*
             过滤面板**无条件渲染**：过滤太严导致列表为空时，它正是使用者唯一的出路
-            （收起状态下那个"清除"按钮始终可用）。
+            （收起状态下那个"清除"按钮始终可用）。专注模式下它被搬进 f 弹窗。
           */}
-          <FilterPanel options={filterOptions} filters={filters} />
+          {!focusMode && (
+            <FilterPanel
+              options={filterOptions}
+              filters={filters}
+              open={filterOpen}
+              onToggle={() => setFilterOpen((v) => !v)}
+            />
+          )}
 
           <div className="app__content" data-dock={side ?? undefined}>
             <div className="app__dock app__dock--left">
@@ -262,11 +502,15 @@ export default function AppShell({
 
                 {!error && !loading && shown === 0 && (
                   <p className="app__loading">
-                    {filtered
-                      ? '没有符合当前过滤条件的物品。'
-                      : searching
-                        ? `没有匹配「${keyword.trim()}」的物品。`
-                        : '数据库里没有物品。'}
+                    {searched && filtered
+                      ? '没有同时符合当前搜索与过滤条件的物品。'
+                      : searched
+                        ? hasKeyword
+                          ? `没有匹配「${keyword.trim()}」的物品。`
+                          : '没有符合当前搜索条件的物品。'
+                        : filtered
+                          ? '没有符合当前过滤条件的物品。'
+                          : '数据库里没有物品。'}
                   </p>
                 )}
 
@@ -294,6 +538,12 @@ export default function AppShell({
               {side === 'right' && <ItemDetailPanel />}
             </div>
           </div>
+
+          {/*
+            浮动模式的详情面板：它 `position: fixed` 跟随触发元素，不占布局。
+            ★ 必须放在 `app__dock` 之外——dock 只在固定栏模式下才渲染面板。
+          */}
+          {floatingPanel && <ItemDetailPanel />}
         </>
       )}
 
@@ -307,6 +557,39 @@ export default function AppShell({
         <div className="app__page">
           <SettingsView />
         </div>
+      )}
+
+      {/*
+        高级搜索弹窗：由 AppShell 渲染（**不挂在工具条里**）——专注模式下工具条
+        整个不渲染，挂在里面的话按 s 会毫无反应（使用者报的正是这个）。
+
+        「完成」写回的是**搜索条件**（关键词 + 高级搜索那一套），**不碰过滤器**。
+      */}
+      {tab === 'items' && advOpen && (
+        <AdvancedSearchDialog
+          options={filterOptions}
+          search={search}
+          keyword={keyword}
+          onApply={(nextKeyword, nextState) => {
+            onKeywordChange(nextKeyword);
+            search.replace(nextState);
+            setAdvOpen(false);
+          }}
+          onClose={() => setAdvOpen(false)}
+        />
+      )}
+
+      {/* 专注模式的 f 弹窗：过滤器 + 视图工具条（实时生效） */}
+      {tab === 'items' && filterDialogOpen && (
+        <FilterDialog
+          options={filterOptions}
+          filters={filters}
+          viewId={viewId}
+          onViewChange={onViewChange}
+          paging={paging}
+          sort={sort}
+          onClose={() => setFilterDialogOpen(false)}
+        />
       )}
 
       {toasts.length > 0 && (

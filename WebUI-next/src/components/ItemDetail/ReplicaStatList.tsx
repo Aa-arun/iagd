@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { IReplicaRow } from '../../model/item';
+import { recolorStats } from '../../model/statColors';
 
 /**
  * 渲染**游戏原样导出的** tooltip 行（`replicaStats`）。
@@ -179,6 +180,41 @@ function isSkillRow(text: string, type: number): boolean {
 }
 
 /**
+ * `type 82` 这一行是"技能名 / 技能说明 / 技能参数"里的哪一种（都不是就返回 `null`）。
+ *
+ * ★ 为什么需要它（使用者 2026-09-13 报的 bug）：
+ *   **普通**授予技能区里，技能名是 `type 37`（蓝色）、说明是 `type 39`（灰色）、
+ *   参数是 `type 81/82/83`（米黄）——各自有 CSS。
+ *   但**套装授予技能**整块都是 `type 82`（游戏就是这么导出的），于是
+ *   "自然复仇者"这个名字和"复仇者的精神在你体内膨胀。"这句说明
+ *   都被按"技能参数"渲染成了米黄。
+ *
+ * 判定只看文本形状（用「复仇粉碎者」「伊斯坎德拉的文本」两块真实数据核对过）：
+ *   - 以句号结尾、且不含数值色 `^H` → **技能说明**
+ *   - 带 `(…施放该技能)` 这种括号、或带 `<职业>` 标记 → **技能名**
+ *   - 其余（`12 秒技能冷却时间`、`75% 的武器伤害`、`+70 度攻击范围`…）→ 参数
+ */
+function skillRowKind(text: string): 'name' | 'desc' | null {
+  const plain = text.replace(/\^[a-zA-Z-]/g, '').trim();
+
+  if (plain.endsWith('。') || plain.endsWith('.')) return 'desc';
+  if (plain.includes('施放该技能') || /<[^>]+>/.test(text)) return 'name';
+
+  /*
+   * ★ 第三种形态：**干干净净的一行纯中文**——一个颜色码、一个数字都没有。
+   *   `命运封印`、`自然复仇者` 就是这种。使用者 2026-09-14 报的
+   *   「复仇之拳 → 命运封印没被识别成技能名」。
+   *
+   *   为什么敢这么判：参数行**几乎总带数字或颜色码**
+   *   （`5 ^E秒^E技能冷却时间`、`+8% ^H攻击能力(OA)`、`最多作用目标 +2`），
+   *   说明行以句号结尾（上面已经接走了）。
+   */
+  if (!text.includes('^') && !/\d/.test(plain) && plain.length <= 12) return 'name';
+
+  return null;
+}
+
+/**
  * 把一行带 `^X` 代码的文本切成若干 `<span>`。
  *
  * ⚠️ 刻意**不用** `dangerouslySetInnerHTML`（旧前端那么干过）：拼 HTML 字符串
@@ -300,7 +336,12 @@ function indentLevels(rows: IReplicaRow[]): (0 | 1 | 2)[] {
       afterSkillHeader = true;
       level = 1;
     } else if (row.type === 82) {
-      level = afterSkillHeader ? 2 : 1;
+      /*
+       * 紧跟"授予技能"抬头（81）的 82 是它的参数（2 级）。
+       * ★ 套装授予技能**没有抬头**，整块都是 82——那种情况用文本形状兜底：
+       *   名字 / 说明 → 1 级，参数（`12 秒技能冷却时间`）→ 2 级。
+       */
+      level = afterSkillHeader || skillRowKind(row.text) === null ? 2 : 1;
     } else if (LEVEL2.has(row.type)) {
       level = 2;
     } else {
@@ -315,6 +356,33 @@ function indentLevels(rows: IReplicaRow[]): (0 | 1 | 2)[] {
 
   return levels;
 }
+
+/**
+ * 只有**这些行种**才按我们自己的表重新着色（`recolorStats`）。
+ *
+ * ⚠️ 使用者 2026-09-13 报的两个误伤，都是"一刀切"造成的：
+ *   · `type 37`（技能名）`伊斯坎德拉的元素撕裂(造成暴击时有 30% 的几率施放该技能)`
+ *     —— 这里的"暴击"是**描述短语**，不是属性，却被染成了金色；
+ *   · `type 22`（套装说明）`…万用对戒，生命恢复（神话级与普通的混搭不能取得套装效果）`
+ *     —— 说明文字里的"生命"被染成了桃红。
+ *
+ * 所以范围**按行种**收窄，只碰"属性内容行"。其余一律不动：物品名 7、类型 66、
+ * flavor 16/17、套装名 21、**套装说明 22**、成员与层级 23、段标题 24/25/34/36/65/67/68/70、
+ * **技能名 37/38/53**、技能描述 39/40、授予技能抬头 81、以及 `type 82` 的名字与说明。
+ *
+ * `type 82` 要再分一次：它同时装着"技能名 / 说明 / 参数"，靠 `skillRowKind()` 判断——
+ * **只有参数行**才重新着色。
+ */
+const RECOLOR_TYPES = new Set([
+  18, // 武器 / 护甲的基础数值（"148-776 ^E物理伤害^-"）
+  19, // 普通属性行
+  20, // 每秒攻击、以及"需要 玩家等级 / 体格"这类需求行
+  26, // 技能下辖的属性
+  28, // 套装加成
+  33, 42, 55, 69, 71, // 组件 / 战宠下属的属性
+  79, // "+2 到某技能"
+  83, // 授予技能的参数
+]);
 
 /** 空行大多是游戏用来分段的分隔符，渲染成一点空白即可。 */
 function isSeparator(row: IReplicaRow): boolean {
@@ -340,15 +408,44 @@ export default function ReplicaStatList({ rows }: Props) {
           return <p key={index} className="tt-gap" />;
         }
 
-        // 顺序不能乱：先补颜色码、再补尖括号，最后才轮到"删英文名"
-        // （它只处理"没有 ^ 的行"，走到这里已经自动跳过）
-        const text = stripEnglishSkillName(
-          normalizeBareClassMark(colorizePlainSkillRow(row.text)),
-        );
-        const skillRow = isSkillRow(text, row.type);
+        // ── 三步，顺序不能乱 ──────────────────────────────────────────
+        //
+        // ① 给"没有颜色码的技能行"补上**语义码**（职业标记 / 技能名 / 英文名 /
+        //    "技能等级"…）——见 `colorizePlainSkillRow`。
+        // ② 补职业尖括号、删英文技能名。
+        // ③ **只对属性内容行**（`RECOLOR_TYPES` + `type 82` 的参数行）按我们自己的表
+        //    重新着色：属性词一律以本表为准，**覆盖**游戏/汉化包给的码。
+        //    名字 / 说明 / 标题一律不碰——见 `RECOLOR_TYPES` 的注释。
+        const kind = row.type === 82 ? skillRowKind(row.text) : null;
+        const base = colorizePlainSkillRow(row.text);
+        const withSemantics = stripEnglishSkillName(normalizeBareClassMark(base));
+
+        const isStatRow =
+          row.type === 82 ? kind === null : RECOLOR_TYPES.has(row.type);
+        const text = isStatRow ? recolorStats(withSemantics) : withSemantics;
+
+        /*
+         * ⚠️ 套装加成行**不走"技能行统一色"**：那套逻辑会把 `^F` / `^G` / `^L`
+         * 换成技能蓝（因为同一个码在技能行里另有含义），而这里它们是
+         * 混乱 / 酸性 / 元素的属性色。
+         */
+        const skillRow = row.type === 28 ? false : isSkillRow(text, row.type);
+
+        /*
+         * 套装授予技能（`type 82`）里的名字与说明，单独给一个类把它们
+         * 从"技能参数"的米黄里拉出来，回到普通授予技能那套色（见 CSS）。
+         */
+        const className = [
+          `tt-type-${row.type}`,
+          `tt-indent-${levels[index]}`,
+          kind === 'name' ? 'tt-skill-name' : '',
+          kind === 'desc' ? 'tt-skill-desc' : '',
+        ]
+          .filter(Boolean)
+          .join(' ');
 
         return (
-          <p key={index} className={`tt-type-${row.type} tt-indent-${levels[index]}`}>
+          <p key={index} className={className}>
             {parseRow(text, skillRow)}
           </p>
         );

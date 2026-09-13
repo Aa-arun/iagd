@@ -1,4 +1,4 @@
-﻿using EvilsoftCommons;
+using EvilsoftCommons;
 using IAGrim.Backup.Cloud.Dto;
 using IAGrim.Database.DAO;
 using IAGrim.Database.DAO.Dto;
@@ -813,6 +813,51 @@ namespace IAGrim.Database {
         /// </summary>
         public const int UnknownTotalCount = -1;
 
+        /// <summary>
+        /// 品质的排序权重：**越大越差**。升序排出来就是"传奇在最前"。
+        ///
+        /// ⚠️ 值来自数据库，且 IA 上游的命名是交叉的（见前端 `ItemCard/quality.ts`）：
+        /// <c>Epic</c> 其实是**传奇**、<c>Blue</c> 是**史诗**、<c>Green</c> 是**稀有**、
+        /// <c>Yellow</c> 是**魔法**。不认识的品质排在最后。
+        /// </summary>
+        private const string RarityRankSql =
+            "CASE PI.Rarity WHEN 'Epic' THEN 0 WHEN 'Blue' THEN 1 WHEN 'Green' THEN 2 WHEN 'Yellow' THEN 3 ELSE 4 END";
+
+        /// <summary>
+        /// 拼 ORDER BY（使用者 2026-09-13 指定的多级排序）。
+        ///
+        /// <list type="bullet">
+        ///   <item><c>created</c>：入库时间从新到旧</item>
+        ///   <item><c>quality</c>：品质 &gt; 等级 &gt; 名称</item>
+        ///   <item><c>level</c>：等级 &gt; 品质 &gt; 名称</item>
+        ///   <item><c>name</c>：名称 &gt; 品质 &gt; 等级</item>
+        /// </list>
+        ///
+        /// ★ 每一条都以 <c>PI.Id</c> 收尾：分页是 LIMIT/OFFSET 切片，没有全序的话
+        ///   同一件物品可能在两页里都出现、或者干脆被跳过。
+        ///
+        /// <c>SortBy</c> 为空（旧调用方）时退回原来的两种排序，行为不变。
+        /// </summary>
+        private static string BuildOrderBy(ItemSearchRequest query, bool orderByLevel) {
+            switch ((query.SortBy ?? string.Empty).Trim().ToLowerInvariant()) {
+                case "created":
+                    // created_at 是 unix 时间戳（INTEGER），可能为 NULL（早期数据）；
+                    // SQLite 里 DESC 会把 NULL 放到最后，正好是想要的效果。
+                    return " ORDER BY PI.created_at DESC, PI.Id DESC ";
+                case "quality":
+                    return $" ORDER BY {RarityRankSql}, PI.levelrequirement, PI.name, PI.Id ";
+                case "level":
+                    // 等级**降序**（使用者 2026-09-13 指定）：高等级需求排前面
+                    return $" ORDER BY PI.levelrequirement DESC, {RarityRankSql}, PI.name, PI.Id ";
+                case "name":
+                    return $" ORDER BY PI.name, {RarityRankSql}, PI.levelrequirement, PI.Id ";
+                default:
+                    return orderByLevel
+                        ? " ORDER BY PI.levelrequirement, PI.name, PI.Id "
+                        : " ORDER BY PI.name, PI.Id ";
+            }
+        }
+
         public List<PlayerItem> SearchForItems(ItemSearchRequest query, int skip, bool orderByLevel, bool computeCount, out int totalCount, out bool wasTruncated, PlayerItem? item = null) {
             Logger.Debug($"Searching for items with query {query} (skip {skip})");
             wasTruncated = false;
@@ -1038,9 +1083,7 @@ namespace IAGrim.Database {
             // Deterministic ordering so LIMIT/OFFSET slices are stable across pages (no row skipped or
             // duplicated between batches). Matches PlayerItem.CompareTo (Name, then Id) so the pages arrive
             // pre-sorted in the order the UI displays; PI.Id is the final tiebreaker for stability.
-            var orderBy = orderByLevel
-                ? " ORDER BY PI.levelrequirement, PI.name, PI.Id "
-                : " ORDER BY PI.name, PI.Id ";
+            var orderBy = BuildOrderBy(query, orderByLevel);
 
             // Only cap/paginate the general "browse" search. The single-item lookup (item != null) is
             // already scoped to one specific id and never needs a limit.

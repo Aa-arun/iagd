@@ -178,7 +178,13 @@ export default function ItemDetailPanel() {
           )}
       </div>
 
-      {isPinned && (
+      {/*
+        ★ 2026-09-13：固定栏模式下**不再有**这个页脚（使用者要求删掉）。
+          里面那串 `baseRecord` 是给开发看的内部标识，用户看不懂；转移按钮也多余——
+          卡片和列表本身就有「取出」。浮动固定（点击右上角那块）时仍保留，
+          因为那种形态飘在页面上、离卡片按钮远。
+      */}
+      {isPinned && !docked && (
         <footer className="item-detail__foot">
           <code title={item.baseRecord}>{item.baseRecord}</code>
           {item.isHardcore && <span className="item-detail__tag">硬核</span>}

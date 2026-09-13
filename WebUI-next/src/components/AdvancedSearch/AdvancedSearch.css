@@ -45,7 +45,11 @@
 .adv-search__overlay {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  /*
+   * 要盖住浮动详情面板（`.item-detail` 是 position:fixed + z-index 100）——
+   * 点固定之后那个面板会停在右上角，比弹窗低的话会挡在弹窗上面。
+   */
+  z-index: 120;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -104,12 +108,47 @@
   padding: 0 18px 14px;
 }
 
+/*
+ * 顶部搜索框（使用者 2026-09-13 要求："这才是一个正常的搜索栏该有的样子"）。
+ * 它复用主界面 `.search-bar__input` 的观感，但要占满弹窗宽度——
+ * 那个类在主界面里是 `max-width: 460px`，这里覆盖掉。
+ */
+.adv-search__search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 18px 0;
+}
+
+.adv-search__search .search-bar__input {
+  flex: 1;
+  width: 100%;
+  max-width: none;
+}
+
+/*
+ * 一句话说明"这些选项是加进搜索的，不是过滤器"（使用者 2026-09-13 澄清定位后加）。
+ * 位置在搜索框和第一个分区之间，所以左边距跟它们对齐。
+ */
+.adv-search__lead {
+  margin: 10px 18px 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
 .adv-search__footer {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 8px;
   padding: 10px 18px;
   border-top: 1px solid var(--border);
+}
+
+/* 「重置全部」固定在左边，与右边那对「取消 / 完成」拉开距离（防止误点） */
+.adv-search__reset {
+  margin-right: auto;
 }
 
 /* 重置：**直角**，与过滤面板那个「清除」是同一个动作、同一套观感 */
@@ -128,6 +167,23 @@
 }
 
 .adv-search__reset:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+/* 取消：中和「完成」并列，功能与右上角的 × 完全一样（丢弃草稿） */
+.adv-search__cancel {
+  padding: 5px 16px;
+  background: var(--bg-panel);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.adv-search__cancel:hover {
   color: var(--text);
   background: var(--bg-hover);
 }
@@ -297,6 +353,7 @@
 .adv-search__button:focus-visible,
 .adv-search__close:focus-visible,
 .adv-search__reset:focus-visible,
+.adv-search__cancel:focus-visible,
 .adv-search__done:focus-visible {
   outline: 2px solid var(--q-blue);
   outline-offset: 1px;
