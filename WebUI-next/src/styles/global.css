@@ -88,15 +88,48 @@
 
   --tt-physical: #b88a52; /* ^E 物理 / 创伤 —— 棕 */
   --tt-pierce: #e0d24a; /* ^Y 穿刺 —— 黄 */
-  --tt-bleed: #7f0000; /* ^M 流血 —— 栗 */
+  /*
+   * ^M 流血 —— 血红。
+   *
+   * ⚠️ 2026-09-14 使用者反馈：原来的栗色 `#7f0000` "一看就知道和流血相关"，
+   *   但在深色面板（`#1f1c18`）上**对比度只有 1.54**（WCAG 最低要 4.5），
+   *   几乎看不见。提亮成 `#e35a5a`（对比度 ≈ 4.76），仍保留"血"的色相。
+   *
+   * ⚠️ 火焰因此从 `#e05a4a` 调成更**橙**的 `#f0763c`——原来两者只差一个
+   *   蓝色通道（74 vs 90），提亮流血后几乎撞色，必须拉开。
+   */
+  --tt-bleed: #e35a5a; /* ^M 流血 —— 血红 */
   --tt-elemental: #91cb00; /* ^L 元素 —— 橄榄 */
-  --tt-fire: #e05a4a; /* ^R 火焰 / 燃烧 —— 红 */
+  --tt-fire: #f0763c; /* ^R 火焰 / 燃烧 —— 橙红 */
   --tt-cold: #5a8fd8; /* ^B 冰冷 / 霜燃 —— 蓝 */
   --tt-lightning: #5ad0d0; /* ^C 闪电 / 精神 —— 青 */
   --tt-acid: #6cc04a; /* ^G 酸性 / 毒素 —— 绿 */
   --tt-vitality: #ff68b3; /* ^F 活力 / 生命 —— 桃红 */
   --tt-aether: #00e1b8; /* ^T 虚化 / 能量 —— 水鸭 */
-  --tt-chaos: #ff68b3; /* ^O 混乱 / 体格 —— 橙 */
+  /*
+   * ★ **自定义码的约定**（使用者 2026-09-14 定）：
+   *   配色表里的"码"是**我们内部的**——脱离了游戏那套颜色分类之后，
+   *   我们可以**自己造码**。约定是：**从游戏没用过的字母里挑**，
+   *   免得和 tooltip 原文里的码撞车。
+   *   汉化包里用过的：`E n H P C O b R T F Z B y Y r w G g s L S M N K W t o j e c D`；
+   *   所以 `Q`（以及 `A I J U V X`）是干净的。
+   */
+
+  /* ^O —— 体格 / 所有类型伤害 / 最大全抗性 —— 橙 */
+  --tt-body: #e08a3c;
+
+  /*
+   * ^Q —— 混乱（**我们自己加的码**，游戏里没有）—— 深粉。
+   *
+   * ⚠️ 演进：原先混乱和 `^F` 活力**共用同一个颜色**（`#ff68b3`），界面上分不出来；
+   *   中间按汉化包的"混乱伤害—橙色"改过一次，使用者不认；
+   *   最后他给游戏里"混乱"的代表画面（深紫星空）取了三个色
+   *   `#952a6a` / `#e1336d` / `#781e54`，定下这个 **`#e1336d`**。
+   *   他同时指出：**该给混乱单独一个码**，而不是占用 `^O`——
+   *   于是有了这条"自定义码"的约定。
+   */
+  --tt-chaos: #e1336d;
+
   --tt-physique: #6aa0e8; /* ^Z 灵巧 —— 蔚蓝 */
   --tt-speed: #bc93c5; /* ^P 攻击 / 施法 / 所有速度 —— 紫 */
   --tt-move-speed: #c8b878; /* ^K 移动速度 —— 卡其 */
@@ -418,7 +451,8 @@ body {
 .app__maintenance {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  /* 比弹窗（120）更高：维护期间它必须盖住一切，包括已经打开的高级搜索 */
+  z-index: 200;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -626,4 +660,85 @@ body {
  */
 .item-type {
   color: var(--tt-type);
+}
+
+/* ── 专注模式（使用者 2026-09-13 要求）──────────────────────────────────
+ *
+ * 进入后 `AppShell` **不再渲染** header / 页签 / 搜索行 / 工具条 / 过滤面板，
+ * 于是唯一还留在 `.app` 里的就是 `app__content`——它本来就是 flex:1，
+ * 自然占满整页。所以这里不需要额外的布局规则，只需要右上角那组浮动按钮。
+ *
+ * 按钮有一个（退出专注模式）或两个（正在搜索时还有「退出搜索」），
+ * 所以定位放在**容器**上，按钮自己不再 fixed。
+ */
+.app__focus-actions {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  z-index: 80;
+  display: flex;
+  gap: 8px;
+}
+
+/*
+ * ⚠️ 2026-09-14 使用者反馈：这个按钮和列表顶部**压在一起**了（不好看）。
+ *   两处一起调：
+ *     ① 按钮高度收到约 2/3（`padding` 5→2、`font-size` 12→11，总高约 26 → 19px）；
+ *     ② 专注模式下把 `app__content` 往下让一点（见下面那条 `.app--focus`）。
+ *   算一下：按钮 `top:12` + 高 19 ≈ 31px；列表从 `#root` 的 24px padding
+ *   再加 16px → 40px 起，留出约 9px 间隙。
+ */
+.app__focus-exit {
+  padding: 2px 10px;
+  background: var(--bg-panel);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.3;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+}
+
+/* 专注模式：整页只剩 `app__content`，所以给它让出顶部那块浮动按钮的位置 */
+.app--focus .app__content {
+  margin-top: 16px;
+}
+
+.app__focus-exit:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.app__focus-exit:focus-visible {
+  outline: 2px solid var(--q-blue);
+  outline-offset: 1px;
+}
+
+/*
+ * 「退出搜索」：清空关键词 + 高级搜索条件，回到全部装备。
+ *
+ * 它**只在正在搜索时出现**（搜索行里 / 专注模式右上角），所以不用像
+ * 「刷新」那样常驻；刻意用暖色边框，与右边那些中性按钮区分开。
+ */
+.app__exit-search {
+  padding: 6px 12px;
+  background: var(--bg-panel);
+  color: var(--focus-accent);
+  border: 1px solid #6b5a35;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.app__exit-search:hover {
+  background: var(--bg-hover);
+}
+
+.app__exit-search:focus-visible {
+  outline: 2px solid var(--q-blue);
+  outline-offset: 1px;
 }

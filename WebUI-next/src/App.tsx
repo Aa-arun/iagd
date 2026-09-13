@@ -14,10 +14,12 @@ import {
 import type IItem from './model/item';
 import { MAX_ITEMS_PER_REQUEST } from './model/format';
 import { I18nProvider } from './i18n';
+import { UiPrefsProvider } from './prefs/UiPrefs';
 import { ItemDetailProvider } from './components/ItemDetail';
 import { useItemView } from './views/useItemView';
 import { usePaging } from './views/usePaging';
-import { buildSearchRequest, hasAnyFilter, useFilters } from './views/useFilters';
+import { useSort } from './views/useSort';
+import { buildSearchRequest, useFilters, useSearchConditions } from './views/useFilters';
 import AppShell, { type Toast } from './AppShell';
 
 /** 输入停顿多久才发请求。太短会让每敲一个字母都打一次后端。 */
@@ -129,9 +131,21 @@ export default function App() {
   const { viewId, setViewId } = useItemView();
   /** 加载方式（无限滚动 / 翻页）+ 每页条数 + 当前页，偏好存 localStorage */
   const { loadMode, setLoadMode, pageSize, setPageSize, page, setPage } = usePaging();
+  /** 排序（入库时间 / 品质 / 等级 / 名称），偏好存 localStorage */
+  const sort = useSort();
+  const { sortBy } = sort;
   const [keyword, setKeyword] = useState('');
-  /** 过滤面板 + 高级搜索的全部条件（含 localStorage 持久化） */
+  /** **过滤器**（过滤面板）的条件（含 localStorage 持久化） */
   const filters = useFilters();
+  /**
+   * **搜索条件**（高级搜索里的那些选项）——与过滤器是**两套独立的状态**。
+   *
+   * ★ 使用者的心智模型（2026-09-13）：高级搜索勾"穿刺伤害" = 搜
+   *   「某某装备 AND 穿刺伤害」，它只决定搜出来什么，**不改动过滤器配置**；
+   *   搜出来的结果还能再被过滤器筛一遍。两者在 `buildSearchRequest` 里
+   *   合并成一个请求（条件之间是 AND）。
+   */
+  const search = useSearchConditions();
   /**
    * 过滤器可选项（品质/槽位/职业/分组/属性）。
    *
@@ -248,18 +262,34 @@ export default function App() {
     };
   }, []);
 
-  /** 按当前关键词 + 过滤条件取一段 */
+  /**
+   * 按当前**搜索条件**（关键词 + 高级搜索）+ **过滤器** + 排序取一段。
+   *
+   * ★ 2026-09-13 起**统一走 `/api/search`**（不再对"空条件"走 `/api/items`）：
+   *   排序由后端 SQL 决定，而 `GET /api/items` 不接受排序参数。两个端点背后
+   *   本来调的就是同一个 DAO 方法（空请求 ≈ 无条件搜索），所以这样并不更重，
+   *   只是多带一个 JSON 请求体。
+   *
+   * ★ 两套条件在 `buildSearchRequest` 里合并：搜索决定"搜出什么"，
+   *   过滤器在结果之上再筛，二者之间是 AND。
+   */
   const runQuery = useCallback<PageFetcher>(
     (offset, limit) => {
-      // 没有任何条件时走更轻的 `/api/items`（等价于空条件的搜索）
-      if (!keyword.trim() && !hasAnyFilter(filters.selected, filters.advanced)) {
-        return fetchItems(offset, limit);
-      }
       return searchItems(
-        buildSearchRequest(filterOptions, filters.selected, filters.advanced, keyword, offset, limit),
+        buildSearchRequest(
+          filterOptions,
+          {
+            keyword,
+            search: { selected: search.selected, advanced: search.advanced },
+            filter: { selected: filters.selected, advanced: filters.advanced },
+          },
+          sortBy,
+          offset,
+          limit,
+        ),
       );
     },
-    [keyword, filterOptions, filters.selected, filters.advanced],
+    [keyword, filterOptions, search.selected, search.advanced, filters.selected, filters.advanced, sortBy],
   );
 
   /**
@@ -442,38 +472,42 @@ export default function App() {
   }, [live, maintenance, reload]);
 
   return (
-    <ItemDetailProvider onTransferred={reload}>
-      <I18nProvider map={i18n}>
-        <AppShell
-          tab={tab}
-          onTabChange={setTab}
-          keyword={keyword}
-          onKeywordChange={setKeyword}
-          filterOptions={filterOptions}
-          filters={filters}
-          viewId={viewId}
-          onViewChange={setViewId}
-          items={items}
-          total={total}
-          loading={loading}
-          error={error}
-          onReload={reload}
-          toasts={toasts}
-          onDismissToast={dismissToast}
-          maintenance={maintenance}
-          paging={{
-            loadMode,
-            pageSize,
-            page,
-            hasMore,
-            loadingMore,
-            setLoadMode,
-            setPageSize,
-            setPage,
-            loadMore,
-          }}
-        />
-      </I18nProvider>
-    </ItemDetailProvider>
+    <UiPrefsProvider>
+      <ItemDetailProvider onTransferred={reload}>
+        <I18nProvider map={i18n}>
+          <AppShell
+            tab={tab}
+            onTabChange={setTab}
+            keyword={keyword}
+            onKeywordChange={setKeyword}
+            filterOptions={filterOptions}
+            filters={filters}
+            search={search}
+            viewId={viewId}
+            onViewChange={setViewId}
+            sort={sort}
+            items={items}
+            total={total}
+            loading={loading}
+            error={error}
+            onReload={reload}
+            toasts={toasts}
+            onDismissToast={dismissToast}
+            maintenance={maintenance}
+            paging={{
+              loadMode,
+              pageSize,
+              page,
+              hasMore,
+              loadingMore,
+              setLoadMode,
+              setPageSize,
+              setPage,
+              loadMore,
+            }}
+          />
+        </I18nProvider>
+      </ItemDetailProvider>
+    </UiPrefsProvider>
   );
 }

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import type { FiltersOptions } from '../../api';
 import { countFilters, type FilterControls } from '../../views/useFilters';
 import { ClassRow, GroupRows, QualityRow, RecentRow, SlotRows } from '../Filters/chips';
@@ -8,6 +7,9 @@ interface Props {
   /** 可选项。`null` = 还在读（后端刚起来时会有这一小段） */
   options: FiltersOptions | null;
   filters: FilterControls;
+  /** 展开状态由上层持有：快捷键 f 也要能开合它 */
+  open: boolean;
+  onToggle: () => void;
 }
 
 /**
@@ -16,11 +18,12 @@ interface Props {
  * 收起时只留标题、"已选 N 项"和一键清除 —— 主界面以列表为主，面板不能一直占着高度；
  * 但"当前有没有过滤在生效"必须一眼看到，否则会出现"为什么只剩 3 件"的困惑。
  *
- * 选项的渲染与语义（黄 = 与、绿 = 或）在 `components/Filters/chips.tsx`，
- * 与高级搜索共用同一份状态。
+ * 选项的渲染与语义（黄 = 与、绿 = 或）在 `components/Filters/chips.tsx`。
+ *
+ * ⚠️ 这里的勾选**实时生效**（与高级搜索的草稿不同）：它本来就是"边点边看结果"
+ * 的快速过滤条。专注模式下 f 弹出的那个对话框也直接渲染这批选项。
  */
-export default function FilterPanel({ options, filters }: Props) {
-  const [open, setOpen] = useState(false);
+export default function FilterPanel({ options, filters, open, onToggle }: Props) {
   const count = countFilters(filters.selected, filters.advanced);
 
   return (
@@ -30,13 +33,24 @@ export default function FilterPanel({ options, filters }: Props) {
           type="button"
           className="filter-panel__toggle"
           aria-expanded={open}
-          onClick={() => setOpen((v) => !v)}
+          onClick={onToggle}
+          title="展开 / 收起过滤器（快捷键 f）"
         >
           <span className="filter-panel__caret" data-open={open || undefined}>
             ▸
           </span>
           过滤器
-          {count > 0 && <span className="filter-panel__count">{count}</span>}
+          {/*
+            ★ 计数徽章**始终占位**（为 0 时只是看不见），宽度也固定成两位数字。
+              否则勾上第一项时它会突然出现、把「清除」和后面的图例挤开——
+              使用者 2026-09-13 报的"动来动去"就是这个。
+          */}
+          <span
+            className={`filter-panel__count${count === 0 ? ' is-empty' : ''}`}
+            aria-hidden={count === 0 || undefined}
+          >
+            {count}
+          </span>
         </button>
 
         <button

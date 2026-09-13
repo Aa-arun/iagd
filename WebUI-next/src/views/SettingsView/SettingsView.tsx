@@ -9,6 +9,7 @@ import {
   type AppSettings,
   type SettingsUpdate,
 } from '../../api';
+import { SCALE_MAX, SCALE_MIN, useUiPrefs } from '../../prefs/UiPrefs';
 import './SettingsView.css';
 
 /** 公共仓库数量（游戏固定 6 个；C# 那边 `StashTabPicker` 也硬编码 6） */
@@ -32,6 +33,8 @@ export default function SettingsView() {
   /** 第二栏「动作」的反馈（重置/导入的后果比保存设置严重得多，要单独说清楚） */
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  /** 纯前端偏好：字体与快捷键（见 prefs/UiPrefs.tsx） */
+  const { prefs, update: updatePrefs, updateShortcut, resetShortcuts } = useUiPrefs();
 
   useEffect(() => {
     let cancelled = false;
@@ -137,6 +140,74 @@ export default function SettingsView() {
           checked={settings.hideSkills}
           onChange={(v) => update({ hideSkills: v })}
         />
+      </section>
+
+      {/*
+        ★ 字体与快捷键是**纯前端偏好**（存 localStorage，见 prefs/UiPrefs.tsx）。
+          不放进 C# 的 settings.json：后端既不读也不用它们。
+      */}
+      <section className="settings-section">
+        <h2 className="settings-section__title">字体</h2>
+
+        <p className="settings-note">
+          「详细对照」的属性区、以及左右固定栏里的物品详情，可以单独换字体、调字号。
+          字体填系统里装了的名字（如 <code>微软雅黑</code>），留空 = 默认。
+        </p>
+
+        <FontRow
+          label="详细对照"
+          hint="「详细对照」视图里每张卡片的属性区"
+          family={prefs.compareFontFamily}
+          scale={prefs.compareFontScale}
+          onFamily={(v) => updatePrefs({ compareFontFamily: v })}
+          onScale={(v) => updatePrefs({ compareFontScale: v })}
+        />
+
+        <FontRow
+          label="固定栏详情"
+          hint="左侧 / 右侧固定栏里的物品详情"
+          family={prefs.detailFontFamily}
+          scale={prefs.detailFontScale}
+          onFamily={(v) => updatePrefs({ detailFontFamily: v })}
+          onScale={(v) => updatePrefs({ detailFontScale: v })}
+        />
+      </section>
+
+      <section className="settings-section">
+        <h2 className="settings-section__title">快捷键</h2>
+
+        <p className="settings-note">
+          在「物品」页按下即生效。焦点在输入框里时不会触发（避免打字被吞）。
+          点一下右边的框，再按想要的键即可；若这个键已被别的功能占用，两项会
+          <strong>互换</strong>，不会撞在一起。
+        </p>
+
+        <div className="settings-shortcuts">
+          <ShortcutInput
+            label="聚焦搜索框"
+            value={prefs.shortcuts.search}
+            onChange={(v) => updateShortcut('search', v)}
+          />
+          <ShortcutInput
+            label="过滤器"
+            value={prefs.shortcuts.filter}
+            onChange={(v) => updateShortcut('filter', v)}
+          />
+          <ShortcutInput
+            label="高级搜索"
+            value={prefs.shortcuts.advanced}
+            onChange={(v) => updateShortcut('advanced', v)}
+          />
+          <ShortcutInput
+            label="专注模式"
+            value={prefs.shortcuts.focus}
+            onChange={(v) => updateShortcut('focus', v)}
+          />
+        </div>
+
+        <button type="button" className="settings-reset-keys" onClick={resetShortcuts}>
+          恢复默认快捷键
+        </button>
       </section>
 
       <section className="settings-section">
@@ -263,6 +334,104 @@ export default function SettingsView() {
         {actionMessage && <p className="settings-action-message">{actionMessage}</p>}
       </aside>
     </div>
+  );
+}
+
+/**
+ * 一处字体的设置行：字体族（文本框）+ 字号倍率（数字框）。
+ *
+ * ★ 倍率就地夹到 `[SCALE_MIN, SCALE_MAX]`：数字框允许手打，
+ *   打进去 100 会把布局撑爆，而使用者未必意识到自己打错了。
+ */
+function FontRow({
+  label,
+  hint,
+  family,
+  scale,
+  onFamily,
+  onScale,
+}: {
+  label: string;
+  hint: string;
+  family: string;
+  scale: number;
+  onFamily: (value: string) => void;
+  onScale: (value: number) => void;
+}) {
+  return (
+    <div className="settings-font">
+      <div className="settings-font__head">
+        <span className="settings-font__label">{label}</span>
+        <span className="settings-font__hint">{hint}</span>
+      </div>
+
+      <label className="settings-field">
+        <span className="settings-field__label">字体</span>
+        <input
+          type="text"
+          className="settings-field__input"
+          value={family}
+          placeholder="（默认）"
+          onChange={(e) => onFamily(e.target.value)}
+        />
+      </label>
+
+      <label className="settings-field">
+        <span className="settings-field__label">字号倍率</span>
+        <input
+          type="number"
+          className="settings-field__input settings-field__input--scale"
+          min={SCALE_MIN}
+          max={SCALE_MAX}
+          step={0.05}
+          value={scale}
+          onChange={(e) => {
+            const next = Number(e.target.value);
+            if (!Number.isFinite(next)) return;
+            onScale(Math.min(SCALE_MAX, Math.max(SCALE_MIN, next)));
+          }}
+        />
+      </label>
+    </div>
+  );
+}
+
+/**
+ * 一个快捷键输入框。
+ *
+ * ★ 刻意用 `readOnly` + `onKeyDown` 而不是普通文本框：
+ *   普通文本框里"把旧字符删掉再打新的"会遇到 `maxLength` 的边界——
+ *   删空时受控值立刻回退成默认键，于是新字符打不进去。
+ *   直接捕获按键（按什么就是什么）既没有这个问题，也更符合"录一个键"的直觉。
+ */
+function ShortcutInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="settings-shortcut">
+      <span className="settings-shortcut__label">{label}</span>
+      <input
+        type="text"
+        className="settings-shortcut__key"
+        value={value}
+        readOnly
+        aria-label={`${label}快捷键`}
+        title="点一下，然后按你想用的键（Backspace 恢复默认）"
+        onKeyDown={(e) => {
+          // 让 Tab / Esc 保持"离开这里"的原意，别被当成快捷键录进去
+          if (e.key === 'Tab' || e.key === 'Escape') return;
+          e.preventDefault();
+          if (e.key === 'Backspace' || e.key === 'Delete') onChange('');
+          else if (e.key.length === 1) onChange(e.key);
+        }}
+      />
+    </label>
   );
 }
 

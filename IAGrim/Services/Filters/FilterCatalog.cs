@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -399,7 +399,7 @@ namespace IAGrim.Services.Filters {
 
             foreach (var entry in Index) {
                 var haystack = entry.Text.ToLowerInvariant();
-                if (!terms.All(t => haystack.Contains(t, StringComparison.Ordinal))) {
+                if (!terms.All(t => ContainsTerm(haystack, t))) {
                     continue;
                 }
 
@@ -411,6 +411,35 @@ namespace IAGrim.Services.Filters {
             }
 
             return stats;
+        }
+
+        /// <summary>
+        /// 索引文本里有没有这个搜索词。
+        ///
+        /// ★ 中文照旧**子串**匹配（中文没有词边界，而且这是中文界面的主用法）。
+        /// ⚠️ **纯 ASCII 的词要求词边界**——否则搜 "LS" 会命中 "all ski**ls**" 这类
+        /// 英文，解析出一堆无关属性，把结果撑得面目全非
+        /// （使用者 2026-09-14 报的："搜 LS 出来了很多无关的选项"）。
+        /// </summary>
+        private static bool ContainsTerm(string haystack, string term) {
+            if (term.Any(c => c > 127)) {
+                return haystack.Contains(term, StringComparison.Ordinal);
+            }
+
+            var index = 0;
+            while ((index = haystack.IndexOf(term, index, StringComparison.Ordinal)) >= 0) {
+                var before = index > 0 ? haystack[index - 1] : ' ';
+                var afterIndex = index + term.Length;
+                var after = afterIndex < haystack.Length ? haystack[afterIndex] : ' ';
+
+                if (!char.IsLetterOrDigit(before) && !char.IsLetterOrDigit(after)) {
+                    return true;
+                }
+
+                index += term.Length;
+            }
+
+            return false;
         }
     }
 }

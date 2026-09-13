@@ -13,31 +13,6 @@ import './chips.css';
  */
 
 /**
- * 单选用的色块：与多选色块同一套观感，但一组里只有一个能选中。
- * 选中用绿——这些选项之间都是"或"（选了"一天内"就不可能是"一周内"）。
- */
-export function ChipRadio({
-  label,
-  checked,
-  onSelect,
-}: {
-  label: string;
-  checked: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={`filter-chip${checked ? ' filter-chip--or' : ''}`}
-      aria-pressed={checked}
-      onClick={onSelect}
-    >
-      {label}
-    </button>
-  );
-}
-
-/**
  * 入库时间：**单选**（五小时内 / 一天内 / 一周内 / 一月内）。
  *
  * - **不选就是不限**（所以没有"不限"这一档）；再点一下已选中的即取消。

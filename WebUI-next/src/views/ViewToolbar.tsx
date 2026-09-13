@@ -2,16 +2,19 @@ import { useItemDetail } from '../components/ItemDetail';
 import { ITEM_VIEWS, findView } from './registry';
 import type { DetailDisplayMode } from '../components/ItemDetail/ItemDetailContext';
 import { PAGE_SIZES, type LoadMode, type PageSize, type PagingState } from './usePaging';
+import { SORT_CHOICES, type SortBy, type SortState } from './useSort';
 import './ViewToolbar.css';
 
 interface Props {
   viewId: string;
   onViewChange: (id: string) => void;
   paging: PagingState;
+  /** 排序偏好（使用者 2026-09-13 从高级搜索搬到这里） */
+  sort: SortState;
 }
 
 /**
- * 列表上方的工具条：视图 / 详情 / 加载方式 / 每页条数。
+ * 列表上方的工具条：视图 / 详情 / 排序 / 加载方式 / 每页条数。
  *
  * 它**独立于列表**（在滚动容器外面），所以滚动列表时工具条不动——
  * 这是使用者 2026-09-12 的要求。
@@ -19,13 +22,18 @@ interface Props {
  * ★ 2026-09-12 新增后两个下拉：物品变多之后，一屏 50 条是远不够用的。
  *   加载方式与条数是**两个独立的偏好**，故意不合并成一个下拉：
  *   "无限滚动 + 每次 200 条"和"翻页 + 每页 200 条"都是合理组合。
+ *
+ * ★ 2026-09-13 新增「排序」：它原来是高级搜索里的一对单选（按名称 / 按等级），
+ *   使用者要求搬出来、并升级成四个选项（入库时间 / 品质 / 等级 / 名称）。
+ *   理由很直白：排序是"怎么看"的一部分，每次都要开高级搜索改太绕。
  */
-export default function ViewToolbar({ viewId, onViewChange, paging }: Props) {
+export default function ViewToolbar({ viewId, onViewChange, paging, sort }: Props) {
   const { displayMode, setDisplayMode } = useItemDetail();
   const view = findView(viewId);
   // 这种视图自己就把完整属性摊开了，"详情"下拉没有意义 → 禁用（见 types.ts 的说明）
   const detailDisabled = view.showsFullStats === true;
   const { loadMode, pageSize, setLoadMode, setPageSize } = paging;
+  const sortHint = SORT_CHOICES.find((choice) => choice.value === sort.sortBy)?.hint;
 
   return (
     <div className="view-toolbar">
@@ -63,6 +71,23 @@ export default function ViewToolbar({ viewId, onViewChange, paging }: Props) {
         <option value="hover">浮动</option>
         <option value="docked-left">左侧固定栏</option>
         <option value="docked-right">右侧固定栏</option>
+      </select>
+
+      <label className="view-toolbar__label" htmlFor="sort-select">
+        排序
+      </label>
+      <select
+        id="sort-select"
+        className="view-toolbar__select view-toolbar__select--narrow"
+        value={sort.sortBy}
+        onChange={(e) => sort.setSortBy(e.target.value as SortBy)}
+        title={sortHint ?? '选择列表的排列次序'}
+      >
+        {SORT_CHOICES.map((choice) => (
+          <option key={choice.value} value={choice.value} title={choice.hint}>
+            {choice.label}
+          </option>
+        ))}
       </select>
 
       <label className="view-toolbar__label" htmlFor="load-mode-select">

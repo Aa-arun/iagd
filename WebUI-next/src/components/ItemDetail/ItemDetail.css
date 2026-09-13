@@ -187,6 +187,26 @@
      浮动模式必须 pointer-events: none，否则面板会挡住指针、
      立刻触发 mouseleave 导致闪烁。 */
   pointer-events: auto;
+
+  /*
+   * 固定栏的字体与字号倍率可在设置里改（见 prefs/UiPrefs.tsx）。
+   * ⚠️ 内部那些字号是写死的 px，所以下面要逐个乘倍率，而不是只改这一层——
+   *    否则继承来的 font-size 会被子元素自己的声明盖掉。
+   */
+  font-family: var(--detail-font-family, inherit);
+  font-size: calc(12px * var(--detail-font-scale, 1));
+}
+
+.item-detail[data-docked] .item-detail__name {
+  font-size: calc(14px * var(--detail-font-scale, 1));
+}
+
+.item-detail[data-docked] .item-detail__meta {
+  font-size: calc(11px * var(--detail-font-scale, 1));
+}
+
+.item-detail[data-docked] .tt {
+  font-size: calc(13px * var(--detail-font-scale, 1));
 }
 
 /* 落影朝栏的内侧（左侧栏投向右，右侧栏投向左） */

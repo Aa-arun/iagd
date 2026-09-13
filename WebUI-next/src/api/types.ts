@@ -80,6 +80,18 @@ export interface RarityCondition {
   prefixRarity: number;
 }
 
+/**
+ * 排序方式。对应 C# `ItemSearchRequest.SortBy`（见 `PlayerItemDaoImpl.BuildOrderBy`）。
+ *
+ * | 值 | 次序 |
+ * |---|---|
+ * | `created` | 入库时间（新 → 旧），前端默认 |
+ * | `quality` | 品质 → 等级 → 名称 |
+ * | `level` | 等级 → 品质 → 名称 |
+ * | `name` | 名称 → 品质 → 等级 |
+ */
+export type SortBy = 'created' | 'quality' | 'level' | 'name';
+
 /** 数值过滤的比较符。对应 C# `StatValueFilter.Op`。 */
 export type StatOperator =
   | 'GreaterOrEqual'
@@ -203,8 +215,18 @@ export interface ItemSearchRequest {
   /**
    * 排序：`true` = 按等级需求升序（旧界面的「按等级排序」），缺省 = 按物品名。
    * ⚠️ 只是排序、不是过滤条件；分页期间别改它，否则切片会对不上。
+   *
+   * ★ 2026-09-13 起新前端改用 {@link ItemSearchRequest.sortBy}（四级排序）。
+   *   这个字段保留是为了不破坏旧调用方（旧界面路径 / 只浏览的 `GET /api/items`）。
    */
   orderByLevel?: boolean;
+  /**
+   * 排序方式（新前端用）。见 {@link SortBy}。
+   *
+   * ⚠️ 非空时**优先于** `orderByLevel`；空 = 沿用旧行为。
+   * 排序在后端 SQL 里做（分页切片在后端），前端不要自己重排。
+   */
+  sortBy?: SortBy;
   /** 槽位（`ArmorProtective_Head` …） */
   slot?: string[] | null;
   /** true = **排除** `slot` 里的槽位 */

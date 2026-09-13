@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -51,6 +51,25 @@ namespace IAGrim.Database.Dto {
         /// ⚠️ 分页期间换排序会让切片对不上——那是调用方要自己避免的事。
         /// </summary>
         public bool OrderByLevel { get; set; }
+
+        /// <summary>
+        /// 排序方式（使用者 2026-09-13 要求，从高级搜索搬到工具条）。
+        ///
+        /// 取值（大小写不敏感）：
+        /// <list type="bullet">
+        ///   <item><c>created</c> —— 按入库时间**从新到旧**（前端默认）</item>
+        ///   <item><c>quality</c> —— 品质 &gt; 等级 &gt; 名称</item>
+        ///   <item><c>level</c>   —— 等级 &gt; 品质 &gt; 名称</item>
+        ///   <item><c>name</c>    —— 名称 &gt; 品质 &gt; 等级</item>
+        /// </list>
+        ///
+        /// 空 / 不认识的值 = 沿用旧行为（见 <see cref="OrderByLevel"/>），
+        /// 这样既有的调用方（旧界面路径、只是浏览的 <c>GET /api/items</c>）不受影响。
+        ///
+        /// ⚠️ 与 <see cref="OrderByLevel"/> 一样：**只是排序，不是过滤条件**，
+        /// 不参与 <see cref="IsEmpty"/>；分页期间改它会让切片对不上，是调用方要避免的事。
+        /// </summary>
+        public string? SortBy { get; set; }
 
         /// <summary>
         /// 品质条件，**组内是或**（满足任意一条即可）。用于"双稀有"这种需要带上词缀数的组合。

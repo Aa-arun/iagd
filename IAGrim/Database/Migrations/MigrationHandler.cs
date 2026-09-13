@@ -1,4 +1,4 @@
-﻿using IAGrim.Database.Interfaces;
+using IAGrim.Database.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -29,6 +29,10 @@ namespace IAGrim.Database.Migrations {
             Run(new FixDatabaseItemIdTypeMigration());
 
             Run(new AddIndices());
+
+            // 搜索文本的口径变过（去掉界面上不显示的英文技能名），所以重算一遍。
+            // 放最后：它只依赖 ReplicaItemRow 表本身。
+            Run(new RefreshSearchableReplicaText());
         }
 
         private void Run(IDatabaseMigration migration) {

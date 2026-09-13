@@ -1,4 +1,4 @@
-﻿offensivePierceRatioMin={0}% 穿刺转换
+offensivePierceRatioMin={0}% 穿刺转换
 defensiveProtection={0} 护甲
 defensiveStun=減少{0}% 眩晕时间
 skillChanceWeight={0}% 几率使用
@@ -308,7 +308,7 @@ iatag_ui_enchanted=已附魔
 iatag_ui_duplicatesonly=多件同款
 iatag_ui_reflect=反击
 iatag_ui_block=格挡
-iatag_ui_setbonus=属性
+iatag_ui_setbonus=套装
 iatag_ui_petbonuses=战宠
 iatag_ui_mastery=技能等级
 iatag_ui_castspeed=施法速度
