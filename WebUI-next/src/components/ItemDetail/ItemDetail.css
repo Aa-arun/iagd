@@ -21,11 +21,12 @@
   overflow: hidden; /* 由内部的 .tt-card__body-scroll 负责滚动 */
   background: var(--bg-floating);
   /*
-   * 深色底上用**亮一档、粗一档**的边框，否则圆角那段（斜线 + 抗锯齿）
-   * 几乎看不见——与详细对照的卡片同一套处理。
+   * 深色底上用**亮一档的颜色 + 更小的圆角**（4px）：1px 的 `--border` 在 #0d0d0b
+   * 上对比太弱，圆角那段（斜线 + 抗锯齿）尤其看不见——弧度小一点才勾得出轮廓。
+   * 与详细对照的卡片是同一套处理。
    */
-  border: 2px solid var(--border-strong);
-  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
 
   /* ★ 关键：hover 预览时面板不能接收鼠标事件，
