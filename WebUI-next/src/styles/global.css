@@ -43,6 +43,12 @@
   --bg-hover: #3b352d;
   /* 边框保持原值：它在提亮后的面板上仍然看得见，不必跟着动 */
   --border: #3a352d;
+  /*
+   * 深色面板（`--bg-floating` #0d0d0b）上的边框：比 `--border` 亮一档。
+   * 1px 的暗边框在深色底上、尤其是**圆角**那段（斜线 + 抗锯齿）会几乎看不见，
+   * 所以这类面板用这条（配合 2px 宽度，见 CompareView.css）。
+   */
+  --border-strong: #4d463a;
 
   /* 文字 */
   --text: #ddd8cd;
@@ -393,6 +399,18 @@ body {
 
 .app__list::after {
   bottom: 0;
+}
+
+/*
+ * ★ 详细对照：卡片是深色（`--bg-floating` #0d0d0b），列表底就得**更亮**才分得开
+ *   ——`#0d0d0b` 与默认的 `--bg-sunken`(#131109) 对比度只有 1.03，卡片会"陷"进背景。
+ *   所以这个视图单独把底提到页面底 `--bg`(#1c1a17)。
+ *   ⚠️ 上下两条遮罩条必须用**同一个颜色**，否则会露出两条色带。
+ */
+.app__content[data-view='compare'] .app__list,
+.app__content[data-view='compare'] .app__list::before,
+.app__content[data-view='compare'] .app__list::after {
+  background: var(--bg);
 }
 
 

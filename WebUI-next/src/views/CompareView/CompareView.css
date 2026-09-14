@@ -79,7 +79,12 @@
    */
   background: var(--bg-floating);
   --tt-mask-bg: var(--bg-floating);
-  border: 1px solid var(--border);
+  /*
+   * ★ 深色卡片用**亮一档、粗一档**的边框（使用者 2026-09-15）：
+   *   1px 的 `--border`(#3a352d) 在 #0d0d0b 上几乎看不见，尤其在**圆角**那段
+   *   （斜线 + 抗锯齿会把 1px 的线抹淡）。`--border-strong` + 2px 才勾得出轮廓。
+   */
+  border: 2px solid var(--border-strong);
   border-radius: 6px;
   /*
    * ★ 刻意**不给** hover / 选中效果（使用者 2026-09-12 要求）。

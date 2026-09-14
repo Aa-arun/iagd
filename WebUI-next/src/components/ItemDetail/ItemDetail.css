@@ -10,17 +10,21 @@
 .item-detail {
   z-index: 100;
   /*
-   * ★ 面板底色用**提亮过的 `--bg-panel`**（与卡片同档，使用者 2026-09-15）：
-   *   固定栏 / 浮动面板背后是页面底（`--bg` #1c1a17），而面板原来是 `#1f1c18`，
-   *   两者几乎同色、看不出这是一块面板。
+   * ★ 面板底色统一用**深色 `--bg-floating`**(#0d0d0b)（使用者 2026-09-15）：
+   *   固定栏与浮动面板现在同一种底——比 `--bg-panel` 的卡片更暗，层次清楚，
+   *   也更像游戏里的 tooltip 底。
    *   `--tt-mask-bg` 必须跟着它走——属性区滚动遮罩条靠同色"隐形"（见 TooltipCard.css）。
    */
-  --tt-mask-bg: var(--bg-panel);
+  --tt-mask-bg: var(--bg-floating);
   display: flex;
   flex-direction: column;
   overflow: hidden; /* 由内部的 .tt-card__body-scroll 负责滚动 */
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
+  background: var(--bg-floating);
+  /*
+   * 深色底上用**亮一档、粗一档**的边框，否则圆角那段（斜线 + 抗锯齿）
+   * 几乎看不见——与详细对照的卡片同一套处理。
+   */
+  border: 2px solid var(--border-strong);
   border-radius: 6px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
 
@@ -36,19 +40,9 @@
 }
 
 /*
- * ★ 浮动模式下用**更暗的底色**（使用者 2026-09-15）。
- *
- * 浮动面板是"点击简洁卡片后浮出来的那一块"，背后正好是同样 `--bg-panel`
- * （#322c25）的卡片——同色会分不出来。换 `--bg-floating`（#0d0d0b）压出层次，
- * 配合 `[data-pinned]` 的亮边框与阴影就清楚了。
- *
- * ⚠️ `--tt-mask-bg` 必须跟着换：属性区滚动遮罩条靠"与底色同色"隐形。
- * 固定栏模式不动——它在页面上（`--bg` #1c1a17），用 `--bg-panel` 已经够分明。
+ * 浮动模式（`data-mode='hover'`）曾经单独用过更深的底色，现在**固定栏与浮动
+ * 统一都是 `--bg-floating`**（使用者 2026-09-15），所以那条规则已经不需要了。
  */
-.item-detail[data-mode='hover'] {
-  background: var(--bg-floating);
-  --tt-mask-bg: var(--bg-floating);
-}
 
 /*
  * 「取消固定」按钮——**面板独有**（详细对照那边抬头右侧放的是「取出」）。
