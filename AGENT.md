@@ -144,13 +144,20 @@ flowchart LR
 
 **开发新前端的两种方式**：
 
-1. **改完构建、拷进 storage**（贴近真实运行）：
+1. **改完构建、拷进「两处」**（贴近真实运行）：
    ```bash
    cd WebUI-next && npm run build
-   rm -rf "$LOCALAPPDATA/EvilSoft/IAGD/storage/assets"
-   cp -r build/. "$LOCALAPPDATA/EvilSoft/IAGD/storage/"
+   # ① 浏览器真正读的  ② 程序"自带"的（启动时要用它覆盖 ①）
+   for D in /mnt/c/Users/jyl96/AppData/Local/EvilSoft/IAGD/storage \
+            /mnt/c/Users/jyl96/iagd-release/webui; do
+     rm -rf "$D/assets"
+     cp -r build/. "$D/"
+   done
    ```
    然后刷新浏览器。
+   > ⚠️ **只拷 `storage/` 会被程序重启冲掉**：`IAGrim.exe` 启动时
+   > `FrontendDeployer` 会拿程序目录的 `webui/` 覆盖 `storage/`（见
+   > `.docs/04-开发环境.md` §4.1）。
 2. **vite dev server**（热更新，改样式时更舒服）：需要把 `IAGD_API_TARGET`
    指向 `http://127.0.0.1:3031`——⚠️ 但 **WSL 里的 vite 访问不到 Windows 的 127.0.0.1**，
    所以这条路在 WSL 环境下不通，见 `.docs/04-开发环境.md` §9.4。
@@ -200,16 +207,21 @@ WSL2          ← ★ agent（DSH）· 仓库 /home/jyl/iagd（ext4 原生）· 
 **常用命令**（都在 WSL 内执行）：
 
 ```bash
-# ① 前端：构建 + 部署到 storage（当前主力流程，改完刷新浏览器即可）
+# ① 前端：构建 + 部署到「两处」（改完刷新浏览器即可）
+#    只拷 storage 的话，程序一重启就会被 webui/ 覆盖回去！
 cd ~/iagd/WebUI-next && npm run build
-rm -rf /mnt/c/Users/jyl96/AppData/Local/EvilSoft/IAGD/storage/assets
-cp -r build/. /mnt/c/Users/jyl96/AppData/Local/EvilSoft/IAGD/storage/
+for D in /mnt/c/Users/jyl96/AppData/Local/EvilSoft/IAGD/storage \
+         /mnt/c/Users/jyl96/iagd-release/webui; do
+  rm -rf "$D/assets"
+  cp -r build/. "$D/"
+done
 
 # ② 后端：编译（经 interop 调 Windows 的 dotnet）
 cd /mnt/c && cmd.exe /c 'pushd \\wsl.localhost\Ubuntu-24.04\home\jyl\iagd && dotnet build IAGrim-core.sln -c Release && popd'
 
-# ③ 运行：必须复制到 Windows 本地（UNC 路径跑不了 exe，会静默失败）
-#    然后启动 C:\Users\jyl96\iagd-release\IAGrim.exe
+# ③ 部署后端：必须先退出 IA（dll 被运行中的进程锁住），
+#    再把 IAGrim/bin/Release/net10.0-windows/win-x64/ 的内容拷到
+#    C:\Users\jyl96\iagd-release\，然后启动那里的 IAGrim.exe
 ```
 
 ### 三条铁律
