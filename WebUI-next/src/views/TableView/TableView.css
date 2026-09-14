@@ -92,21 +92,34 @@
 /*
  * 焦点框：hover 与选中都要显眼，且**强度不同**（使用者 2026-09-12 要求）。
  * 用左侧竖条而不是只换背景——列表行本来就细，纯背景色变化容易被忽略。
+ *
+ * ⚠️ 竖条**不能**画在 `tr` 的 `border-left` 上（使用者 2026-09-14 给的截图）：
+ *   `border-collapse: collapse` 下 tr 的边框是**表格层的共享边框**，
+ *   `position: sticky` 的表头背景**盖不住它**——滚动时表头行的高度范围内会
+ *   漏出这条竖条，看起来就像"图标列从表头左侧漏出来"。
+ *
+ *   所以改用**第一个单元格内部的 inset 阴影**：它是普通内容，会被表头正常
+ *   遮住；而且不占布局，也就不需要再"预留 3px 防跳动"。
  */
-.item-table tbody tr {
-  /* 预留竖条的位置，避免 hover 时整行内容横向跳动 */
-  border-left: 3px solid transparent;
+.item-table tbody td:first-child {
+  box-shadow: inset 3px 0 0 transparent;
 }
 
 .item-table tbody tr:hover {
   background: var(--focus-hover-bg);
-  border-left-color: color-mix(in srgb, var(--focus-accent) 50%, transparent);
+}
+
+.item-table tbody tr:hover td:first-child {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--focus-accent) 50%, transparent);
 }
 
 /* 被固定（点击锁定详情）的那一行 */
 .item-table tbody tr.is-pinned {
   background: var(--focus-pinned-bg);
-  border-left-color: var(--focus-accent);
+}
+
+.item-table tbody tr.is-pinned td:first-child {
+  box-shadow: inset 3px 0 0 var(--focus-accent);
 }
 
 .item-table tbody tr.is-pinned .item-table__name {
