@@ -14,7 +14,7 @@ const DETAIL_MODE_LABELS: Record<DetailDisplayMode, string> = {
   hover: '浮动',
   'docked-left': '左侧固定栏',
   'docked-right': '右侧固定栏',
-  full: '全部显示',
+  full: '瀑布',
   'fixed-height': '固定高度',
 };
 
@@ -47,7 +47,7 @@ export default function ViewToolbar({ viewId, onViewChange, paging, sort }: Prop
    * 每个视图允许的详情方式不同（见 types.ts 的 `detailModes`）：
    *   · 分栏列表 → 左 / 右固定栏（浮动会挡住相邻行）
    *   · 简洁卡片 → 浮动 + 左 / 右固定栏
-   *   · 详细对照 → 卡片**布局**：全部显示（瀑布流）/ 固定高度（等高、内部滚动）
+   *   · 详细对照 → 卡片**布局**：瀑布（瀑布流）/ 固定高度（等高、内部滚动）
    * 只有"一种选项都没有"的视图才禁用这个下拉。
    */
   const detailModes = view.detailModes ?? ALL_DETAIL_MODES;
@@ -87,7 +87,7 @@ export default function ViewToolbar({ viewId, onViewChange, paging, sort }: Prop
           detailDisabled
             ? '这个视图没有可选的详情方式'
             : view.showsFullStats
-              ? '卡片怎么排：全部显示（瀑布流，高度随内容）/ 固定高度（等高 = 内容区的 0.8，超出时卡片内滚动）'
+              ? '卡片怎么排：瀑布（高度随内容、各列错落）/ 固定高度（上限 = 内容区的 0.85，超出时卡片内滚动）'
               : '详情面板显示在哪：跟随鼠标浮动，或在左侧 / 右侧固定一栏'
         }
       >

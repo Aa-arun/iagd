@@ -37,7 +37,7 @@ interface PreviewState {
  *   选中的，没选中就跟着 hover 走。
  *
  * 对照卡片类（详细对照，使用者 2026-09-14 要求增加）：
- * - `full`：**全部显示**——卡片高度由属性多少决定，布局是**瀑布流**
+ * - `full`：**瀑布**——卡片高度由属性多少决定，布局是**瀑布流**
  *   （每张卡接在同一列上一张的结尾，各列顶部错落）。
  * - `fixed-height`：**固定高度**——卡片等高，高度 = 内容区高度 × 0.8，
  *   随窗口与过滤器开合同步变化，属性多时在卡片内部滚动。
@@ -219,16 +219,19 @@ export function ItemDetailProvider({
       // "固定"就失去意义了。
       if (pinned) return;
 
-      if (!item || !element) {
-        // ★ 固定栏模式下**不清空**。
-        //   面板在侧边栏里，鼠标要从卡片移过去才能滚动，中途必然经过空白 →
-        //   清空的话，使用者刚想看长属性、鼠标一动内容就没了。
-        //   所以这里保留最后指过的那件；移到别的卡片上会正常换。
-        if (displayMode !== 'hover') return;
+      /*
+       * ★ 浮动模式**完全不响应鼠标悬浮**（使用者 2026-09-15）：
+       *   简洁卡片的浮动详情只在**点击卡片**时弹出，鼠标扫过列表不再弹面板。
+       *   （原来"指到哪张就弹哪张"太容易误触，面板还一直挡着旁边的卡片。）
+       */
+      if (displayMode === 'hover') return;
 
-        setPreview(null);
-        return;
-      }
+      /*
+       * 固定栏模式：指到哪件就换哪件；移开时**不清空**、保留最后一件——
+       * 面板在侧边栏里，鼠标要移过去才能滚动，中途必然经过空白，
+       * 清空的话刚想看的长属性一动就没了。
+       */
+      if (!item || !element) return;
 
       setPreview({ item, rect: element.getBoundingClientRect() });
     },
@@ -280,10 +283,14 @@ export function ItemDetailProvider({
 
   const value = useMemo<ItemDetailContextValue>(
     () => ({
-      item: pinned ?? preview?.item ?? null,
+      /*
+       * 浮动模式只显示"点击固定"的那件（2026-09-15 起不再跟随鼠标悬浮）；
+       * 固定栏模式还会跟着 hover 走，没固定时显示最后指过的那件。
+       */
+      item: pinned ?? (displayMode === 'hover' ? null : (preview?.item ?? null)),
       isPinned: pinned !== null,
       /*
-       * 浮动模式的锚点：固定时用卡片位置、未固定时用 hover 的位置。
+       * 浮动模式的锚点：固定时用那张卡片的位置（决定面板浮在哪一侧）。
        * 固定栏模式下锚点无意义（面板在栏里，不跟鼠标），传 null 让面板忽略它。
        */
       anchor: displayMode !== 'hover' ? null : (pinnedRect ?? preview?.rect ?? null),
