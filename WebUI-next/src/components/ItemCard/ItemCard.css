@@ -56,7 +56,8 @@
 
 .item-card__name {
   margin: 0 0 8px;
-  font-size: 14px;
+  /* 物品名**全项目统一 14px**，与详情 / 详细对照的抬头一致，并跟字号倍率 */
+  font-size: calc(14px * var(--tooltip-font-scale, 1));
   font-weight: 600;
 }
 
@@ -65,6 +66,8 @@
   flex-wrap: wrap;
   gap: 4px 18px;
   margin: 0;
+  /* 等级**全项目统一 12px**，同上 */
+  font-size: calc(12px * var(--tooltip-font-scale, 1));
 }
 
 .item-card__meta > div {

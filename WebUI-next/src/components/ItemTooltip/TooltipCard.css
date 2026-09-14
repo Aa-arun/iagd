@@ -54,7 +54,13 @@
 
 .tt-card__name {
   margin: 0 0 4px;
-  font-size: 14px;
+  /*
+   * ★ 物品名的字号**全项目统一 14px**，且跟着设置里的字号倍率缩放
+   *   （使用者 2026-09-14：分栏列表 / 简洁卡片 / 详情面板 / 详细对照
+   *   四处必须"完全一样的大小"）。同一个倍率也作用于下面的等级与属性区，
+   *   所以调大倍率时整块一起变大，比例不会散。
+   */
+  font-size: calc(14px * var(--tooltip-font-scale, 1));
   font-weight: 600;
   line-height: 1.35;
   word-break: break-word;
@@ -66,7 +72,8 @@
   gap: 4px 12px;
   margin: 0;
   color: var(--text-muted);
-  font-size: 12px;
+  /* 等级**全项目统一 12px**（同样跟倍率），见上面名字的说明 */
+  font-size: calc(12px * var(--tooltip-font-scale, 1));
 }
 
 /*

@@ -15,9 +15,15 @@
 .item-table {
   width: 100%;
   /*
+   * ★ 字号**全项目统一 12px** 并跟设置里的字号倍率（使用者 2026-09-14）。
+   *   表格的列宽都是用 `em` 写的，所以这里一改，列宽上限会跟着等比缩放。
+   */
+  font-size: calc(12px * var(--tooltip-font-scale, 1));
+  /*
    * `50em`（≈600px @12px）是按上面的列宽上限加出来的：
    *   图标 40 + 名称 25em + 类型 8em + 等级 4em + 取出 44 + 单元格内边距。
-   * 再宽就留白，不再让表格铺满整行。
+   *   名称列用的是 14px（比表格正文大一档），25 个汉字 ≈ 350px，
+   *   正好落在剩余宽度里。再宽就留白，不再让表格铺满整行。
    */
   max-width: 50em;
   /*
@@ -113,6 +119,11 @@
 /* 名称列：超宽时省略号截断（列宽由上面的 fixed 布局锁死） */
 .item-table__name {
   overflow: hidden;
+  /*
+   * ★ 物品名 14px，与简洁卡片、详情面板、详细对照的抬头**完全一样**
+   *   （使用者 2026-09-14 报"列表里的名字小一号"）。
+   */
+  font-size: calc(14px * var(--tooltip-font-scale, 1));
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
