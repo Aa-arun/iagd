@@ -28,36 +28,48 @@ interface PreviewState {
 }
 
 /**
- * 详情面板的显示方式（使用者 2026-09-12 要求）。
+ * 「详情」的显示方式。**按视图不同**，同一个下拉里会出现不同的选项
+ * （见 `views/types.ts` 的 `detailModes`）。
  *
+ * 侧栏 / 浮动面板类（分栏列表、简洁卡片）：
  * - `hover`：跟随鼠标浮动（原行为）
  * - `docked-left` / `docked-right`：在视图的**左/右侧固定一栏**。选中了就显示
  *   选中的，没选中就跟着 hover 走。
  *
- * 三种方式在**选中/hover 的语义上完全一样**，只是定位不同，所以实现上只切
- * 布局，不复制逻辑。
+ * 对照卡片类（详细对照，使用者 2026-09-14 要求增加）：
+ * - `full`：**全部显示**——卡片高度由属性多少决定，布局是**瀑布流**
+ *   （每张卡接在同一列上一张的结尾，各列顶部错落）。
+ * - `fixed-height`：**固定高度**——卡片等高，高度 = 内容区高度 × 0.8，
+ *   随窗口与过滤器开合同步变化，属性多时在卡片内部滚动。
  */
-export type DetailDisplayMode = 'hover' | 'docked-left' | 'docked-right';
+export type DetailDisplayMode =
+  | 'hover'
+  | 'docked-left'
+  | 'docked-right'
+  | 'full'
+  | 'fixed-height';
 
-/** 三种显示方式，顺序即「详情」下拉里的顺序。 */
+/** 侧栏 / 浮动面板那三种，顺序即它们的「详情」下拉里的顺序。 */
 export const ALL_DETAIL_MODES: DetailDisplayMode[] = ['hover', 'docked-left', 'docked-right'];
+
+/** 详细对照的两种卡片布局。 */
+export const COMPARE_DETAIL_MODES: DetailDisplayMode[] = ['full', 'fixed-height'];
 
 /**
  * 把用户存下的偏好**收敛到当前视图允许的范围**里。
  *
- * 视图可以只允许其中一部分（见 `views/types.ts` 的 `detailModes`）。偏好不被
- * 支持时回退到该视图的第一个选项——刻意**不写回存储**：切回原来那个视图时，
- * 用户之前的选择还在（分栏列表与简洁卡片的偏好因此互不干扰）。
+ * 视图只允许其中一部分（见 `views/types.ts` 的 `detailModes`）。偏好不被支持时
+ * 回退到该视图的第一个选项。
  */
 export function effectiveDetailMode(
-  mode: DetailDisplayMode,
+  mode: DetailDisplayMode | undefined,
   allowed?: DetailDisplayMode[],
 ): DetailDisplayMode {
   const list = allowed && allowed.length > 0 ? allowed : ALL_DETAIL_MODES;
-  return list.includes(mode) ? mode : list[0];
+  return mode && list.includes(mode) ? mode : list[0];
 }
 
-/** 固定栏在哪一侧（`hover` 模式为 null）。 */
+/** 固定栏在哪一侧（其余模式为 null）。 */
 export function dockedSide(mode: DetailDisplayMode): 'left' | 'right' | null {
   if (mode === 'docked-left') return 'left';
   if (mode === 'docked-right') return 'right';
@@ -66,17 +78,48 @@ export function dockedSide(mode: DetailDisplayMode): 'left' | 'right' | null {
 
 const MODE_STORAGE_KEY = 'iagd.detailDisplayMode';
 
-function readStoredMode(): DetailDisplayMode {
+/**
+ * 每个视图各存一份偏好（使用者 2026-09-14："不同视图下详情的选择各不相同"）。
+ *
+ * `'*'` 是旧版本留下的"全局值"——早期只存一个字符串，现在读到时当作所有视图
+ * 的默认，然后被访问过的视图各自覆盖。
+ */
+type ModeMap = Record<string, DetailDisplayMode>;
+
+function isDetailMode(value: unknown): value is DetailDisplayMode {
+  return (
+    value === 'hover' ||
+    value === 'docked-left' ||
+    value === 'docked-right' ||
+    value === 'full' ||
+    value === 'fixed-height'
+  );
+}
+
+function readStoredModes(): ModeMap {
   try {
-    const stored = localStorage.getItem(MODE_STORAGE_KEY);
-    // 兼容早期只区分"是否固定"的那一版
-    if (stored === 'docked') return 'docked-right';
-    if (stored === 'docked-left' || stored === 'docked-right' || stored === 'hover') {
-      return stored;
+    const raw = localStorage.getItem(MODE_STORAGE_KEY);
+    if (!raw) return {};
+
+    const parsed: unknown = JSON.parse(raw);
+
+    // 兼容最早那一版：只区分"是否固定"，存的是一个字符串
+    if (typeof parsed === 'string') {
+      if (parsed === 'docked') return { '*': 'docked-right' };
+      return isDetailMode(parsed) ? { '*': parsed } : {};
     }
-    return 'hover';
+
+    if (parsed && typeof parsed === 'object') {
+      const map: ModeMap = {};
+      for (const [view, mode] of Object.entries(parsed as Record<string, unknown>)) {
+        if (isDetailMode(mode)) map[view] = mode;
+      }
+      return map;
+    }
+
+    return {};
   } catch {
-    return 'hover';
+    return {};
   }
 }
 
@@ -115,10 +158,16 @@ const ItemDetailContext = createContext<ItemDetailContextValue | null>(null);
 export function ItemDetailProvider({
   children,
   onTransferred,
+  viewId,
   detailModes,
 }: {
   children: ReactNode;
   onTransferred?: () => void;
+  /**
+   * 当前视图 id。**每个视图各存一份「详情」偏好**（使用者 2026-09-14：
+   * "不同视图下详情的选择各不相同"），所以 Provider 得知道自己在替谁存。
+   */
+  viewId: string;
   /**
    * 当前视图允许的详情方式（见 `views/types.ts` 的 `detailModes`）。
    *
@@ -138,18 +187,31 @@ export function ItemDetailProvider({
    *   （使用者 2026-09-14），所以得把位置留下来。
    */
   const [pinnedRect, setPinnedRect] = useState<DOMRect | null>(null);
-  /** 用户存下来的偏好；**实际生效**的是下面收敛过的 `displayMode`。 */
-  const [storedDisplayMode, setDisplayModeState] = useState<DetailDisplayMode>(readStoredMode);
-  const displayMode = effectiveDetailMode(storedDisplayMode, detailModes);
+  /** 各视图的偏好，键是视图 id（另有旧的全局键 `'*'`）。 */
+  const [modeByView, setModeByView] = useState<ModeMap>(readStoredModes);
 
-  const setDisplayMode = useCallback((mode: DetailDisplayMode) => {
-    setDisplayModeState(mode);
+  /** 实际生效的模式：本视图存过的 → 旧的全局值 → 该视图的第一个选项。 */
+  const displayMode = effectiveDetailMode(
+    modeByView[viewId] ?? modeByView['*'],
+    detailModes,
+  );
+
+  // 偏好落盘（初始化时也会写一次，顺带把旧的"全局字符串"迁移成 map）
+  useEffect(() => {
     try {
-      localStorage.setItem(MODE_STORAGE_KEY, mode);
+      localStorage.setItem(MODE_STORAGE_KEY, JSON.stringify(modeByView));
     } catch {
       /* 存不了就算了，只是下次打开回到默认值 */
     }
-  }, []);
+  }, [modeByView]);
+
+  const setDisplayMode = useCallback(
+    (mode: DetailDisplayMode) => {
+      // 只改**当前视图**那一份，别的视图保持不动
+      setModeByView((current) => ({ ...current, [viewId]: mode }));
+    },
+    [viewId],
+  );
 
   const onItemHover = useCallback(
     (item: IItem | null, element: HTMLElement | null) => {

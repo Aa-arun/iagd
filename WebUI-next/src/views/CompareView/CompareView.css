@@ -5,25 +5,53 @@
  * 不做折叠、不截断属性。
  *
  * ★ 卡片**内部**（抬头 / 图标 / 名字 / 等级 / 属性区）的样式在
- *   `components/ItemTooltip/TooltipCard.css` —— 它与详情面板共用同一份，
- *   所以"字体、字号、颜色"两处天然一致（使用者 2026-09-14）。
- *   这里只剩**外壳**：网格怎么排、卡片多宽、边框与选中态。
+ *   `components/ItemTooltip/TooltipCard.css` —— 它与详情面板共用同一份。
+ *   这里只管两种**排列模式**与卡片外壳。
+ *
+ * ★ 两种模式由「详情」下拉切换（使用者 2026-09-14），见 CompareView.tsx。
  */
 
 .compare-grid {
-  display: flex;
-  /* 一行放不下就换行，每行独立 */
-  flex-wrap: wrap;
-  /*
-   * ★ 行高由该行**最高**的那张卡决定（flex 换行的默认行为），
-   *   但每张卡自己的边框**只包住自己的条目**——所以用 flex-start，不是 stretch。
-   *
-   *   使用者 2026-09-12 给了参考图并说明："这一行的高度是和这一行最高的
-   *   条目匹配，但是行里面每一个装备，它外面的框框是跟自己的条目数匹配的。"
-   *   （早先用 stretch 会把矮卡片拉到行高，边框底下空出一大片。）
-   */
-  align-items: flex-start;
   gap: 12px;
+}
+
+/*
+ * ① 全部显示（默认）：**瀑布流**。
+ *
+ * 用 CSS 多列实现：每张卡接在同一列上一张的结尾（`margin-bottom` 当间距），
+ * 各列顶部因此**错落**，高卡片旁边不会留一大片空白——这正是使用者要的
+ * "不按行拼齐、直接顶到上一张的结尾、顶部是一种错落的排布"。
+ *
+ * `break-inside: avoid` 保证一张卡不会被拆到两列里（否则会看到半个 tooltip）。
+ * ⚠️ 多列的填充次序是**纵向**的（先填满第一列再第二列），不是从左到右逐行。
+ */
+.compare-grid--full {
+  column-width: 330px;
+  column-gap: 12px;
+}
+
+.compare-grid--full .compare-card {
+  width: 100%;
+  min-width: 0;
+  /* 列内卡片间距（多列布局读不到 gap，用 margin） */
+  margin-bottom: 12px;
+  break-inside: avoid;
+}
+
+/*
+ * ② 固定高度：卡片**等高**，按行换行排列。
+ *
+ * 高度 = 内容区高度 × 0.8（由 CompareView 测量后写成 `--compare-fixed-height`）。
+ * 内容装不下时在卡片**内部**滚动——属性区自带滚动与上下两条遮罩条。
+ */
+.compare-grid--fixed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.compare-grid--fixed .compare-card {
+  height: var(--compare-fixed-height, auto);
 }
 
 .compare-card {
@@ -40,10 +68,9 @@
   /*
    * ★ 刻意**不给** hover / 选中效果（使用者 2026-09-12 要求）。
    *
-   *   这个视图下"详情"面板已经禁用（见 views/types.ts 的 showsFullStats），
-   *   hover 和点击都不产生任何可见结果——再让边框变色、背景亮起来，只会
-   *   让人以为点了有反应。状态本身照旧记录（pinnedId 仍在更新，切回别的
-   *   视图时能接着用），只是这里不表现。
+   *   这个视图下不挂详情面板，hover 和点击都不产生可见结果——再让边框
+   *   变色、背景亮起来，只会让人以为点了有反应。状态本身照旧记录
+   *   （pinnedId 仍在更新，切回别的视图时能接着用），只是这里不表现。
    */
   cursor: default;
 }

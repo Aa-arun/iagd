@@ -474,7 +474,11 @@ export default function App() {
 
   return (
     <UiPrefsProvider>
-      <ItemDetailProvider onTransferred={reload} detailModes={findView(viewId).detailModes}>
+      <ItemDetailProvider
+        onTransferred={reload}
+        viewId={viewId}
+        detailModes={findView(viewId).detailModes}
+      >
         <I18nProvider map={i18n}>
           <AppShell
             tab={tab}

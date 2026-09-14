@@ -9,11 +9,13 @@ import { PAGE_SIZES, type LoadMode, type PageSize, type PagingState } from './us
 import { SORT_CHOICES, type SortBy, type SortState } from './useSort';
 import './ViewToolbar.css';
 
-/** 「详情」下拉里每一项的文案。 */
+/** 「详情」下拉里每一项的文案（各视图用到的子集，见 registry 的 detailModes）。 */
 const DETAIL_MODE_LABELS: Record<DetailDisplayMode, string> = {
   hover: '浮动',
   'docked-left': '左侧固定栏',
   'docked-right': '右侧固定栏',
+  full: '全部显示',
+  'fixed-height': '固定高度',
 };
 
 interface Props {
@@ -41,14 +43,15 @@ interface Props {
 export default function ViewToolbar({ viewId, onViewChange, paging, sort }: Props) {
   const { displayMode, setDisplayMode } = useItemDetail();
   const view = findView(viewId);
-  // 这种视图自己就把完整属性摊开了，"详情"下拉没有意义 → 禁用（见 types.ts 的说明）
-  const detailDisabled = view.showsFullStats === true;
   /*
    * 每个视图允许的详情方式不同（见 types.ts 的 `detailModes`）：
-   * 分栏列表只有左右固定栏，简洁卡片三种都有。存下来的偏好要是当前视图
-   * 不支持（比如刚从简洁卡片切过来、还存着"浮动"），这里收敛成回退值。
+   *   · 分栏列表 → 左 / 右固定栏（浮动会挡住相邻行）
+   *   · 简洁卡片 → 浮动 + 左 / 右固定栏
+   *   · 详细对照 → 卡片**布局**：全部显示（瀑布流）/ 固定高度（等高、内部滚动）
+   * 只有"一种选项都没有"的视图才禁用这个下拉。
    */
   const detailModes = view.detailModes ?? ALL_DETAIL_MODES;
+  const detailDisabled = detailModes.length === 0;
   const activeDetailMode = effectiveDetailMode(displayMode, detailModes);
   const { loadMode, pageSize, setLoadMode, setPageSize } = paging;
   const sortHint = SORT_CHOICES.find((choice) => choice.value === sort.sortBy)?.hint;
@@ -82,8 +85,10 @@ export default function ViewToolbar({ viewId, onViewChange, paging, sort }: Prop
         onChange={(e) => setDisplayMode(e.target.value as DetailDisplayMode)}
         title={
           detailDisabled
-            ? '「详细对照」视图已经把完整属性摊开了，不需要详情面板'
-            : '在左侧/右侧固定一栏（「简洁卡片」另有"浮动"）'
+            ? '这个视图没有可选的详情方式'
+            : view.showsFullStats
+              ? '卡片怎么排：全部显示（瀑布流，高度随内容）/ 固定高度（等高 = 内容区的 0.8，超出时卡片内滚动）'
+              : '详情面板显示在哪：跟随鼠标浮动，或在左侧 / 右侧固定一栏'
         }
       >
         {detailModes.map((mode) => (

@@ -39,8 +39,14 @@ export const ITEM_VIEWS: ItemViewDefinition[] = [
     label: '详细对照',
     description: '把完整属性并排摊开，适合筛选后比较几件装备',
     component: CompareView,
-    // 这个视图本身就把 tooltip 全摊开了，"详情"面板没有意义
+    /*
+     * 这个视图把 tooltip 全摊在卡片里（`showsFullStats`），不再挂侧栏面板；
+     * 但它的「详情」下拉**不置灰**——而是管**卡片怎么排**（使用者 2026-09-14）：
+     *   · 全部显示   → 高度随内容，布局是瀑布流（各列顶部错落）
+     *   · 固定高度   → 卡片等高 = 内容区高度 × 0.8，超出时卡片内部滚动
+     */
     showsFullStats: true,
+    detailModes: ['full', 'fixed-height'],
   },
 ];
 
