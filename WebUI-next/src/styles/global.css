@@ -322,6 +322,39 @@ body {
   padding-top: 0;
 }
 
+/*
+ * ★ 滚动时的上下「遮罩条」（使用者 2026-09-14）。
+ *
+ * 背景：滚动条一出现，内容就是在容器边缘被**硬切**的——文字贴着边框消失，
+ * 转折很生硬。**内边距解决不了**这个问题（内边距属于滚动内容，内容照样
+ * 从边框处滚过去），所以这里各放一条 4px 高、与容器背景同色的长条：
+ *
+ *   · `position: sticky` —— 条子本身在滚动内容里（占 4px 留白），但滚动时
+ *     会**吸附在容器的上 / 下边缘**，把滚过它的内容盖住。普通 `absolute`
+ *     会随内容一起滚走，达不到遮罩效果。
+ *   · 于是：文字在离边框 **4px** 的地方就"消失"，`z-index` 让它也盖住
+ *     `sticky` 表头的最上沿（表头文字本来就在 8px 内边距之下，不受影响）。
+ *   · 滚到底时它只是一段留白，不会遮住最后一行。
+ */
+.app__list::before,
+.app__list::after {
+  content: '';
+  display: block;
+  position: sticky;
+  z-index: 2;
+  height: 4px;
+  background: var(--bg-panel);
+  pointer-events: none;
+}
+
+.app__list::before {
+  top: 0;
+}
+
+.app__list::after {
+  bottom: 0;
+}
+
 
 /*
  * 无限滚动的哨兵：列表末尾的一个空块。

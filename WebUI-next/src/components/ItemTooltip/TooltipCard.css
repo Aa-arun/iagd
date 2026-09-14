@@ -98,6 +98,36 @@
   font-size: calc(13px * var(--tooltip-font-scale, 1));
 }
 
+/*
+ * ★ 滚动时的上下「遮罩条」（使用者 2026-09-14，与 `.app__list` 同一套做法）。
+ *
+ * 详情面板里属性区是可滚的：滚动条一出现，文字就在面板上下边框处被**硬切**。
+ * 这里放两条 4px 高、与背后容器同色的长条——`position: sticky` 让它们吸附在
+ * 滚动端口的上下边缘，把滚过它的内容盖住，于是文字在离边框 **4px** 处就消失；
+ * 滚到底时它只是一段留白。`pointer-events: none` 不挡交互。
+ *
+ * ⚠️ 颜色必须和**背后的容器**一致才能"隐形"：详情面板的底色是 `#1f1c18`
+ *   （由 ItemDetail.css 设 `--tt-mask-bg`），详细对照的卡片是 `--bg-panel`。
+ */
+.tt-card__body::before,
+.tt-card__body::after {
+  content: '';
+  display: block;
+  position: sticky;
+  z-index: 2;
+  height: 4px;
+  background: var(--tt-mask-bg, var(--bg-panel));
+  pointer-events: none;
+}
+
+.tt-card__body::before {
+  top: 0;
+}
+
+.tt-card__body::after {
+  bottom: 0;
+}
+
 /* 没有 `replicaStats` 时兜底显示 IA 自己拼的属性（见 StatList） */
 .tt-card__stats {
   margin: 0;
