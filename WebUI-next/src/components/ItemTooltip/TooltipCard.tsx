@@ -79,8 +79,12 @@ export default function TooltipCard({ item, action, lazyIcon }: Props) {
               类型文本（"传奇护肩"）**不在这里显示**——属性区第一行就是
               `tt-type-66`，抬头再放一遍是完全重复（使用者 2026-09-14）。
               只有拿不到类型文本时才用槽位兜底。
+              ★ 等级数字单独包一层用正文色（近白），与简洁卡片的
+              `item-card__meta` 一致——灰色小字里的数字太不显眼（2026-09-15）。
             */}
-            <span>等级 {formatNumber(item.level)}</span>
+            <span>
+              等级 <span className="tt-card__meta-value">{formatNumber(item.level)}</span>
+            </span>
             {!typeLabel && item.slot && <span>{slotLabel(item.slot, t)}</span>}
           </p>
         </div>
