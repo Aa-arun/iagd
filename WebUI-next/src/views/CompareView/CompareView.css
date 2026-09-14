@@ -39,19 +39,29 @@
 }
 
 /*
- * ② 固定高度：卡片**等高**，按行换行排列。
+ * ② 固定高度：**只是一个上限**，不是每张都硬撑到那么高。
  *
- * 高度 = 内容区高度 × 0.8（由 CompareView 测量后写成 `--compare-fixed-height`）。
- * 内容装不下时在卡片**内部**滚动——属性区自带滚动与上下两条遮罩条。
+ * 规则（使用者 2026-09-14 定、09-15 补充）：
+ *   · 每张卡的上限 = 内容区高度 × 0.8（`--compare-fixed-height`，由 CompareView 测量）；
+ *   · 一行的高度取**该行最高的那张卡**——如果这一行每张卡的内容都装得下，
+ *     行高就压到实际内容高度，不会在下面留一大片空白；
+ *   · 行内卡片**等高**（flex 默认的 `align-items: stretch`）：内容少的卡片被
+ *     拉到行高，下面留白；
+ *   · 内容超过上限的卡片被 `max-height` 卡住，在**卡片内部**滚动
+ *     （属性区自带滚动与上下两条遮罩条）。
+ *
+ * 所以行高 = min(该行最高的卡片内容高度, 上限)，全部由这两条 CSS 表达，
+ * 不需要 JS 去分行、量高度。
  */
 .compare-grid--fixed {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  /* 刻意**不写** `align-items: flex-start`：要的就是默认的 stretch */
 }
 
 .compare-grid--fixed .compare-card {
-  height: var(--compare-fixed-height, auto);
+  /* 只给上限、不给固定高度 —— 高度交给"行高"（stretch）决定 */
+  max-height: var(--compare-fixed-height, none);
 }
 
 .compare-card {
