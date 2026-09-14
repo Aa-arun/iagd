@@ -89,11 +89,7 @@
   /* 详情面板靠这两个属性把溢出交给内部滚动（对照卡片高度自适应，不受影响） */
   min-height: 0;
   overflow-y: auto;
-  /*
-   * ★ 上下各 4px（使用者 2026-09-14）：滚动到顶 / 底时属性文字不紧贴边框，
-   *   转折不至于"太硬"——与列表容器 `.app__list` 是同一个数。
-   */
-  padding: 4px 12px;
+  padding: 8px 12px 12px;
   font-family: var(--tooltip-font-family, inherit);
   font-size: calc(12px * var(--tooltip-font-scale, 1));
 }

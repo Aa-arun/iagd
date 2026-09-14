@@ -305,15 +305,21 @@ body {
    * 而不是把"名称 / 类型"两列压到看不清（见 TableView.css）。
    */
   overflow: auto;
-  /*
-   * ★ 上下各 4px（使用者 2026-09-14）：滚动到顶 / 底时内容不紧贴容器的
-   *   上下边框，转折不至于"太硬"。左右维持 10px。
-   *   （原先分栏列表为了让表头贴顶把上内边距设成 0，现在统一成 4px。）
-   */
-  padding: 4px 10px;
+  padding: 10px;
   background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: 6px;
+}
+
+/*
+ * ★ 分栏列表：表格顶端**贴住**列表容器的上沿（使用者 2026-09-14 报的
+ *   "`<tr>` 没有和 `app__list` 的顶端对齐"）。
+ *
+ * 卡片视图需要那 10px 内边距当呼吸空间；表格不需要——它自己就有单元格
+ * 内边距，再叠一层会让表头看起来"浮"在容器中间。左右与底部保留。
+ */
+.app__list:has(> .item-table) {
+  padding-top: 0;
 }
 
 
