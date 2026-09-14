@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import type IItem from '../model/item';
+import type { DetailDisplayMode } from '../components/ItemDetail/ItemDetailContext';
 
 /**
  * 所有物品视图的统一接口。
@@ -15,8 +16,8 @@ export interface ItemViewProps {
 
   /** 悬停某件物品；`null` 表示移开。`element` 用于定位详情面板。 */
   onItemHover?: (item: IItem | null, element: HTMLElement | null) => void;
-  /** 点击某件物品：固定 / 取消固定详情面板 */
-  onItemActivate?: (item: IItem) => void;
+  /** 点击某件物品：固定 / 取消固定详情面板。`element` 用于浮动模式的定位。 */
+  onItemActivate?: (item: IItem, element?: HTMLElement | null) => void;
   /** 当前已固定的物品 id，供视图做高亮 */
   pinnedId?: string | null;
 }
@@ -44,4 +45,18 @@ export interface ItemViewDefinition {
    * 将来再加同类视图（比如"全屏对照"），只要打这个标志就自动生效。
    */
   showsFullStats?: boolean;
+
+  /**
+   * 这种视图允许的「详情」显示方式，**第一个是回退默认值**。
+   *
+   * ★ 为什么按视图区分（使用者 2026-09-14 决定）：
+   *   · **分栏列表**是逐行扫视的宽表格，浮动面板跟在鼠标旁边会一直挡住
+   *     其它行，所以只留「左/右固定栏」两种；
+   *   · **简洁卡片**是网格排列、卡片大小不一，浮动预览正好合适，
+   *     所以三种都保留。
+   *
+   * 缺省 = 三种都允许。用户存的偏好如果不被当前视图支持，会自动回退到
+   * 第一个（见 `effectiveDetailMode`），切回原视图时又能恢复原来的选择。
+   */
+  detailModes?: DetailDisplayMode[];
 }

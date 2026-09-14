@@ -1,9 +1,20 @@
 import { useItemDetail } from '../components/ItemDetail';
+import {
+  ALL_DETAIL_MODES,
+  effectiveDetailMode,
+  type DetailDisplayMode,
+} from '../components/ItemDetail/ItemDetailContext';
 import { ITEM_VIEWS, findView } from './registry';
-import type { DetailDisplayMode } from '../components/ItemDetail/ItemDetailContext';
 import { PAGE_SIZES, type LoadMode, type PageSize, type PagingState } from './usePaging';
 import { SORT_CHOICES, type SortBy, type SortState } from './useSort';
 import './ViewToolbar.css';
+
+/** 「详情」下拉里每一项的文案。 */
+const DETAIL_MODE_LABELS: Record<DetailDisplayMode, string> = {
+  hover: '浮动',
+  'docked-left': '左侧固定栏',
+  'docked-right': '右侧固定栏',
+};
 
 interface Props {
   viewId: string;
@@ -32,6 +43,13 @@ export default function ViewToolbar({ viewId, onViewChange, paging, sort }: Prop
   const view = findView(viewId);
   // 这种视图自己就把完整属性摊开了，"详情"下拉没有意义 → 禁用（见 types.ts 的说明）
   const detailDisabled = view.showsFullStats === true;
+  /*
+   * 每个视图允许的详情方式不同（见 types.ts 的 `detailModes`）：
+   * 分栏列表只有左右固定栏，简洁卡片三种都有。存下来的偏好要是当前视图
+   * 不支持（比如刚从简洁卡片切过来、还存着"浮动"），这里收敛成回退值。
+   */
+  const detailModes = view.detailModes ?? ALL_DETAIL_MODES;
+  const activeDetailMode = effectiveDetailMode(displayMode, detailModes);
   const { loadMode, pageSize, setLoadMode, setPageSize } = paging;
   const sortHint = SORT_CHOICES.find((choice) => choice.value === sort.sortBy)?.hint;
 
@@ -59,18 +77,20 @@ export default function ViewToolbar({ viewId, onViewChange, paging, sort }: Prop
       <select
         id="detail-mode-select"
         className="view-toolbar__select view-toolbar__select--narrow"
-        value={displayMode}
+        value={activeDetailMode}
         disabled={detailDisabled}
         onChange={(e) => setDisplayMode(e.target.value as DetailDisplayMode)}
         title={
           detailDisabled
             ? '「详细对照」视图已经把完整属性摊开了，不需要详情面板'
-            : '跟随鼠标浮动，或在左侧/右侧固定一栏'
+            : '在左侧/右侧固定一栏（「简洁卡片」另有"浮动"）'
         }
       >
-        <option value="hover">浮动</option>
-        <option value="docked-left">左侧固定栏</option>
-        <option value="docked-right">右侧固定栏</option>
+        {detailModes.map((mode) => (
+          <option key={mode} value={mode}>
+            {DETAIL_MODE_LABELS[mode]}
+          </option>
+        ))}
       </select>
 
       <label className="view-toolbar__label" htmlFor="sort-select">

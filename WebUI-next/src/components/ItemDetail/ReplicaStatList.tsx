@@ -198,7 +198,18 @@ function skillRowKind(text: string): 'name' | 'desc' | null {
   const plain = text.replace(/\^[a-zA-Z-]/g, '').trim();
 
   if (plain.endsWith('。') || plain.endsWith('.')) return 'desc';
-  if (plain.includes('施放该技能') || /<[^>]+>/.test(text)) return 'name';
+  if (plain.includes('施放该技能')) return 'name';
+
+  /*
+   * 技能名的第二种形态：`<职业>技能名`。判定要求职业标记在**行首**。
+   *
+   * ⚠️ 不能只看"行里含 `<…>`"（使用者 2026-09-14 报的误判）：
+   *   `造成暴击时有 25% 几率触发<爆破>手榴弹 (Grenado) 冷却时间减少 2 秒`
+   *   也含职业标记，但它是**参数行**（触发效果），被错判成技能名后
+   *   颜色/字重都跟着技能名走，和同一块里的其它参数不一致。
+   *   纯技能名（`^g<守誓>重击`）去掉颜色码后**以 `<` 开头**，这条能区分开。
+   */
+  if (plain.trimStart().startsWith('<')) return 'name';
 
   /*
    * ★ 第三种形态：**干干净净的一行纯中文**——一个颜色码、一个数字都没有。

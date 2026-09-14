@@ -105,69 +105,11 @@
   color: var(--text-muted);
 }
 
-.item-detail__foot {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-top: 1px solid var(--border);
-  font-size: 11px;
-}
-
-.item-detail__foot code {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.item-detail__tag {
-  flex: 0 0 auto;
-  padding: 1px 6px;
-  background: #4a2020;
-  color: #e08a7a;
-  border-radius: 3px;
-}
-
-/* 转移按钮（写操作，只在"点击固定"后出现——预览态面板不可交互） */
-.item-detail__transfer {
-  flex: 0 0 auto;
-  padding: 4px 10px;
-  background: #3f5a2a;
-  color: #d8e8c8;
-  border: 1px solid #55742f;
-  border-radius: 3px;
-  font-family: inherit;
-  font-size: 11px;
-  cursor: pointer;
-}
-
-.item-detail__transfer:hover:not(:disabled) {
-  background: #4a6b31;
-}
-
-.item-detail__transfer:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
-
-/* 转移结果提示 */
-.item-detail__feedback {
-  margin: 0;
-  padding: 6px 12px;
-  border-top: 1px solid var(--border);
-  font-size: 11px;
-}
-
-.item-detail__feedback.is-ok {
-  color: #8fc76a;
-}
-
-.item-detail__feedback.is-err {
-  color: #e08a7a;
-}
+/*
+ * ★ 2026-09-14：页脚（`item-detail__foot`）、硬核标签、转移按钮、转移结果提示
+ *   全部删掉——浮动模式原来保留的那一行也没必要了（见 ItemDetailPanel.tsx）。
+ *   于是面板只剩「抬头 + 属性区」两块。
+ */
 
 /*
  * 固定栏模式（左 / 右，使用者 2026-09-12 要求）。

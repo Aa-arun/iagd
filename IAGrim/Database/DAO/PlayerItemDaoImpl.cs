@@ -845,7 +845,9 @@ namespace IAGrim.Database {
                     // SQLite 里 DESC 会把 NULL 放到最后，正好是想要的效果。
                     return " ORDER BY PI.created_at DESC, PI.Id DESC ";
                 case "quality":
-                    return $" ORDER BY {RarityRankSql}, PI.levelrequirement, PI.name, PI.Id ";
+                    // 等级**降序**（使用者 2026-09-14 指出）：品质只是第一关键字，
+                    // 同一个品质内仍要"高等级在前"，与 level 排序一致。
+                    return $" ORDER BY {RarityRankSql}, PI.levelrequirement DESC, PI.name, PI.Id ";
                 case "level":
                     // 等级**降序**（使用者 2026-09-13 指定）：高等级需求排前面
                     return $" ORDER BY PI.levelrequirement DESC, {RarityRankSql}, PI.name, PI.Id ";

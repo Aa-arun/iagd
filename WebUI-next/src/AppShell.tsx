@@ -129,8 +129,13 @@ export default function AppShell({
 
   /*
    * 有些视图（如「详细对照」）本身就把完整属性摊开了，"详情"面板没有意义。
-   * 那种视图下**不留侧栏、也不挂面板**——只是不显示，`displayMode` 原样保留，
+   * 那种视图下**不留侧栏、也不挂面板**——只是不显示，偏好原样保留，
    * 切回别的视图时会自然恢复。
+   *
+   * ★ 各视图允许的详情方式不同（分栏列表只有左右固定栏、简洁卡片含浮动，
+   *   见 views/types.ts 的 detailModes）。`useItemDetail()` 给出的
+   *   `displayMode` **已经是收敛过的、当前真正生效的模式**（Provider 收
+   *   `detailModes` 时处理），这里直接信它。
    */
   const side = view.showsFullStats ? null : dockedSide(displayMode);
   /** 浮动模式：面板不占栏位，但必须**挂载**，否则 hover 什么也不会出现 */

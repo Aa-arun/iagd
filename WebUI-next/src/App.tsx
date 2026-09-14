@@ -17,6 +17,7 @@ import { I18nProvider } from './i18n';
 import { UiPrefsProvider } from './prefs/UiPrefs';
 import { ItemDetailProvider } from './components/ItemDetail';
 import { useItemView } from './views/useItemView';
+import { findView } from './views/registry';
 import { usePaging } from './views/usePaging';
 import { useSort } from './views/useSort';
 import { buildSearchRequest, useFilters, useSearchConditions } from './views/useFilters';
@@ -473,7 +474,7 @@ export default function App() {
 
   return (
     <UiPrefsProvider>
-      <ItemDetailProvider onTransferred={reload}>
+      <ItemDetailProvider onTransferred={reload} detailModes={findView(viewId).detailModes}>
         <I18nProvider map={i18n}>
           <AppShell
             tab={tab}

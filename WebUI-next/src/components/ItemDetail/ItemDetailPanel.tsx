@@ -1,7 +1,7 @@
-import { useEffect, useState, type CSSProperties } from 'react';
-import { iconUrl, transferItems } from '../../api';
+import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { iconUrl } from '../../api';
 import { qualityClass } from '../ItemCard/quality';
-import { itemTypeLabel, playerItemId } from '../../model/item';
+import { itemTypeLabel } from '../../model/item';
 import { useItemDetail } from './ItemDetailContext';
 import StatList from './StatList';
 import ReplicaStatList from './ReplicaStatList';
@@ -13,20 +13,36 @@ const PANEL_WIDTH = 380;
 const GAP = 12;
 
 /**
- * hover 预览时的位置：优先放在触发元素**右侧**，
- * 右边空间不够就翻到左侧（屏幕边缘翻转，grimtools 也是这个思路）。
+ * 浮动面板的位置（使用者 2026-09-14 的两条要求）。
+ *
+ * 水平：面板放在卡片的**另一侧**——卡片在屏幕左半就放右边、右半就放左边。
+ *   （"根据点击的卡片在排列中的左右位置显示在另一侧"。）
+ *   选中的那一侧放不下时自动翻到另一侧，仍放不下就贴住视口边。
+ *
+ * 垂直：把面板的**中线**对准卡片的中线——这需要知道面板高度，
+ *   所以由组件测量后传进来。高度还不知道（首帧）时退回"与卡片顶部对齐"。
+ *   面板比视口还高时以"能完整看到"为先，把它夹在上下边距之间。
  */
-function floatingStyle(rect: DOMRect): CSSProperties {
+function floatingStyle(rect: DOMRect, panelHeight: number | null): CSSProperties {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
 
-  let left = rect.right + GAP;
-  if (left + PANEL_WIDTH > vw) {
+  const cardOnLeftHalf = rect.left + rect.width / 2 < vw / 2;
+  let left = cardOnLeftHalf ? rect.right + GAP : rect.left - PANEL_WIDTH - GAP;
+  if (left + PANEL_WIDTH > vw - GAP) {
     left = Math.max(GAP, rect.left - PANEL_WIDTH - GAP);
   }
+  if (left < GAP) {
+    left = Math.max(GAP, Math.min(vw - PANEL_WIDTH - GAP, rect.right + GAP));
+  }
 
-  // 顶部与触发元素对齐，但不许超出视口下沿
-  const top = Math.min(Math.max(GAP, rect.top), Math.max(GAP, vh - 240));
+  const top =
+    panelHeight === null
+      ? Math.max(GAP, rect.top)
+      : Math.min(
+          Math.max(GAP, rect.top + rect.height / 2 - panelHeight / 2),
+          Math.max(GAP, vh - GAP - panelHeight),
+        );
 
   return {
     position: 'fixed',
@@ -37,7 +53,7 @@ function floatingStyle(rect: DOMRect): CSSProperties {
   };
 }
 
-/** 点击固定后贴在右上角，不随鼠标移动 */
+/** 拿不到卡片位置时的兜底：贴在右上角，不随鼠标移动 */
 const PINNED_STYLE: CSSProperties = {
   position: 'fixed',
   right: 24,
@@ -46,53 +62,36 @@ const PINNED_STYLE: CSSProperties = {
   maxHeight: 'calc(100vh - 48px)',
 };
 
-
-
-interface Feedback {
-  ok: boolean;
-  text: string;
-}
-
 /**
  * 物品详情面板。
  *
  * ★ 全应用**只有一个实例**（挂载在 App 顶层，见 ItemDetailContext 的说明）。
  * 这里只根据状态换内容与位置，不新建 DOM 节点。
+ *
+ * ★ 2026-09-14：**页脚整块删掉**（使用者要求）。原来浮动固定时底下有一行
+ *   `baseRecord` + 「转移到游戏」按钮 + 「硬核」标签：
+ *   · `baseRecord` 是游戏内部记录名，用户看不懂；
+ *   · 「取出」在卡片/列表里本来就有；
+ *   · 硬核与否是账号维度的事，对单件物品没有意义。
+ *   固定栏模式早就没有这一行，现在浮动模式也去掉，两种形态一致。
  */
 export default function ItemDetailPanel() {
-  const { item, isPinned, anchor, displayMode, onItemActivate, onTransferred } = useItemDetail();
+  const { item, isPinned, anchor, displayMode, onItemActivate } = useItemDetail();
 
-  const [busy, setBusy] = useState(false);
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  /** 面板自身高度：浮动定位要拿它算"中线对齐"，见 floatingStyle。 */
+  const panelRef = useRef<HTMLElement>(null);
+  const [panelHeight, setPanelHeight] = useState<number | null>(null);
 
-  // 换了一件事物就把上一次的"转移结果"清掉，否则会张冠李戴。
-  // 注意：这个 effect 必须在下面的提前 return 之前——否则 hook 调用顺序会变。
-  useEffect(() => {
-    setFeedback(null);
-    setBusy(false);
-  }, [item?.uniqueIdentifier]);
+  /*
+   * 在浏览器**绘制之前**量高度（`useLayoutEffect` 的语义），
+   * 所以"先按顶部定位、再改成居中"这一下不会闪。
+   * 依赖里放物品 id：换一件就重新量（不同物品属性行数不同）。
+   */
+  useLayoutEffect(() => {
+    setPanelHeight(panelRef.current?.getBoundingClientRect().height ?? null);
+  }, [item?.uniqueIdentifier, displayMode, isPinned]);
 
   if (!item) return null;
-
-  const handleTransfer = async () => {
-    const id = playerItemId(item);
-    if (id === null) {
-      setFeedback({ ok: false, text: '无法从标识里解析出物品 id' });
-      return;
-    }
-
-    setBusy(true);
-    setFeedback(null);
-    try {
-      const result = await transferItems([id], true);
-      setFeedback({ ok: true, text: `已转移 ${result.numTransferred} 件` });
-      onTransferred?.();
-    } catch (err) {
-      setFeedback({ ok: false, text: (err as Error).message });
-    } finally {
-      setBusy(false);
-    }
-  };
 
   /**
    * 固定栏模式（左或右）。
@@ -102,10 +101,11 @@ export default function ItemDetailPanel() {
    * 与是否选中无关"由栏的宽度保证。样式见 ItemDetail.css 的 [data-docked]。
    */
   const docked = displayMode !== 'hover';
-  const style = docked ? undefined : isPinned || !anchor ? PINNED_STYLE : floatingStyle(anchor);
+  const style = docked ? undefined : anchor ? floatingStyle(anchor, panelHeight) : PINNED_STYLE;
 
   return (
     <aside
+      ref={panelRef}
       className="item-detail"
       style={style}
       data-pinned={isPinned || undefined}
@@ -131,9 +131,6 @@ export default function ItemDetailPanel() {
             {/*
               用**类型文本**（"传奇护肩"）而不是 `item.quality` —— 后者是
               `Epic` / `Blue` 这种数据库内部值，对使用者没有意义。
-              TableView / CompareView 早就是这样了，只有这里漏了
-              （使用者 2026-09-12 指出抬头问题时一并发现）。
-
               槽位也不再单列：类型文本里已经含部位。
             */}
             <span className="item-type">{itemTypeLabel(item) ?? item.quality}</span>
@@ -177,33 +174,6 @@ export default function ItemDetailPanel() {
             <p className="item-detail__empty">这件物品没有可显示的属性。</p>
           )}
       </div>
-
-      {/*
-        ★ 2026-09-13：固定栏模式下**不再有**这个页脚（使用者要求删掉）。
-          里面那串 `baseRecord` 是给开发看的内部标识，用户看不懂；转移按钮也多余——
-          卡片和列表本身就有「取出」。浮动固定（点击右上角那块）时仍保留，
-          因为那种形态飘在页面上、离卡片按钮远。
-      */}
-      {isPinned && !docked && (
-        <footer className="item-detail__foot">
-          <code title={item.baseRecord}>{item.baseRecord}</code>
-          {item.isHardcore && <span className="item-detail__tag">硬核</span>}
-          <button
-            type="button"
-            className="item-detail__transfer"
-            disabled={busy}
-            onClick={handleTransfer}
-          >
-            {busy ? '转移中…' : '转移到游戏'}
-          </button>
-        </footer>
-      )}
-
-      {feedback && (
-        <p className={`item-detail__feedback ${feedback.ok ? 'is-ok' : 'is-err'}`}>
-          {feedback.text}
-        </p>
-      )}
     </aside>
   );
 }

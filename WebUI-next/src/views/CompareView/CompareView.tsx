@@ -40,7 +40,7 @@ export default function CompareView({
             className={`compare-card${pinned ? ' is-pinned' : ''}`}
             onMouseEnter={(e) => onItemHover?.(item, e.currentTarget)}
             onMouseLeave={() => onItemHover?.(null, null)}
-            onClick={() => onItemActivate?.(item)}
+            onClick={(e) => onItemActivate?.(item, e.currentTarget)}
           >
             <header className="compare-card__head">
               {item.icon && (
@@ -59,11 +59,11 @@ export default function CompareView({
                   <ItemName item={item} />
                 </h2>
                 <p className="compare-card__meta">
-                  <span className="item-type">{itemTypeLabel(item) ?? item.quality}</span>
                   <span>等级 {item.level}</span>
                   {/*
-                    不再单列槽位：类型文本里已经说了部位（"传奇护肩"的"护肩"），
-                    再跟一个"肩甲"是重复的（使用者 2026-09-12 指出）。
+                    不再单列槽位：类型文本里已经说了部位（"传奇护肩"的"护肩"）。
+                    类型文本本身也不再显示——使用者 2026-09-14 要求删去
+                    `compare-card__head` 里的 `item-type`（名字＋等级已够）；
                     只有拿不到类型文本时才用槽位兜底。
                   */}
                   {!itemTypeLabel(item) && item.slot && <span>{slotLabel(item.slot, t)}</span>}

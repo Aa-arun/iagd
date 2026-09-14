@@ -1,6 +1,52 @@
+/*
+ * 分栏列表（`TableView`）。
+ *
+ * ★ 2026-09-14 按使用者意见改造：
+ *   · 表格**自己居中**、宽度有上限——不再拉满整个列表容器；
+ *   · 名称列最宽 25 个汉字（≈25em，也就是 50 个半角字符宽）、
+ *     类型列最宽 8 个汉字（≈8em）；两列最窄各 4 个汉字（≈4em）；
+ *   · 槽位列删去（类型文本里已含部位）；
+ *   · 类型 / 等级两列居中。
+ *
+ * 用 `table-layout: fixed`：列宽完全由下面的 `width` 决定，
+ * 名称再长也只会被省略号截断，不会把类型/等级挤到看不见。
+ */
+
 .item-table {
   width: 100%;
+  /*
+   * `50em`（≈600px @12px）是按上面的列宽上限加出来的：
+   *   图标 40 + 名称 25em + 类型 8em + 等级 4em + 取出 44 + 单元格内边距。
+   * 再宽就留白，不再让表格铺满整行。
+   */
+  max-width: 50em;
+  /*
+   * `25em` 是"名称 4 汉字 + 类型 4 汉字 + 其余"的下限。
+   * 比这更窄时表格不再压缩，改由 `.app__list` 出横向滚动条
+   * （见 global.css 里 `:has(> .item-table)` 那条）。
+   */
+  min-width: 25em;
+  /* 居中：配合上面的 max-width，宽屏时表格位于列表容器正中 */
+  margin: 0 auto;
   border-collapse: collapse;
+  table-layout: fixed;
+}
+
+/* 列宽：图标 / 名称（吃剩余）/ 类型 / 等级 / 取出 */
+.item-table thead th:nth-child(1) {
+  width: 40px;
+}
+
+.item-table thead th:nth-child(3) {
+  width: 8em;
+}
+
+.item-table thead th:nth-child(4) {
+  width: 4em;
+}
+
+.item-table thead th:nth-child(5) {
+  width: 44px;
 }
 
 /* 表头吸顶：长列表滚动时列名始终可见，
@@ -59,15 +105,35 @@
 
 .item-table__icon {
   display: block;
+  /* 图标同样保持比例（使用者 2026-09-14 一并提出） */
+  object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
 }
 
+/* 名称列：超宽时省略号截断（列宽由上面的 fixed 布局锁死） */
 .item-table__name {
+  overflow: hidden;
   font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* 数字列用等宽数字，右对齐后个位才能对齐成一竖线 */
+/* 类型列同样可能超过 8 个汉字 */
+.item-table td.item-type {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * 类型 / 等级两列居中（使用者 2026-09-14 要求）。
+ * 等级另外用等宽数字，列宽不变时相邻行的数字才对得齐。
+ */
+.item-table__center {
+  text-align: center;
+}
+
 .item-table__num {
-  text-align: right;
   font-variant-numeric: tabular-nums;
 }
 

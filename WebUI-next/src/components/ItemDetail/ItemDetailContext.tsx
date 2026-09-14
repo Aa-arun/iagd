@@ -39,6 +39,24 @@ interface PreviewState {
  */
 export type DetailDisplayMode = 'hover' | 'docked-left' | 'docked-right';
 
+/** 三种显示方式，顺序即「详情」下拉里的顺序。 */
+export const ALL_DETAIL_MODES: DetailDisplayMode[] = ['hover', 'docked-left', 'docked-right'];
+
+/**
+ * 把用户存下的偏好**收敛到当前视图允许的范围**里。
+ *
+ * 视图可以只允许其中一部分（见 `views/types.ts` 的 `detailModes`）。偏好不被
+ * 支持时回退到该视图的第一个选项——刻意**不写回存储**：切回原来那个视图时，
+ * 用户之前的选择还在（分栏列表与简洁卡片的偏好因此互不干扰）。
+ */
+export function effectiveDetailMode(
+  mode: DetailDisplayMode,
+  allowed?: DetailDisplayMode[],
+): DetailDisplayMode {
+  const list = allowed && allowed.length > 0 ? allowed : ALL_DETAIL_MODES;
+  return list.includes(mode) ? mode : list[0];
+}
+
 /** 固定栏在哪一侧（`hover` 模式为 null）。 */
 export function dockedSide(mode: DetailDisplayMode): 'left' | 'right' | null {
   if (mode === 'docked-left') return 'left';
@@ -77,7 +95,13 @@ interface ItemDetailContextValue {
 
   // ↓ 交给视图的回调（视图仍然只"接数据 + 发事件"，不自己取数据）
   onItemHover: (item: IItem | null, element: HTMLElement | null) => void;
-  onItemActivate: (item: IItem) => void;
+  /**
+   * 点击某件物品：固定 / 取消固定。
+   *
+   * `element` 是那张卡片本身——浮动模式下要靠它的屏幕位置决定面板放哪一侧
+   * （使用者 2026-09-14 要求"根据卡片在排列中的左右位置显示在另一侧"）。
+   */
+  onItemActivate: (item: IItem, element?: HTMLElement | null) => void;
 
   /**
    * 转移成功后由面板调用，通知外层刷新列表。
@@ -91,13 +115,32 @@ const ItemDetailContext = createContext<ItemDetailContextValue | null>(null);
 export function ItemDetailProvider({
   children,
   onTransferred,
+  detailModes,
 }: {
   children: ReactNode;
   onTransferred?: () => void;
+  /**
+   * 当前视图允许的详情方式（见 `views/types.ts` 的 `detailModes`）。
+   *
+   * ★ 为什么由外层传进来：Provider 自己不知道"现在是什么视图"，而
+   *   "hover 时要不要保留内容""面板算不算固定栏"这些**行为**都取决于
+   *   实际生效的模式。存下来的偏好不被当前视图支持时，这里就收敛掉，
+   *   以免出现"模式是浮动、行为按固定栏"这种自相矛盾的状态。
+   */
+  detailModes?: DetailDisplayMode[];
 }) {
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [pinned, setPinned] = useState<IItem | null>(null);
-  const [displayMode, setDisplayModeState] = useState<DetailDisplayMode>(readStoredMode);
+  /**
+   * 点击固定时那张卡片的屏幕位置。
+   *
+   * ★ 原来固定后一律贴右上角，现在要"根据卡片在排列中的左右位置显示在另一侧"
+   *   （使用者 2026-09-14），所以得把位置留下来。
+   */
+  const [pinnedRect, setPinnedRect] = useState<DOMRect | null>(null);
+  /** 用户存下来的偏好；**实际生效**的是下面收敛过的 `displayMode`。 */
+  const [storedDisplayMode, setDisplayModeState] = useState<DetailDisplayMode>(readStoredMode);
+  const displayMode = effectiveDetailMode(storedDisplayMode, detailModes);
 
   const setDisplayMode = useCallback((mode: DetailDisplayMode) => {
     setDisplayModeState(mode);
@@ -130,13 +173,20 @@ export function ItemDetailProvider({
     [pinned, displayMode],
   );
 
-  const onItemActivate = useCallback((item: IItem) => {
-    setPinned((current) =>
-      // 再点一次同一件 → 取消固定
-      current?.uniqueIdentifier === item.uniqueIdentifier ? null : item,
-    );
-    setPreview(null);
-  }, []);
+  const onItemActivate = useCallback(
+    (item: IItem, element?: HTMLElement | null) => {
+      if (pinned?.uniqueIdentifier === item.uniqueIdentifier) {
+        // 再点一次同一件 → 取消固定
+        setPinned(null);
+        setPinnedRect(null);
+      } else {
+        setPinned(item);
+        setPinnedRect(element ? element.getBoundingClientRect() : null);
+      }
+      setPreview(null);
+    },
+    [pinned],
+  );
 
   /**
    * ★ 使用者要求：在**任意空白处**单击左键都取消选中。
@@ -170,8 +220,11 @@ export function ItemDetailProvider({
     () => ({
       item: pinned ?? preview?.item ?? null,
       isPinned: pinned !== null,
-      // 固定栏模式下锚点无意义（面板在栏里，不跟鼠标），传 null 让面板忽略它
-      anchor: pinned || displayMode !== 'hover' ? null : (preview?.rect ?? null),
+      /*
+       * 浮动模式的锚点：固定时用卡片位置、未固定时用 hover 的位置。
+       * 固定栏模式下锚点无意义（面板在栏里，不跟鼠标），传 null 让面板忽略它。
+       */
+      anchor: displayMode !== 'hover' ? null : (pinnedRect ?? preview?.rect ?? null),
       pinnedId: pinned?.uniqueIdentifier ?? null,
       displayMode,
       setDisplayMode,
@@ -179,7 +232,7 @@ export function ItemDetailProvider({
       onItemActivate,
       onTransferred,
     }),
-    [pinned, preview, displayMode, setDisplayMode, onItemHover, onItemActivate, onTransferred],
+    [pinned, pinnedRect, preview, displayMode, setDisplayMode, onItemHover, onItemActivate, onTransferred],
   );
 
   return <ItemDetailContext.Provider value={value}>{children}</ItemDetailContext.Provider>;

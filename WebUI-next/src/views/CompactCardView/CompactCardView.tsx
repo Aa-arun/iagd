@@ -25,7 +25,7 @@ export default function CompactCardView({
           className={pinnedId === item.uniqueIdentifier ? 'is-pinned' : undefined}
           onMouseEnter={(e) => onItemHover?.(item, e.currentTarget)}
           onMouseLeave={() => onItemHover?.(null, null)}
-          onClick={() => onItemActivate?.(item)}
+          onClick={(e) => onItemActivate?.(item, e.currentTarget)}
         >
           <ItemCard item={item} />
         </li>

@@ -20,6 +20,13 @@
   display: block;
   width: 64px;
   height: 64px;
+  /*
+   * ★ 保持比例、不拉伸（使用者 2026-09-14 报的"图标被拉伸了"）。
+   *   游戏图标长宽比不都是 1:1，写死 width/height 会变形；
+   *   `contain` 让它按原比例缩放到框内，多余的地方留给容器的深色底。
+   *   与「详细对照」的 `.compare-card__icon` 是同一套做法。
+   */
+  object-fit: contain;
   image-rendering: -webkit-optimize-contrast;
 }
 
@@ -50,6 +57,12 @@
 
 .item-card__meta > div {
   display: flex;
+  /*
+   * ★ 基线对齐（使用者 2026-09-14 报"等级和后面的数字没对齐、数字偏上"）。
+   *   默认的 `stretch` 只保证两格等高，中文字与数字的**视觉重心**并不在
+   *   同一水平线上；按基线（`baseline`）对齐后，"等级"和它后面的数字才齐。
+   */
+  align-items: baseline;
   gap: 6px;
 }
 
@@ -61,12 +74,10 @@
   margin: 0;
 }
 
-.item-card__record {
-  margin: 10px 0 0;
-  color: var(--text-muted);
-  font-size: 11px;
-  word-break: break-all;
-}
+/*
+ * `item-card__record`（游戏内部 `baseRecord`）已按使用者 2026-09-14 要求删去，
+ * 样式规则一并清掉。
+ */
 
 /* 品质配色 */
 .quality-legendary {

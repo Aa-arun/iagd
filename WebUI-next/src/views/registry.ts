@@ -17,12 +17,22 @@ export const ITEM_VIEWS: ItemViewDefinition[] = [
     label: '分栏列表',
     description: '表格式，关键信息分栏对齐，最适合精确找装备',
     component: TableView,
+    /*
+     * 只留固定栏（使用者 2026-09-14）：表格是逐行扫视的，
+     * 浮动面板跟着鼠标会一直挡住相邻的行。默认右固定栏。
+     */
+    detailModes: ['docked-right', 'docked-left'],
   },
   {
     id: 'compact',
     label: '简洁卡片',
     description: '图标 + 名称 + 关键标签，适合快速浏览',
     component: CompactCardView,
+    /*
+     * 三种都保留（缺省即全允许）：网格里的卡片大小不一，浮动预览正合适。
+     * 使用者对浮动面板的定位另有两条要求，见 CompactCardView 与
+     * ItemDetailPanel 的说明。
+     */
   },
   {
     id: 'compare',
