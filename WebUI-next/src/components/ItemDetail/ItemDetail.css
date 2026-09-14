@@ -29,6 +29,13 @@
 .item-detail__icon {
   flex: 0 0 48px;
   display: block;
+  /*
+   * ★ 保持比例（使用者 2026-09-14 报"详情里的图标还是被拉伸的"）。
+   *   游戏图标不都是正方形，JSX 里写死的 48×48 会把它压扁/抻长；
+   *   `contain` 按原比例缩放到框内——与卡片、详细对照的做法一致。
+   */
+  object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
 }
 
 .item-detail__title {

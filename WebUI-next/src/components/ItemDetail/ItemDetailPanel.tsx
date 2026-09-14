@@ -1,7 +1,6 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { iconUrl } from '../../api';
 import { qualityClass } from '../ItemCard/quality';
-import { itemTypeLabel } from '../../model/item';
 import { useItemDetail } from './ItemDetailContext';
 import StatList from './StatList';
 import ReplicaStatList from './ReplicaStatList';
@@ -129,11 +128,10 @@ export default function ItemDetailPanel() {
           </h2>
           <p className="item-detail__meta">
             {/*
-              用**类型文本**（"传奇护肩"）而不是 `item.quality` —— 后者是
-              `Epic` / `Blue` 这种数据库内部值，对使用者没有意义。
-              槽位也不再单列：类型文本里已经含部位。
+              ★ 2026-09-14 删掉类型文本（使用者要求）：tooltip 的属性区第一行
+              就是 `tt-type-66`（"传奇护肩"），抬头里再放一遍是**完全重复**。
+              槽位同理更不必单列。这里只留等级——它在属性区里没有。
             */}
-            <span className="item-type">{itemTypeLabel(item) ?? item.quality}</span>
             <span>等级 {item.level}</span>
           </p>
         </div>

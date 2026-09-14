@@ -10,22 +10,25 @@
 
 .item-card__icon {
   flex: 0 0 64px;
+  /* 外框仍是 64×64（带底色、圆角），图片在里面居中，见下 */
   width: 64px;
   height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: rgba(0, 0, 0, 0.25);
   border-radius: 4px;
 }
 
 .item-card__icon img {
   display: block;
-  width: 64px;
-  height: 64px;
   /*
-   * ★ 保持比例、不拉伸（使用者 2026-09-14 报的"图标被拉伸了"）。
-   *   游戏图标长宽比不都是 1:1，写死 width/height 会变形；
-   *   `contain` 让它按原比例缩放到框内，多余的地方留给容器的深色底。
-   *   与「详细对照」的 `.compare-card__icon` 是同一套做法。
+   * ★ 图片实际只占 32×32（使用者 2026-09-14）：外框 64 不变。
+   *   游戏图标本来就小，拉到 64 会糊；32 是它们真实的分辨率档位。
+   *   同时 `contain` 保证不同长宽比的图标不被拉伸。
    */
+  width: 32px;
+  height: 32px;
   object-fit: contain;
   image-rendering: -webkit-optimize-contrast;
 }

@@ -485,7 +485,12 @@ export default function AppShell({
             />
           )}
 
-          <div className="app__content" data-dock={side ?? undefined}>
+          {/*
+            `data-view` 让布局按**视图**分开（使用者 2026-09-14）：
+            分栏列表宽屏要"列表居中 + 对侧留空"，简洁卡片则是"固定栏占一侧、
+            另一侧卡片铺满"，两者不能用同一套列宽规则。
+          */}
+          <div className="app__content" data-view={viewId} data-dock={side ?? undefined}>
             <div className="app__dock app__dock--left">
               {side === 'left' && <ItemDetailPanel />}
             </div>
