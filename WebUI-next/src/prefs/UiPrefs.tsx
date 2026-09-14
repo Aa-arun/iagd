@@ -35,14 +35,16 @@ export interface Shortcuts {
 
 export interface UiPrefs {
   shortcuts: Shortcuts;
-  /** 「详细对照」属性区的字体族；空 = 跟随全局默认 */
-  compareFontFamily: string;
-  /** 「详细对照」属性区的字号倍率（1 = 原始） */
-  compareFontScale: number;
-  /** 固定栏详情的字体族；空 = 跟随全局默认 */
-  detailFontFamily: string;
-  /** 固定栏详情的字号倍率（1 = 原始） */
-  detailFontScale: number;
+  /**
+   * 物品属性区的字体族（「详细对照」与「详情面板」**共用**）；空 = 跟随全局默认。
+   *
+   * ★ 2026-09-14 合并：原来 compare / detail 各一套，但两处显示的本来就是
+   *   同一个 tooltip（使用者："item-detail 应该和 compare-card 一样"），
+   *   分开设置只会让它们悄悄不一致。
+   */
+  tooltipFontFamily: string;
+  /** 物品属性区的字号倍率（1 = 原始） */
+  tooltipFontScale: number;
 }
 
 export const DEFAULT_SHORTCUTS: Shortcuts = {
@@ -54,10 +56,8 @@ export const DEFAULT_SHORTCUTS: Shortcuts = {
 
 export const DEFAULT_UI_PREFS: UiPrefs = {
   shortcuts: DEFAULT_SHORTCUTS,
-  compareFontFamily: '',
-  compareFontScale: 1,
-  detailFontFamily: '',
-  detailFontScale: 1,
+  tooltipFontFamily: '',
+  tooltipFontScale: 1,
 };
 
 /** 字号倍率的允许区间。太小的会看不清，太大的会把布局撑破。 */
@@ -86,7 +86,14 @@ function readPrefs(): UiPrefs {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_UI_PREFS;
 
-    const stored = JSON.parse(raw) as Partial<UiPrefs> & { shortcuts?: Partial<Shortcuts> };
+    const stored = JSON.parse(raw) as Partial<UiPrefs> & {
+      shortcuts?: Partial<Shortcuts>;
+      /** 旧版本的键：字体原来分「详细对照」与「固定栏详情」两套 */
+      compareFontFamily?: unknown;
+      compareFontScale?: unknown;
+      detailFontFamily?: unknown;
+      detailFontScale?: unknown;
+    };
     const shortcuts: Partial<Shortcuts> = stored.shortcuts ?? {};
 
     return {
@@ -96,10 +103,17 @@ function readPrefs(): UiPrefs {
         advanced: readKey(shortcuts.advanced, DEFAULT_SHORTCUTS.advanced),
         focus: readKey(shortcuts.focus, DEFAULT_SHORTCUTS.focus),
       },
-      compareFontFamily: readFont(stored.compareFontFamily),
-      compareFontScale: readScale(stored.compareFontScale, 1),
-      detailFontFamily: readFont(stored.detailFontFamily),
-      detailFontScale: readScale(stored.detailFontScale, 1),
+      /*
+       * 兼容旧键：优先新的合并键，其次原来的「详细对照」那套，
+       * 最后「固定栏详情」那套——老用户的设置不会丢。
+       */
+      tooltipFontFamily: readFont(
+        stored.tooltipFontFamily ?? stored.compareFontFamily ?? stored.detailFontFamily,
+      ),
+      tooltipFontScale: readScale(
+        stored.tooltipFontScale ?? stored.compareFontScale ?? stored.detailFontScale,
+        1,
+      ),
     };
   } catch {
     return DEFAULT_UI_PREFS;
@@ -141,10 +155,8 @@ export function UiPrefsProvider({ children }: { children: ReactNode }) {
       else root.style.removeProperty(name);
     };
 
-    setVar('--compare-font-family', prefs.compareFontFamily);
-    setVar('--detail-font-family', prefs.detailFontFamily);
-    root.style.setProperty('--compare-font-scale', String(prefs.compareFontScale));
-    root.style.setProperty('--detail-font-scale', String(prefs.detailFontScale));
+    setVar('--tooltip-font-family', prefs.tooltipFontFamily);
+    root.style.setProperty('--tooltip-font-scale', String(prefs.tooltipFontScale));
   }, [prefs]);
 
   const update = useCallback((patch: Partial<UiPrefs>) => {

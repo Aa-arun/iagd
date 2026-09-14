@@ -150,26 +150,18 @@ export default function SettingsView() {
         <h2 className="settings-section__title">字体</h2>
 
         <p className="settings-note">
-          「详细对照」的属性区、以及左右固定栏里的物品详情，可以单独换字体、调字号。
-          字体填系统里装了的名字（如 <code>微软雅黑</code>），留空 = 默认。
+          物品属性区的字体与字号（「详细对照」的卡片、以及左/右固定栏与浮动里的物品详情，
+          两处**共用这一套**）。字体填系统里装了的名字（如 <code>微软雅黑</code>），
+          留空 = 默认。
         </p>
 
         <FontRow
-          label="详细对照"
-          hint="「详细对照」视图里每张卡片的属性区"
-          family={prefs.compareFontFamily}
-          scale={prefs.compareFontScale}
-          onFamily={(v) => updatePrefs({ compareFontFamily: v })}
-          onScale={(v) => updatePrefs({ compareFontScale: v })}
-        />
-
-        <FontRow
-          label="固定栏详情"
-          hint="左侧 / 右侧固定栏里的物品详情"
-          family={prefs.detailFontFamily}
-          scale={prefs.detailFontScale}
-          onFamily={(v) => updatePrefs({ detailFontFamily: v })}
-          onScale={(v) => updatePrefs({ detailFontScale: v })}
+          label="物品属性区"
+          hint="详细对照 / 固定栏详情 / 浮动详情，三处一起生效"
+          family={prefs.tooltipFontFamily}
+          scale={prefs.tooltipFontScale}
+          onFamily={(v) => updatePrefs({ tooltipFontFamily: v })}
+          onScale={(v) => updatePrefs({ tooltipFontScale: v })}
         />
       </section>
 

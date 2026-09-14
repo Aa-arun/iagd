@@ -1,8 +1,17 @@
+/*
+ * 物品详情面板的**外壳**。
+ *
+ * ★ 面板的**内容**（图标 / 名字 / 等级 / 属性区）样式在
+ *   `components/ItemTooltip/TooltipCard.css`——与「详细对照」的卡片共用同一份，
+ *   所以两处的字体、字号、颜色天然一致（使用者 2026-09-14 要求）。
+ *   这里只管"面板长什么样、放在哪、怎么滚"。
+ */
+
 .item-detail {
   z-index: 100;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* 由内部的 __body 负责滚动 */
+  overflow: hidden; /* 由内部的 .tt-card__body 负责滚动 */
   background: #1f1c18;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -19,67 +28,10 @@
   border-color: #554c3f;
 }
 
-.item-detail__head {
-  display: flex;
-  gap: 10px;
-  padding: 12px;
-  border-bottom: 1px solid var(--border);
-}
-
-/* 图标外框：固定 64×64，图片在里面居中（见下面 .item-detail__icon） */
-.item-detail__icon-frame {
-  flex: 0 0 64px;
-  width: 64px;
-  height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.item-detail__icon {
-  width: 64px;
-  height: 64px;
-  /*
-   * ★ 保持比例（使用者 2026-09-14 报"详情里的图标还是被拉伸的"）。
-   *   游戏图标不都是正方形（实测有 64×96 / 32×96 / 64×32 等），
-   *   写死宽高会把它压扁/抻长；`contain` 按原比例缩放到框内，
-   *   宽图占满宽度、高图占满高度，也就是使用者要的"顶格"。
-   */
-  object-fit: contain;
-  image-rendering: -webkit-optimize-contrast;
-}
-
 /*
- * 首饰（勋章 / 项链 / 戒指）：图标本来就是 **32×32 的小方图**，
- * 拉到 64 会糊，所以按原尺寸显示、并在 64 的外框里居中。
- * 判据见 `model/slot.ts` 的 `isJewelrySlot()`。
+ * 「取消固定」按钮——**面板独有**（详细对照那边抬头右侧放的是「取出」）。
+ * 两者都通过 `TooltipCard` 的 `action` 插槽传进去，样式各归各的文件。
  */
-.item-detail__icon.is-jewelry {
-  width: 32px;
-  height: 32px;
-}
-
-.item-detail__title {
-  flex: 1;
-  min-width: 0;
-}
-
-.item-detail__name {
-  margin: 0 0 4px;
-  font-size: 14px;
-  font-weight: 600;
-  word-break: break-word;
-}
-
-.item-detail__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 11px;
-}
-
 .item-detail__close {
   flex: 0 0 auto;
   align-self: flex-start;
@@ -100,45 +52,6 @@
   background: var(--bg-hover);
 }
 
-.item-detail__body {
-  overflow-y: auto; /* ← 属性多时在这里滚动，面板本身不超出视口 */
-  padding: 8px 12px;
-}
-
-.item-detail__stats {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.item-detail__stats + .item-detail__stats {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
-}
-
-.item-detail__stats li {
-  padding: 2px 0;
-  line-height: 1.5;
-}
-
-/* 数值着色：模板是灰白的，数值是金棕色（借鉴 grimtools 的 .tooltip-param-text） */
-.item-detail__value {
-  color: #d8b06a;
-  font-variant-numeric: tabular-nums;
-}
-
-.item-detail__empty {
-  margin: 4px 0;
-  color: var(--text-muted);
-}
-
-/*
- * ★ 2026-09-14：页脚（`item-detail__foot`）、硬核标签、转移按钮、转移结果提示
- *   全部删掉——浮动模式原来保留的那一行也没必要了（见 ItemDetailPanel.tsx）。
- *   于是面板只剩「抬头 + 属性区」两块。
- */
-
 /*
  * 固定栏模式（左 / 右，使用者 2026-09-12 要求）。
  *
@@ -157,26 +70,6 @@
      浮动模式必须 pointer-events: none，否则面板会挡住指针、
      立刻触发 mouseleave 导致闪烁。 */
   pointer-events: auto;
-
-  /*
-   * 固定栏的字体与字号倍率可在设置里改（见 prefs/UiPrefs.tsx）。
-   * ⚠️ 内部那些字号是写死的 px，所以下面要逐个乘倍率，而不是只改这一层——
-   *    否则继承来的 font-size 会被子元素自己的声明盖掉。
-   */
-  font-family: var(--detail-font-family, inherit);
-  font-size: calc(12px * var(--detail-font-scale, 1));
-}
-
-.item-detail[data-docked] .item-detail__name {
-  font-size: calc(14px * var(--detail-font-scale, 1));
-}
-
-.item-detail[data-docked] .item-detail__meta {
-  font-size: calc(11px * var(--detail-font-scale, 1));
-}
-
-.item-detail[data-docked] .tt {
-  font-size: calc(13px * var(--detail-font-scale, 1));
 }
 
 /* 落影朝栏的内侧（左侧栏投向右，右侧栏投向左） */

@@ -3,6 +3,11 @@
  *
  * 用途是"筛选后并排比较几件装备"，所以刻意与简洁卡片相反：这里要**看全**，
  * 不做折叠、不截断属性。
+ *
+ * ★ 卡片**内部**（抬头 / 图标 / 名字 / 等级 / 属性区）的样式在
+ *   `components/ItemTooltip/TooltipCard.css` —— 它与详情面板共用同一份，
+ *   所以"字体、字号、颜色"两处天然一致（使用者 2026-09-14）。
+ *   这里只剩**外壳**：网格怎么排、卡片多宽、边框与选中态。
  */
 
 .compare-grid {
@@ -10,19 +15,11 @@
   /* 一行放不下就换行，每行独立 */
   flex-wrap: wrap;
   /*
-   * ★ 使用者的要求"同一行以最宽的为准"，靠的就是 stretch（也是默认值）：
-   *   同一行的卡片自动等高，取最高的那个。不需要用 JS 量高度——那样还会
-   *   撞上"图标加载完高度才变"的时序问题。
-   * 显式写出来是为了表明这是有意为之，不是碰巧。
-   */
-  /*
    * ★ 行高由该行**最高**的那张卡决定（flex 换行的默认行为），
-   *   但每张卡自己的边框**只包住自己的条目**——所以这里用 flex-start，
-   *   而不是 stretch。
+   *   但每张卡自己的边框**只包住自己的条目**——所以用 flex-start，不是 stretch。
    *
    *   使用者 2026-09-12 给了参考图并说明："这一行的高度是和这一行最高的
    *   条目匹配，但是行里面每一个装备，它外面的框框是跟自己的条目数匹配的。"
-   *
    *   （早先用 stretch 会把矮卡片拉到行高，边框底下空出一大片。）
    */
   align-items: flex-start;
@@ -35,7 +32,7 @@
   min-width: 250px;
 
   display: flex;
-  flex-direction: column; /* 让 __body 能撑满剩余高度 */
+  flex-direction: column; /* 让属性区能撑满剩余高度 */
 
   background: var(--bg-panel);
   border: 1px solid var(--border);
@@ -49,77 +46,4 @@
    *   视图时能接着用），只是这里不表现。
    */
   cursor: default;
-}
-
-.compare-card__head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border);
-}
-
-.compare-card__icon {
-  flex: none;
-  /* 外框 64×64（带底色、圆角），图片顶格——见下面两条 */
-  width: 64px;
-  height: 64px;
-  object-fit: contain;
-  background: rgba(0, 0, 0, 0.25);
-  border-radius: 4px;
-  image-rendering: -webkit-optimize-contrast;
-}
-
-/*
- * 首饰（勋章 / 项链 / 戒指）：图标本来就是 **32×32 的小方图**，
- * 放大到 64 会糊（使用者 2026-09-14 报"首饰类的图片有点糊"）。
- * 四边各留 16px 内边距——全局 `box-sizing: border-box`，
- * 于是内容区正好 32×32，外框仍是 64 不变。
- * 判据见 `model/slot.ts` 的 `isJewelrySlot()`。
- */
-.compare-card__icon.is-jewelry {
-  padding: 16px;
-}
-
-.compare-card__title {
-  flex: 1;
-  min-width: 0;
-}
-
-.compare-card__name {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.35;
-}
-
-.compare-card__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 4px 0 0;
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-/* 属性区：内容多少决定卡片多高 */
-.compare-card__body {
-  flex: 1;
-  padding: 8px 12px 12px;
-
-  /*
-   * 字体与字号倍率可在设置里改（见 prefs/UiPrefs.tsx）。
-   * ⚠️ `.tt` 自带 13px，所以倍率要显式作用到它身上，不能只写在这一层。
-   */
-  font-family: var(--compare-font-family, inherit);
-  font-size: calc(12px * var(--compare-font-scale, 1));
-}
-
-.compare-card__body .tt {
-  font-size: calc(13px * var(--compare-font-scale, 1));
-}
-
-.compare-card__empty {
-  margin: 0;
-  color: var(--text-muted);
 }

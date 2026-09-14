@@ -1,12 +1,6 @@
 import type { ItemViewProps } from '../types';
-import { iconUrl } from '../../api';
-import { qualityClass } from '../../components/ItemCard/quality';
 import TransferButton from '../../components/TransferButton/TransferButton';
-import ReplicaStatList from '../../components/ItemDetail/ReplicaStatList';
-import ItemName from '../../components/ItemName';
-import { slotLabel, isJewelrySlot } from '../../model/slot';
-import { itemTypeLabel } from '../../model/item';
-import { useTranslation } from '../../i18n';
+import TooltipCard from '../../components/ItemTooltip/TooltipCard';
 import './CompareView.css';
 
 /**
@@ -16,9 +10,13 @@ import './CompareView.css';
  * "筛选后并列比较几件不同装备"，排列参考 grimtools 的 item-card——
  * 卡片高度按内容多少，**同一行以最宽的为准**。
  *
- * 实现要点：外层 `display: flex` + `align-items: stretch`（默认值），
- * 同一行的卡片就自动等高、取最高的那个。不需要 JS 测量高度——
- * 这正是 flex 布局擅长的，量高度反而会遇到"图片加载完高度才变"的时序问题。
+ * 实现要点：外层 `display: flex`（`align-items: flex-start`），行高天然取该行
+ * 最高的项，而每张卡自己的边框只包自己的条目。不需要 JS 测量高度——那正是
+ * flex 布局擅长的，量高度反而会遇到"图片加载完高度才变"的时序问题。
+ *
+ * ★ 卡片**内容**整个交给 `TooltipCard`（使用者 2026-09-14："item-detail 应该和
+ *   compare-card 的样式一样、代码应该复用"）。这里只剩两件本视图自己的事：
+ *   网格怎么排、以及抬头右侧那颗「取出」按钮。
  */
 export default function CompareView({
   items,
@@ -26,8 +24,6 @@ export default function CompareView({
   onItemActivate,
   pinnedId,
 }: ItemViewProps) {
-  const t = useTranslation();
-
   return (
     <div className="compare-grid">
       {items.map((item) => {
@@ -42,48 +38,7 @@ export default function CompareView({
             onMouseLeave={() => onItemHover?.(null, null)}
             onClick={(e) => onItemActivate?.(item, e.currentTarget)}
           >
-            <header className="compare-card__head">
-              {item.icon && (
-                /*
-                 * 外框固定 64×64；**首饰**（勋章/项链/戒指）的图标是 32×32
-                 * 小方图，用 padding 把它缩回原尺寸、居中（见 CSS）。
-                 */
-                <img
-                  className={`compare-card__icon${isJewelrySlot(item.slot) ? ' is-jewelry' : ''}`}
-                  src={iconUrl(item.icon)}
-                  alt=""
-                  width={64}
-                  height={64}
-                  loading="lazy"
-                />
-              )}
-
-              <div className="compare-card__title">
-                <h2 className={`compare-card__name ${qualityClass(item.quality)}`}>
-                  <ItemName item={item} />
-                </h2>
-                <p className="compare-card__meta">
-                  <span>等级 {item.level}</span>
-                  {/*
-                    不再单列槽位：类型文本里已经说了部位（"传奇护肩"的"护肩"）。
-                    类型文本本身也不再显示——使用者 2026-09-14 要求删去
-                    `compare-card__head` 里的 `item-type`（名字＋等级已够）；
-                    只有拿不到类型文本时才用槽位兜底。
-                  */}
-                  {!itemTypeLabel(item) && item.slot && <span>{slotLabel(item.slot, t)}</span>}
-                </p>
-              </div>
-
-              <TransferButton item={item} />
-            </header>
-
-            <div className="compare-card__body">
-              {item.replicaStats.length > 0 ? (
-                <ReplicaStatList rows={item.replicaStats} />
-              ) : (
-                <p className="compare-card__empty">没有可显示的属性。</p>
-              )}
-            </div>
+            <TooltipCard item={item} action={<TransferButton item={item} />} lazyIcon />
           </article>
         );
       })}

@@ -188,7 +188,7 @@
  */
 .app__list,
 .app__page,
-.item-detail__body {
+.tt-card__body {
   scrollbar-width: thin;
   scrollbar-color: #404040 transparent;
 }

@@ -1,0 +1,121 @@
+/*
+ * 物品 tooltip 卡片 —— 「详细对照」与「详情面板」**共用这一份样式**。
+ *
+ * ★ 使用者 2026-09-14 要求两处"字体、字号、颜色一样"，而且"代码应该是复用的"。
+ *   所以抬头（图标 / 名字 / 等级）、属性区、兜底的属性列表，样式全在这里；
+ *   使用方只负责**外壳**（并排卡片的宽高与背景、侧栏 / 浮动面板的定位与滚动）。
+ *
+ * ★ 字号倍率只有**一套**变量 `--tooltip-font-*`（设置页也只有一个"字体"项），
+ *   所以详细对照与详情面板永远同步缩放。
+ */
+
+.tt-card__head {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* 图标外框：固定 64×64，图片在里面居中（见下面 .tt-card__icon） */
+.tt-card__icon-frame {
+  flex: 0 0 64px;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tt-card__icon {
+  width: 64px;
+  height: 64px;
+  /*
+   * ★ 保持比例、不拉伸。游戏图标不都是正方形（实测有 64×96 / 32×96 / 64×32），
+   *   写死宽高会把它压扁/抻长；`contain` 按原比例缩放到框内——宽图占满宽度、
+   *   高图占满高度，也就是使用者说的"顶格"。
+   */
+  object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+/*
+ * 首饰（勋章 / 项链 / 戒指）：图标本来就是 **32×32 的小方图**，
+ * 拉到 64 会糊，按原尺寸显示并在外框里居中。判据见 `model/slot.ts`。
+ */
+.tt-card__icon.is-jewelry {
+  width: 32px;
+  height: 32px;
+}
+
+.tt-card__title {
+  flex: 1;
+  min-width: 0;
+}
+
+.tt-card__name {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.tt-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/*
+ * 属性区。
+ *
+ * ★ 只有这里跟着设置页的"字体 / 字号倍率"走；标题与等级**不缩放**——
+ *   两处保持一致才叫"一样"，而标题跟着缩放会在侧栏里把名字挤成两行。
+ *
+ * ⚠️ `.tt` 自带 13px，倍率要显式作用到它身上，不能只写在这一层。
+ */
+.tt-card__body {
+  flex: 1;
+  /* 详情面板靠这两个属性把溢出交给内部滚动（对照卡片高度自适应，不受影响） */
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 12px 12px;
+  font-family: var(--tooltip-font-family, inherit);
+  font-size: calc(12px * var(--tooltip-font-scale, 1));
+}
+
+.tt-card__body .tt {
+  font-size: calc(13px * var(--tooltip-font-scale, 1));
+}
+
+/* 没有 `replicaStats` 时兜底显示 IA 自己拼的属性（见 StatList） */
+.tt-card__stats {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tt-card__stats + .tt-card__stats {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.tt-card__stats li {
+  padding: 2px 0;
+  line-height: 1.5;
+}
+
+/* 数值着色：模板是灰白的，数值是金棕色（借鉴 grimtools 的 .tooltip-param-text） */
+.tt-card__value {
+  color: #d8b06a;
+  font-variant-numeric: tabular-nums;
+}
+
+.tt-card__empty {
+  margin: 4px 0;
+  color: var(--text-muted);
+}

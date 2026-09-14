@@ -1,12 +1,6 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-import { iconUrl } from '../../api';
-import { qualityClass } from '../ItemCard/quality';
-import { isJewelrySlot } from '../../model/slot';
 import { useItemDetail } from './ItemDetailContext';
-import StatList from './StatList';
-import ReplicaStatList from './ReplicaStatList';
-import ItemName from '../ItemName';
-import './ReplicaStatList.css';
+import TooltipCard from '../ItemTooltip/TooltipCard';
 import './ItemDetail.css';
 
 const PANEL_WIDTH = 380;
@@ -68,12 +62,13 @@ const PINNED_STYLE: CSSProperties = {
  * ★ 全应用**只有一个实例**（挂载在 App 顶层，见 ItemDetailContext 的说明）。
  * 这里只根据状态换内容与位置，不新建 DOM 节点。
  *
- * ★ 2026-09-14：**页脚整块删掉**（使用者要求）。原来浮动固定时底下有一行
- *   `baseRecord` + 「转移到游戏」按钮 + 「硬核」标签：
- *   · `baseRecord` 是游戏内部记录名，用户看不懂；
- *   · 「取出」在卡片/列表里本来就有；
- *   · 硬核与否是账号维度的事，对单件物品没有意义。
- *   固定栏模式早就没有这一行，现在浮动模式也去掉，两种形态一致。
+ * ★ 面板的**内容**（图标 / 名字 / 等级 / 完整属性）整个交给 `TooltipCard`——
+ *   它与「详细对照」的卡片是同一个组件，所以字体、字号、颜色天然一致
+ *   （使用者 2026-09-14 要求）。这里只剩三件"面板自己的事"：
+ *   定位、滚动外壳、以及那个「取消固定」按钮（`item-detail__close`）。
+ *
+ * ★ 页脚已整块删掉（2026-09-14）：`baseRecord` 是内部记录名、「转移到游戏」
+ *   与卡片上的「取出」重复、「硬核」是账号维度的事。
  */
 export default function ItemDetailPanel() {
   const { item, isPinned, anchor, displayMode, onItemActivate } = useItemDetail();
@@ -112,73 +107,26 @@ export default function ItemDetailPanel() {
       data-docked={docked || undefined}
       data-mode={displayMode}
     >
-      <header className="item-detail__head">
-        {item.icon && (
+      <TooltipCard
+        item={item}
+        action={
           /*
-           * 图标外框固定 64×64；**首饰**（勋章/项链/戒指）的图标本来就是
-           * 32×32 的小方图，放大到 64 会糊，所以按原尺寸显示（见 slot.ts）。
+           * 面板独有的按钮。只有"点击固定"之后才需要它（预览态面板
+           * `pointer-events: none`，点了也没用）。
            */
-          <div className="item-detail__icon-frame">
-            <img
-              className={`item-detail__icon${isJewelrySlot(item.slot) ? ' is-jewelry' : ''}`}
-              src={iconUrl(item.icon)}
-              alt=""
-              width={64}
-              height={64}
-            />
-          </div>
-        )}
-        <div className="item-detail__title">
-          {/* 名字由 ItemName 用我们自己的词缀表组装，见 model/affixes.ts */}
-          <h2 className={`item-detail__name ${qualityClass(item.quality)}`}>
-            <ItemName item={item} />
-          </h2>
-          <p className="item-detail__meta">
-            {/*
-              ★ 2026-09-14 删掉类型文本（使用者要求）：tooltip 的属性区第一行
-              就是 `tt-type-66`（"传奇护肩"），抬头里再放一遍是**完全重复**。
-              槽位同理更不必单列。这里只留等级——它在属性区里没有。
-            */}
-            <span>等级 {item.level}</span>
-          </p>
-        </div>
-
-        {isPinned && (
-          <button
-            type="button"
-            className="item-detail__close"
-            title="取消固定"
-            aria-label="取消固定"
-            onClick={() => onItemActivate(item)}
-          >
-            ×
-          </button>
-        )}
-      </header>
-
-      {/* 滚动发生在这里：面板整体限高，只有属性区滚动 */}
-      <div className="item-detail__body">
-        {/*
-          ★ 优先渲染 `replicaStats`——那是**游戏原样导出的完整 tooltip**
-          （含颜色代码、套装、授予技能、转换行），所以它和游戏里看到的最接近。
-          `headerStats`/`bodyStats` 是 IA 自己从 DatabaseItemStat 拼的，覆盖不全
-          （实测这批物品里 headerStats 全是空的），只在没有 replica 时兜底。
-        */}
-        {item.replicaStats.length > 0 ? (
-          <ReplicaStatList rows={item.replicaStats} />
-        ) : (
-          <>
-            <StatList stats={item.headerStats} />
-            <StatList stats={item.bodyStats} />
-          </>
-        )}
-
-        {item.replicaStats.length === 0 &&
-          item.headerStats.length === 0 &&
-          item.bodyStats.length === 0 && (
-            <p className="item-detail__empty">这件物品没有可显示的属性。</p>
-          )}
-      </div>
+          isPinned ? (
+            <button
+              type="button"
+              className="item-detail__close"
+              title="取消固定"
+              aria-label="取消固定"
+              onClick={() => onItemActivate(item)}
+            >
+              ×
+            </button>
+          ) : undefined
+        }
+      />
     </aside>
   );
 }

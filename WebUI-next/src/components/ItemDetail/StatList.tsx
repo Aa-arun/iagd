@@ -19,7 +19,7 @@ function renderStat(stat: IStat) {
     if (value === undefined || value === '') return null;
 
     return (
-      <span key={index} className="item-detail__value">
+      <span key={index} className="tt-card__value">
         {formatNumber(value)}
       </span>
     );
@@ -30,7 +30,7 @@ export default function StatList({ stats }: { stats: IStat[] }) {
   if (stats.length === 0) return null;
 
   return (
-    <ul className="item-detail__stats">
+    <ul className="tt-card__stats">
       {stats.map((stat, index) => (
         // 属性没有稳定 id，且顺序固定，用下标作 key 是安全的
         <li key={index}>{renderStat(stat)}</li>
