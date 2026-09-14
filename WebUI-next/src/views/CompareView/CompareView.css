@@ -72,7 +72,13 @@
   display: flex;
   flex-direction: column; /* 让属性区能撑满剩余高度 */
 
-  background: var(--bg-panel);
+  /*
+   * ★ 2026-09-15 试用：卡片底色用**深色** `--bg-floating`(#0d0d0b)——和浮动详情
+   *   面板同一档，想让属性区更像游戏里的 tooltip 底。
+   * ⚠️ 卡片底色一变，属性区的滚动遮罩条必须跟着变（它靠"与底色同色"隐形）。
+   */
+  background: var(--bg-floating);
+  --tt-mask-bg: var(--bg-floating);
   border: 1px solid var(--border);
   border-radius: 6px;
   /*
