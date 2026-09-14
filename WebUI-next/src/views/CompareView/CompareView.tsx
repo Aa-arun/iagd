@@ -16,15 +16,15 @@ import './CompareView.css';
  * | 模式 | 卡片高度 | 排列 |
  * |---|---|---|
  * | `full`（**全部显示**，默认） | 随内容 | **瀑布流**：每张卡接在同一列上一张的结尾 +12px，各列顶部错落，不留大片空白 |
- * | `fixed-height`（**固定高度**） | **上限** = 内容区高度 × 0.8 | 按行排列（flex 换行，**行内等高**） |
+ * | `fixed-height`（**固定高度**） | **上限** = 内容区高度 × 0.9 | 按行排列（flex 换行，**行内等高**） |
  *
  * ★ "固定高度"是**上限**，不是每张都硬撑到那么高（使用者 2026-09-15 补充）：
  *   如果某一行每张卡的内容都装得下，这一行的高度就取**该行最高的那张卡**，
  *   不会在下面留一大片空白；只有超过上限的卡片才被 `max-height` 卡住、
  *   在**卡片内部滚动**（属性区自带滚动与上下两条遮罩条）。
  *
- * 那个 0.8 倍由本组件测量：`.app__content`（列表 / 固定栏所在的那一行）的高度
- * × 0.8，用 `ResizeObserver` 跟着——窗口缩放、过滤器面板开合、专注模式切换
+ * 那个 0.9 倍由本组件测量：`.app__content`（列表 / 固定栏所在的那一行）的高度
+ * × 0.9，用 `ResizeObserver` 跟着——窗口缩放、过滤器面板开合、专注模式切换
  * 都会改它，卡片高度随之同步。
  *
  * 卡片**内容**整个交给 `TooltipCard`（与详情面板共用，见它的说明）。
@@ -48,8 +48,8 @@ export default function CompareView({
     if (!grid || !content) return;
 
     const apply = () => {
-      // 卡片高度 = 内容区高度 × 0.8（使用者 2026-09-14 指定）
-      grid.style.setProperty('--compare-fixed-height', `${Math.round(content.clientHeight * 0.8)}px`);
+      // 卡片高度上限 = 内容区高度 × 0.9（使用者 2026-09-14 定 0.8，09-15 改成 0.9）
+      grid.style.setProperty('--compare-fixed-height', `${Math.round(content.clientHeight * 0.9)}px`);
     };
 
     apply();
