@@ -1,5 +1,6 @@
 import type IItem from '../../model/item';
 import { itemTypeLabel } from '../../model/item';
+import { isJewelrySlot } from '../../model/slot';
 import { formatNumber } from '../../model/format';
 import { iconUrl } from '../../api';
 import { qualityClass } from './quality';
@@ -27,7 +28,18 @@ export default function ItemCard({ item }: { item: IItem }) {
     <article className="item-card" data-item-card>
       <div className="item-card__icon">
         {icon ? (
-          <img src={icon} alt="" width={64} height={64} loading="lazy" />
+          /*
+           * 外框固定 64×64；**首饰**（勋章/项链/戒指）的图标本来就是 32×32，
+           * 按原尺寸居中显示，不放大（见 model/slot.ts 的 isJewelrySlot）。
+           */
+          <img
+            className={isJewelrySlot(item.slot) ? 'is-jewelry' : undefined}
+            src={icon}
+            alt=""
+            width={64}
+            height={64}
+            loading="lazy"
+          />
         ) : (
           <div className="item-card__icon-missing" title="数据库里没有这件物品的图标" />
         )}

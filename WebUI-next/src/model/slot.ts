@@ -48,3 +48,23 @@ export function slotLabel(slot: string | undefined, t: (key: string) => string):
   const tag = SLOT_TAGS[slot];
   return tag ? t(tag) : slot;
 }
+
+/**
+ * 是不是**首饰**（勋章 / 项链 / 戒指）。
+ *
+ * ★ 为什么单独判它：首饰的图标是 **32×32 的小方图**，而其它部位多是
+ *   64×64 甚至 32×96 的长图（实测 `storage/*.tex.png`）。把小图放大到 64
+ *   就发糊——所以三处图标（简洁卡片 / 详情面板 / 详细对照）统一：
+ *   **外框 64×64 不变，首饰只显示原尺寸 32×32**（使用者 2026-09-14）。
+ *
+ * ⚠️ 实测 `/api/items` 返回的 `slot` 是**本地化文本**（"戒指"/"勋章"/"项链"），
+ *   不是 `SlotTranslator` 的原始键——C# 侧 `ItemHtmlWriter` 已经翻译过一道。
+ *   所以这里**两种写法都认**：中文（当前实际值）与原始键（将来若改回）。
+ */
+const JEWELRY_LABELS = new Set(['勋章', '戒指', '项链']);
+const JEWELRY_KEYS = ['ArmorJewelry_Medal', 'ArmorJewelry_Ring', 'ArmorJewelry_Amulet'];
+
+export function isJewelrySlot(slot: string | undefined): boolean {
+  if (!slot) return false;
+  return JEWELRY_LABELS.has(slot) || JEWELRY_KEYS.includes(slot);
+}

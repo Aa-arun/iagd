@@ -23,14 +23,23 @@
 .item-card__icon img {
   display: block;
   /*
-   * ★ 图片实际只占 32×32（使用者 2026-09-14）：外框 64 不变。
-   *   游戏图标本来就小，拉到 64 会糊；32 是它们真实的分辨率档位。
-   *   同时 `contain` 保证不同长宽比的图标不被拉伸。
+   * 外框 64×64，图片**顶格**（`contain` 保证不拉伸：宽图占满宽、高图占满高）。
+   * 首饰类在下面单独缩小到原尺寸。
    */
-  width: 32px;
-  height: 32px;
+  width: 64px;
+  height: 64px;
   object-fit: contain;
   image-rendering: -webkit-optimize-contrast;
+}
+
+/*
+ * 首饰（勋章 / 项链 / 戒指）：图标本来就是 32×32 的小方图，
+ * 拉到 64 会糊，按原尺寸显示并在外框里居中（容器已 flex 居中）。
+ * 判据见 `model/slot.ts` 的 `isJewelrySlot()`。
+ */
+.item-card__icon img.is-jewelry {
+  width: 32px;
+  height: 32px;
 }
 
 .item-card__icon-missing {

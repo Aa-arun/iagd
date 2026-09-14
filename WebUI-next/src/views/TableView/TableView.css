@@ -127,9 +127,14 @@
 
 /*
  * 类型 / 等级两列居中（使用者 2026-09-14 要求）。
- * 等级另外用等宽数字，列宽不变时相邻行的数字才对得齐。
+ *
+ * ⚠️ 必须带上 `th` / `td` 才有足够特异性：上面那条
+ *   `.item-table thead th { text-align: left }` 是 (0,1,2)，
+ *   而裸的 `.item-table__center` 只有 (0,1,0) —— 表头"类型"两个字会被它
+ *   压回左对齐（使用者报的正是这个）。
  */
-.item-table__center {
+.item-table th.item-table__center,
+.item-table td.item-table__center {
   text-align: center;
 }
 

@@ -61,19 +61,24 @@
 
 .compare-card__icon {
   flex: none;
-  /* 外框仍是 40×40（带底色、圆角），见下面的 padding 说明 */
-  width: 40px;
-  height: 40px;
-  /*
-   * ★ 图片实际只占 32×32（使用者 2026-09-14）：
-   *   外框 40 不变，四边各留 4px 内边距——全局 `box-sizing: border-box`，
-   *   于是内容区正好 32×32。首饰那类小尺寸图标原来在 40×40 里被放大，发糊。
-   */
-  padding: 4px;
+  /* 外框 64×64（带底色、圆角），图片顶格——见下面两条 */
+  width: 64px;
+  height: 64px;
   object-fit: contain;
   background: rgba(0, 0, 0, 0.25);
   border-radius: 4px;
   image-rendering: -webkit-optimize-contrast;
+}
+
+/*
+ * 首饰（勋章 / 项链 / 戒指）：图标本来就是 **32×32 的小方图**，
+ * 放大到 64 会糊（使用者 2026-09-14 报"首饰类的图片有点糊"）。
+ * 四边各留 16px 内边距——全局 `box-sizing: border-box`，
+ * 于是内容区正好 32×32，外框仍是 64 不变。
+ * 判据见 `model/slot.ts` 的 `isJewelrySlot()`。
+ */
+.compare-card__icon.is-jewelry {
+  padding: 16px;
 }
 
 .compare-card__title {

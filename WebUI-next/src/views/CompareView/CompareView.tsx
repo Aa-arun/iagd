@@ -4,7 +4,7 @@ import { qualityClass } from '../../components/ItemCard/quality';
 import TransferButton from '../../components/TransferButton/TransferButton';
 import ReplicaStatList from '../../components/ItemDetail/ReplicaStatList';
 import ItemName from '../../components/ItemName';
-import { slotLabel } from '../../model/slot';
+import { slotLabel, isJewelrySlot } from '../../model/slot';
 import { itemTypeLabel } from '../../model/item';
 import { useTranslation } from '../../i18n';
 import './CompareView.css';
@@ -44,12 +44,16 @@ export default function CompareView({
           >
             <header className="compare-card__head">
               {item.icon && (
+                /*
+                 * 外框固定 64×64；**首饰**（勋章/项链/戒指）的图标是 32×32
+                 * 小方图，用 padding 把它缩回原尺寸、居中（见 CSS）。
+                 */
                 <img
-                  className="compare-card__icon"
+                  className={`compare-card__icon${isJewelrySlot(item.slot) ? ' is-jewelry' : ''}`}
                   src={iconUrl(item.icon)}
                   alt=""
-                  width={40}
-                  height={40}
+                  width={64}
+                  height={64}
                   loading="lazy"
                 />
               )}

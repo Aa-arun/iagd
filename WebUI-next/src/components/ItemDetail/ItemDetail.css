@@ -26,16 +26,37 @@
   border-bottom: 1px solid var(--border);
 }
 
+/* 图标外框：固定 64×64，图片在里面居中（见下面 .item-detail__icon） */
+.item-detail__icon-frame {
+  flex: 0 0 64px;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .item-detail__icon {
-  flex: 0 0 48px;
-  display: block;
+  width: 64px;
+  height: 64px;
   /*
    * ★ 保持比例（使用者 2026-09-14 报"详情里的图标还是被拉伸的"）。
-   *   游戏图标不都是正方形，JSX 里写死的 48×48 会把它压扁/抻长；
-   *   `contain` 按原比例缩放到框内——与卡片、详细对照的做法一致。
+   *   游戏图标不都是正方形（实测有 64×96 / 32×96 / 64×32 等），
+   *   写死宽高会把它压扁/抻长；`contain` 按原比例缩放到框内，
+   *   宽图占满宽度、高图占满高度，也就是使用者要的"顶格"。
    */
   object-fit: contain;
   image-rendering: -webkit-optimize-contrast;
+}
+
+/*
+ * 首饰（勋章 / 项链 / 戒指）：图标本来就是 **32×32 的小方图**，
+ * 拉到 64 会糊，所以按原尺寸显示、并在 64 的外框里居中。
+ * 判据见 `model/slot.ts` 的 `isJewelrySlot()`。
+ */
+.item-detail__icon.is-jewelry {
+  width: 32px;
+  height: 32px;
 }
 
 .item-detail__title {

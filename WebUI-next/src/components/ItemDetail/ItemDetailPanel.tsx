@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { iconUrl } from '../../api';
 import { qualityClass } from '../ItemCard/quality';
+import { isJewelrySlot } from '../../model/slot';
 import { useItemDetail } from './ItemDetailContext';
 import StatList from './StatList';
 import ReplicaStatList from './ReplicaStatList';
@@ -113,13 +114,19 @@ export default function ItemDetailPanel() {
     >
       <header className="item-detail__head">
         {item.icon && (
-          <img
-            className="item-detail__icon"
-            src={iconUrl(item.icon)}
-            alt=""
-            width={48}
-            height={48}
-          />
+          /*
+           * 图标外框固定 64×64；**首饰**（勋章/项链/戒指）的图标本来就是
+           * 32×32 的小方图，放大到 64 会糊，所以按原尺寸显示（见 slot.ts）。
+           */
+          <div className="item-detail__icon-frame">
+            <img
+              className={`item-detail__icon${isJewelrySlot(item.slot) ? ' is-jewelry' : ''}`}
+              src={iconUrl(item.icon)}
+              alt=""
+              width={64}
+              height={64}
+            />
+          </div>
         )}
         <div className="item-detail__title">
           {/* 名字由 ItemName 用我们自己的词缀表组装，见 model/affixes.ts */}
