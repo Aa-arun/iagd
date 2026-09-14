@@ -10,14 +10,16 @@
 .item-detail {
   z-index: 100;
   /*
-   * 属性区滚动遮罩条的颜色（见 TooltipCard.css）：必须与面板底色一致，
-   * 遮罩才会"隐形"。
+   * ★ 面板底色用**提亮过的 `--bg-panel`**（与卡片同档，使用者 2026-09-15）：
+   *   固定栏 / 浮动面板背后是页面底（`--bg` #1c1a17），而面板原来是 `#1f1c18`，
+   *   两者几乎同色、看不出这是一块面板。
+   *   `--tt-mask-bg` 必须跟着它走——属性区滚动遮罩条靠同色"隐形"（见 TooltipCard.css）。
    */
-  --tt-mask-bg: #1f1c18;
+  --tt-mask-bg: var(--bg-panel);
   display: flex;
   flex-direction: column;
   overflow: hidden; /* 由内部的 .tt-card__body-scroll 负责滚动 */
-  background: #1f1c18;
+  background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: 6px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);

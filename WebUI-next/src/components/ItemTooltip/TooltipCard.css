@@ -116,8 +116,8 @@
  * 外壳上，所以永远贴住边框；文字于是在离边框 **6px** 处就"消失"，滚到底时
  * 它只是一段留白。`pointer-events: none` 不挡交互。
  *
- * ⚠️ 颜色必须和**背后的容器**一致才能"隐形"：详情面板的底色是 `#1f1c18`
- *   （由 ItemDetail.css 设 `--tt-mask-bg`），详细对照的卡片是 `--bg-panel`。
+ * ⚠️ 颜色必须和**背后的容器**一致才能"隐形"：详情面板的底色是 `--bg-panel`
+ *   （由 ItemDetail.css 设 `--tt-mask-bg`），详细对照的卡片也是 `--bg-panel`。
  */
 .tt-card__body::before,
 .tt-card__body::after {
