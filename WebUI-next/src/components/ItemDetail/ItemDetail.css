@@ -16,7 +16,7 @@
   --tt-mask-bg: #1f1c18;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* 由内部的 .tt-card__body 负责滚动 */
+  overflow: hidden; /* 由内部的 .tt-card__body-scroll 负责滚动 */
   background: #1f1c18;
   border: 1px solid var(--border);
   border-radius: 6px;

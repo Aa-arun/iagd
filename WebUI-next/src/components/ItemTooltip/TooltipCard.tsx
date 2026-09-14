@@ -88,21 +88,28 @@ export default function TooltipCard({ item, action, lazyIcon }: Props) {
         {action}
       </header>
 
+      {/*
+        属性区同样是「外壳 + 滚动层」两层：外壳不滚动，上下各钉一条 4px 的
+        背景色遮罩条（见 CSS）；真正的滚动在内层——滚动层如果自己带 padding，
+        `sticky` 的遮罩条会被"粘性约束矩形"限制在 content box 里，贴不到边框。
+      */}
       <div className="tt-card__body">
-        {item.replicaStats.length > 0 ? (
-          <ReplicaStatList rows={item.replicaStats} />
-        ) : (
-          <>
-            <StatList stats={item.headerStats} />
-            <StatList stats={item.bodyStats} />
-          </>
-        )}
-
-        {item.replicaStats.length === 0 &&
-          item.headerStats.length === 0 &&
-          item.bodyStats.length === 0 && (
-            <p className="tt-card__empty">这件物品没有可显示的属性。</p>
+        <div className="tt-card__body-scroll">
+          {item.replicaStats.length > 0 ? (
+            <ReplicaStatList rows={item.replicaStats} />
+          ) : (
+            <>
+              <StatList stats={item.headerStats} />
+              <StatList stats={item.bodyStats} />
+            </>
           )}
+
+          {item.replicaStats.length === 0 &&
+            item.headerStats.length === 0 &&
+            item.bodyStats.length === 0 && (
+              <p className="tt-card__empty">这件物品没有可显示的属性。</p>
+            )}
+        </div>
       </div>
     </>
   );

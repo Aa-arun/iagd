@@ -495,48 +495,56 @@ export default function AppShell({
               {side === 'left' && <ItemDetailPanel />}
             </div>
 
-            {/* 中间一列：上面是列表（自己滚），下面是翻页控件（不滚） */}
+            {/*
+              中间一列：上面是列表（自己滚），下面是翻页控件（不滚）。
+              ★ 列表是「外壳 + 滚动层」两层：外壳 `.app__list` 不滚动，
+              只负责边框与上下两条固定的遮罩条；真正的滚动在
+              `.app__list-scroll` 上（`listRef` 也挂在它身上，无限滚动的
+              IntersectionObserver 要观察它）。
+            */}
             <div className="app__list-col">
-              <div className="app__list" ref={listRef}>
-                {error && (
-                  <div className="app__error">
-                    <strong>读取数据失败</strong>
-                    <p>{error}</p>
-                    <p>请确认 IAGrim 正在运行——它提供 127.0.0.1:3031 的服务。</p>
-                  </div>
-                )}
+              <div className="app__list">
+                <div className="app__list-scroll" ref={listRef}>
+                  {error && (
+                    <div className="app__error">
+                      <strong>读取数据失败</strong>
+                      <p>{error}</p>
+                      <p>请确认 IAGrim 正在运行——它提供 127.0.0.1:3031 的服务。</p>
+                    </div>
+                  )}
 
-                {!error && loading && shown === 0 && <p className="app__loading">加载中…</p>}
+                  {!error && loading && shown === 0 && <p className="app__loading">加载中…</p>}
 
-                {shown > 0 && <ItemList items={items} viewId={viewId} />}
+                  {shown > 0 && <ItemList items={items} viewId={viewId} />}
 
-                {!error && !loading && shown === 0 && (
-                  <p className="app__loading">
-                    {searched && filtered
-                      ? '没有同时符合当前搜索与过滤条件的物品。'
-                      : searched
-                        ? hasKeyword
-                          ? `没有匹配「${keyword.trim()}」的物品。`
-                          : '没有符合当前搜索条件的物品。'
-                        : filtered
-                          ? '没有符合当前过滤条件的物品。'
-                          : '数据库里没有物品。'}
-                  </p>
-                )}
+                  {!error && !loading && shown === 0 && (
+                    <p className="app__loading">
+                      {searched && filtered
+                        ? '没有同时符合当前搜索与过滤条件的物品。'
+                        : searched
+                          ? hasKeyword
+                            ? `没有匹配「${keyword.trim()}」的物品。`
+                            : '没有符合当前搜索条件的物品。'
+                          : filtered
+                            ? '没有符合当前过滤条件的物品。'
+                            : '数据库里没有物品。'}
+                    </p>
+                  )}
 
-                {/*
-                  无限滚动的哨兵：滚到这里就自动取下一批。
-                  它就在滚动容器**内部**末尾，所以不会随详情面板之类的布局跑偏。
-                */}
-                {loadMode === 'scroll' && shown > 0 && (
-                  <div className="app__sentinel" ref={sentinelRef}>
-                    {loadingMore
-                      ? '正在加载更多…'
-                      : hasMore
-                        ? ''
-                        : `已显示全部 ${totalLabel} 件`}
-                  </div>
-                )}
+                  {/*
+                    无限滚动的哨兵：滚到这里就自动取下一批。
+                    它就在滚动容器**内部**末尾，所以不会随详情面板之类的布局跑偏。
+                  */}
+                  {loadMode === 'scroll' && shown > 0 && (
+                    <div className="app__sentinel" ref={sentinelRef}>
+                      {loadingMore
+                        ? '正在加载更多…'
+                        : hasMore
+                          ? ''
+                          : `已显示全部 ${totalLabel} 件`}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {loadMode === 'paged' && (

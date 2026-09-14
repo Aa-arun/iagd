@@ -77,21 +77,31 @@
 }
 
 /*
- * 属性区。
+ * 属性区，同样是「外壳 + 滚动层」两层（与 `.app__list` 一套做法）。
  *
- * ★ 只有这里跟着设置页的"字体 / 字号倍率"走；标题与等级**不缩放**——
- *   两处保持一致才叫"一样"，而标题跟着缩放会在侧栏里把名字挤成两行。
- *
+ * ★ 只有滚动层跟着设置页的"字体 / 字号倍率"走。
  * ⚠️ `.tt` 自带 13px，倍率要显式作用到它身上，不能只写在这一层。
  */
 .tt-card__body {
+  /*
+   * 外壳：不滚动，只负责裁切与上下两条遮罩条。
+   *
+   * ⚠️ 遮罩条若放在**滚动层自己**身上用 `sticky`，会被"粘性约束矩形"限制在
+   *   父元素的 content box 内——滚动层有 padding 时条子贴不到边框
+   *   （使用者看到的"没贴在最底下和最顶上"）。所以拆成两层。
+   */
+  position: relative;
   flex: 1;
-  /* 详情面板靠这两个属性把溢出交给内部滚动（对照卡片高度自适应，不受影响） */
   min-height: 0;
-  overflow-y: auto;
-  padding: 8px 12px 12px;
+  overflow: hidden;
   font-family: var(--tooltip-font-family, inherit);
   font-size: calc(12px * var(--tooltip-font-scale, 1));
+}
+
+.tt-card__body-scroll {
+  height: 100%;
+  overflow-y: auto;
+  padding: 8px 12px 12px;
 }
 
 .tt-card__body .tt {
@@ -99,12 +109,12 @@
 }
 
 /*
- * ★ 滚动时的上下「遮罩条」（使用者 2026-09-14，与 `.app__list` 同一套做法）。
+ * ★ 滚动时的上下「遮罩条」（使用者 2026-09-14）。
  *
- * 详情面板里属性区是可滚的：滚动条一出现，文字就在面板上下边框处被**硬切**。
- * 这里放两条 4px 高、与背后容器同色的长条——`position: sticky` 让它们吸附在
- * 滚动端口的上下边缘，把滚过它的内容盖住，于是文字在离边框 **4px** 处就消失；
- * 滚到底时它只是一段留白。`pointer-events: none` 不挡交互。
+ * 滚动条一出现，文字就在面板上下边框处被**硬切**。这里在外壳的上下边缘各钉
+ * 一条 4px 高、与背后容器同色的长条——`position: absolute` 钉在**不滚动**的
+ * 外壳上，所以永远贴住边框；文字于是在离边框 **4px** 处就"消失"，滚到底时
+ * 它只是一段留白。`pointer-events: none` 不挡交互。
  *
  * ⚠️ 颜色必须和**背后的容器**一致才能"隐形"：详情面板的底色是 `#1f1c18`
  *   （由 ItemDetail.css 设 `--tt-mask-bg`），详细对照的卡片是 `--bg-panel`。
@@ -112,8 +122,9 @@
 .tt-card__body::before,
 .tt-card__body::after {
   content: '';
-  display: block;
-  position: sticky;
+  position: absolute;
+  left: 0;
+  right: 0;
   z-index: 2;
   height: 4px;
   background: var(--tt-mask-bg, var(--bg-panel));

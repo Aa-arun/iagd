@@ -33,7 +33,7 @@
   max-width: 54em;
   /*
    * `25em` 是"名称 4 汉字 + 类型 4 汉字 + 其余"的下限。
-   * 比这更窄时表格不再压缩，改由 `.app__list` 出横向滚动条
+   * 比这更窄时表格不再压缩，改由 `.app__list-scroll` 出横向滚动条
    * （见 global.css 里 `:has(> .item-table)` 那条）。
    */
   min-width: 25em;

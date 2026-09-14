@@ -186,9 +186,9 @@
  *    Chrome 就会**忽略**我们上面的 `::-webkit-scrollbar` 规则。
  *    grimtools 正是这么分的（全局 webkit + 容器上标准属性），照抄即可。
  */
-.app__list,
+.app__list-scroll,
 .app__page,
-.tt-card__body {
+.tt-card__body-scroll {
   scrollbar-width: thin;
   scrollbar-color: #404040 transparent;
 }
@@ -212,7 +212,7 @@ body {
  * ★ 目标是"滚动只发生在物品列表那个框里，表头与工具条不动"，
  *   所以整页不再是一个长滚动文档，而是一个**固定高度的 flex 列**：
  *   header / tabs / 工具条都是 flex:none（不滚动），
- *   只有 .app__list 自己 overflow-y。
+ *   只有列表的滚动层 `.app__list-scroll` 自己 overflow。
  */
 #root {
   height: 100vh;
@@ -293,12 +293,34 @@ body {
   min-height: 0;
 }
 
-/* 物品列表：单独成一个框，滚动只发生在这里 */
+/*
+ * 物品列表。
+ *
+ * ★ 拆成「外壳 + 滚动层」两层（使用者 2026-09-14）：
+ *   外壳 `.app__list` **不滚动**（只裁切），滚动交给里面的 `.app__list-scroll`。
+ *   这样遮罩条可以用 `position: absolute` 钉在外壳的上下边缘——它们不参与滚动，
+ *   所以永远贴在边框内侧。
+ *
+ *   ⚠️ 之前试过在**滚动层自己**身上用 `position: sticky` 放遮罩条，结果贴不到边：
+ *     sticky 元素的粘性约束矩形是**父元素的 content box**，它不能越过父元素的
+ *     `padding`——容器有 10px 内边距时，条子最多停在离边框 10px 处
+ *     （使用者看到的"没贴在最底下和最顶上"）。
+ */
 .app__list {
   /* 撑满中间列剩下的高度（翻页控件占了 flex:none 的那部分） */
   flex: 1;
   min-width: 0;
   min-height: 0;
+  position: relative;
+  /* 外壳只负责裁切与边框，滚动在内层 */
+  overflow: hidden;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.app__list-scroll {
+  height: 100%;
   /*
    * 两个方向都能滚：纵向是老需求；横向是给**分栏列表**用的——
    * 表格有 `min-width`，窗口窄到放不下时出横向滚动条，
@@ -306,41 +328,34 @@ body {
    */
   overflow: auto;
   padding: 10px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 6px;
 }
 
 /*
- * ★ 分栏列表：表格顶端**贴住**列表容器的上沿（使用者 2026-09-14 报的
+ * ★ 分栏列表：表格顶端**贴住**滚动层的上沿（使用者 2026-09-14 报的
  *   "`<tr>` 没有和 `app__list` 的顶端对齐"）。
  *
  * 卡片视图需要那 10px 内边距当呼吸空间；表格不需要——它自己就有单元格
  * 内边距，再叠一层会让表头看起来"浮"在容器中间。左右与底部保留。
  */
-.app__list:has(> .item-table) {
+.app__list-scroll:has(> .item-table) {
   padding-top: 0;
 }
 
 /*
  * ★ 滚动时的上下「遮罩条」（使用者 2026-09-14）。
  *
- * 背景：滚动条一出现，内容就是在容器边缘被**硬切**的——文字贴着边框消失，
- * 转折很生硬。**内边距解决不了**这个问题（内边距属于滚动内容，内容照样
- * 从边框处滚过去），所以这里各放一条 4px 高、与容器背景同色的长条：
+ * 滚动条一出现，内容就是在滚动层边缘被**硬切**的——文字贴着边框消失，转折
+ * 很生硬。**内边距解决不了**（内边距属于滚动内容，内容照样从边框滚过去）。
  *
- *   · `position: sticky` —— 条子本身在滚动内容里（占 4px 留白），但滚动时
- *     会**吸附在容器的上 / 下边缘**，把滚过它的内容盖住。普通 `absolute`
- *     会随内容一起滚走，达不到遮罩效果。
- *   · 于是：文字在离边框 **4px** 的地方就"消失"，`z-index` 让它也盖住
- *     `sticky` 表头的最上沿（表头文字本来就在 8px 内边距之下，不受影响）。
- *   · 滚到底时它只是一段留白，不会遮住最后一行。
+ * 做法：在外壳（不滚动）的上下边缘各钉一条 4px 高、与容器背景同色的长条。
+ * 于是文字在离边框 **4px** 的地方就"消失"，滚到底时它只是一段留白。
  */
 .app__list::before,
 .app__list::after {
   content: '';
-  display: block;
-  position: sticky;
+  position: absolute;
+  left: 0;
+  right: 0;
   z-index: 2;
   height: 4px;
   background: var(--bg-panel);
